@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏏 GCL - Gem-Star Champions League 2026</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- HEADER -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🏏</span>
+                    <span class="logo-text">GCL</span>
+                    <span class="logo-sub">Gem-Star Champions League</span>
+                </div>
+                <div class="header-status">
+                    <span id="connectionStatus" class="status-dot offline">●</span>
+                    <span id="statusText">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- NAVIGATION -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="home">🏠 Home</button>
+            <button class="nav-tab" data-tab="rules">📋 Rules</button>
+            <button class="nav-tab" data-tab="teams">🏏 Teams</button>
+            <button class="nav-tab" data-tab="fixtures">📅 Fixtures</button>
+            <button class="nav-tab" data-tab="points">🏆 Points Table</button>
+            <button class="nav-tab" data-tab="livescore">🎯 Live Score</button>
+            <button class="nav-tab" data-tab="top10">🏅 Top 10 Players</button>
+            <button class="nav-tab" data-tab="admin">⚙️ Admin</button>
+        </nav>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+
+            <!-- ===== HOME TAB ===== -->
+            <div class="tab-content active" id="tab-home">
+                <div class="home-container">
+                    <div class="hero-section">
+                        <div class="hero-content">
+                            <h1 class="tournament-title">
+                                <span class="title-gem">✦ GEM-STAR ✦</span>
+                                <span class="title-champions">CHAMPIONS LEAGUE</span>
+                                <span class="title-year">2026</span>
+                            </h1>
+                            <div class="hero-subtitle">🏆 The Ultimate PalTalk Cricket Tournament 🏆</div>
+                        </div>
+                    </div>
+
+                    <div class="tournament-info">
+                        <div class="info-grid">
+                            <div class="info-card">
+                                <div class="info-icon">👔</div>
+                                <h3>Organizers:G3m & Lavnya_Star</h3>
+                                <p><strong>Host:</strong> Gemstar Room</p>
+                                <p><strong>Admin:</strong> Your Name</p>
+                                <p><strong>Platform:</strong> PalTalk</p>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-icon">🏏</div>
+                                <h3>Team Format</h3>
+                                <p><strong>Teams:</strong> 7 vs 7</p>
+                                <p><strong>Squad:</strong> Max 9 players</p>
+                                <p><strong>Overs:</strong> 4 overs per innings</p>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-icon">📅</div>
+                                <h3>Tournament Details</h3>
+                                <p><strong>Season:</strong> 2026</p>
+                                <p><strong>Format:</strong> League + Playoffs</p>
+                                <p><strong>Status:</strong> 🔴 Live</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="about-section">
+                        <h2>📖 About the Tournament</h2>
+                        <p>
+                            Welcome to the <strong>Gem-Star Champions League 2026</strong> – the most exciting 
+                            PalTalk cricket tournament! This is a <strong>7 vs 7</strong> cricket competition 
+                            where teams battle it out in <strong>4-over matches</strong> with unique rules 
+                            including LBW overs, Powerplay, and more.
+                        </p>
+                        <p>
+                            Each team consists of <strong>9 players</strong> including Manager, Captain, 
+                            Vice Captain, RTM Player, and Auction Players. The tournament features 
+                            real-time score tracking, player statistics, and a live points table.
+                        </p>
+                        <div class="feature-badges">
+                            <span class="badge">🏏 7v7 Matches</span>
+                            <span class="badge">🔥 LBW Over</span>
+                            <span class="badge">⚡ Powerplay</span>
+                            <span class="badge">📊 Live Stats</span>
+                            <span class="badge">🏆 Points Table</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== RULES TAB ===== -->
+            <div class="tab-content" id="tab-rules">
+                <div class="rules-container">
+                    <h2>📋 Tournament Rules</h2>
+                    
+                    <div class="rules-section">
+                        <h3>🏏 Basic Rules</h3>
+                        <ul>
+                            <li><strong>Teams:</strong> 7 vs 7 (Max 9 players per squad)</li>
+                            <li><strong>Overs:</strong> 4 overs per innings</li>
+                            <li><strong>Player Types:</strong> Manager, Captain, Vice Captain, RTM, Auction Players</li>
+                        </ul>
+                    </div>
+
+                    <div class="rules-section highlight-lbw">
+                        <h3>🔥 Over 1: LBW OVER</h3>
+                        <p><strong>Numbers:</strong> 2, 3, 4, 5, 6</p>
+                        <p><strong>No wide/no-ball rule</strong> in this over.</p>
+                        <div class="rule-detail">
+                            <h4>LBW Rule:</h4>
+                            <p>If the difference between the batsman's number and bowler's guess is <strong>exactly 1</strong> for <strong>three consecutive balls</strong>, the batsman is <strong>OUT (LBW)</strong>.</p>
+                            <div class="example">
+                                <strong>Example:</strong><br>
+                                Ball 1: Batsman 4 → Bowler 5 (Diff = 1)<br>
+                                Ball 2: Batsman 3 → Bowler 4 (Diff = 1)<br>
+                                Ball 3: Batsman 6 → Bowler 5 (Diff = 1)<br>
+                                ✅ <strong>LBW OUT!</strong>
+                            </div>
+                            <p>⚠️ If any ball has a difference <strong>not equal to 1</strong>, the LBW count resets to zero.</p>
+                            <p>🎯 <strong>Exact guess (same number) = Normal Wicket</strong> (breaks LBW sequence)</p>
+                        </div>
+                    </div>
+
+                    <div class="rules-section highlight-normal">
+                        <h3>⚡ Overs 2-3: NORMAL OVER</h3>
+                        <p><strong>Numbers:</strong> 3, 4, 5, 6</p>
+                        <div class="rule-detail">
+                            <h4>Wide Ball:</h4>
+                            <p>3 vs 6 OR 6 vs 3 → <strong>WIDE</strong></p>
+                            <p>➜ Batsman's number added as runs, ball repeated</p>
+                        </div>
+                        <div class="rule-detail">
+                            <h4>No-Ball + Free Hit:</h4>
+                            <p>Batsman = 5 + any guess other than 5 → <strong>NO-BALL</strong></p>
+                            <p>➜ 5 runs added, next ball is <strong>FREE HIT</strong></p>
+                        </div>
+                        <div class="rule-detail">
+                            <h4>Free Hit:</h4>
+                            <p>Only <strong>4 or 6</strong> count as runs</p>
+                            <p>Correct guess = <strong>Dot Ball</strong> (no wicket)</p>
+                        </div>
+                    </div>
+
+                    <div class="rules-section highlight-powerplay">
+                        <h3>💥 Over 4: POWERPLAY OVER</h3>
+                        <p><strong>Numbers:</strong> 1, 2, 3, 4, 5, 6</p>
+                        <div class="rule-detail">
+                            <h4>If Bowler Guesses WRONG:</h4>
+                            <p>➜ Batsman's number is <strong>DOUBLED</strong> and added to team score</p>
+                            <p>Example: Batsman = 5, Bowler = 4 → +10 runs</p>
+                        </div>
+                        <div class="rule-detail">
+                            <h4>If Bowler Guesses CORRECT:</h4>
+                            <p>➜ Batsman is <strong>OUT</strong></p>
+                            <p>➜ Batsman's number is <strong>DEDUCTED</strong> from team score</p>
+                            <p>Example: Score = 42, Batsman = 6, Bowler = 6 → 42 − 6 = 36</p>
+                        </div>
+                    </div>
+
+                    <div class="rules-section highlight-common">
+                        <h3>📌 Common Rules</h3>
+                        <ul>
+                            <li><strong>Discipline:</strong> Respect all players and the host</li>
+                            <li><strong>Fair Play:</strong> No cheating or manipulation</li>
+                            <li><strong>Host Decision:</strong> Host's decision is final</li>
+                            <li><strong>Timing:</strong> Be on time for your matches</li>
+                            <li><strong>Communication:</strong> Use PalTalk room for all communication</li>
+                            <li><strong>PM System:</strong> Batsman sends score via PM to host</li>
+                            <li><strong>Public Guess:</strong> Bowler announces guess in main room</li>
+                        </ul>
+                    </div>
+
+                    <!-- ===== DOUBLE BATTING & STRIKE RULES (NEW) ===== -->
+                    <div class="rules-section highlight-common">
+                        <h3>🔄 Double Batting & Strike Rules</h3>
+                        <div class="rule-detail">
+                            <h4>Double Batting Game:</h4>
+                            <p>Both batsmen are active on the field simultaneously.</p>
+                            <p>Each batsman takes turns facing the bowler.</p>
+                        </div>
+                        <div class="rule-detail">
+                            <h4>Strike Change on Odd Numbers:</h4>
+                            <p>When the batsman scores an <strong>ODD number</strong> (1, 3, 5), the strike changes.</p>
+                            <p>When the batsman scores an <strong>EVEN number</strong> (2, 4, 6), the strike remains.</p>
+                            <div class="example">
+                                <strong>Example:</strong><br>
+                                Batsman scores 3 → <strong>Strike Changes</strong> (Odd number)<br>
+                                Batsman scores 4 → <strong>Strike Remains</strong> (Even number)<br>
+                                Batsman scores 5 → <strong>Strike Changes</strong> (Odd number)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== TEAMS TAB ===== -->
+            <div class="tab-content" id="tab-teams">
+                <div class="teams-container">
+                    <h2>🏏 Tournament Teams</h2>
+                    <div id="teamsList" class="teams-grid">
+                        <p class="empty-message">No teams created yet. Go to Admin tab to create teams.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== FIXTURES TAB ===== -->
+            <div class="tab-content" id="tab-fixtures">
+                <div class="fixtures-container">
+                    <h2>📅 Fixtures & Schedule</h2>
+                    <div class="fixtures-grid">
+                        <div class="fixture-list">
+                            <h3>⬆️ Upcoming Matches</h3>
+                            <div id="upcomingFixtures">
+                                <p class="empty-message">No upcoming fixtures</p>
+                            </div>
+                        </div>
+                        <div class="fixture-list">
+                            <h3>✅ Completed Matches</h3>
+                            <div id="completedFixtures">
+                                <p class="empty-message">No completed matches</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== POINTS TABLE TAB ===== -->
+            <div class="tab-content" id="tab-points">
+                <div class="points-container">
+                    <h2>🏆 Points Table</h2>
+                    <div class="points-table-container">
+                        <table class="stats-table points-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Team</th>
+                                    <th>Matches</th>
+                                    <th>Wins</th>
+                                    <th>Losses</th>
+                                    <th>Points</th>
+                                    <th>NRR</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pointsTableBody">
+                                <tr><td colspan="7" class="empty-message">No data available</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== LIVE SCORE TAB ===== -->
+            <div class="tab-content" id="tab-livescore">
+                <div class="livescore-container">
+                    <h2>🎯 Live Score</h2>
+                    
+                    <div class="scoreboard">
+                        <div class="inning-info">
+                            <span class="inning-badge" id="inningBadge">Inning 1</span>
+                            <span class="over-info" id="overInfo">Over: 0.0 / 4</span>
+                            <span class="over-type" id="overTypeDisplay">LBW Over</span>
+                        </div>
+
+                        <div class="main-score">
+                            <div class="team-batting">
+                                <div class="team-name" id="battingTeamName">Team 1</div>
+                                <div class="score">
+                                    <span class="runs" id="runsDisplay">0</span>
+                                    <span class="wickets">/ <span id="wicketsDisplay">0</span></span>
+                                </div>
+                                <div class="overs">( <span id="ballsDisplay">0</span> balls )</div>
+                                <div class="extras">Extras: <span id="extrasDisplay">0</span></div>
+                            </div>
+                            <div class="vs-divider">VS</div>
+                            <div class="team-bowling">
+                                <div class="team-name" id="bowlingTeamName">Team 2</div>
+                                <div class="target-display" id="targetDisplay"></div>
+                            </div>
+                        </div>
+
+                        <div class="current-players">
+                            <div class="player-info batsman">
+                                <span class="label">🏏 Batsman:</span>
+                                <span class="name" id="currentBatsman">-</span>
+                                <span class="status" id="batsmanStatus">⏳ Waiting...</span>
+                            </div>
+                            <div class="player-info bowler">
+                                <span class="label">⚾ Bowler:</span>
+                                <span class="name" id="currentBowler">-</span>
+                                <span class="status" id="bowlerStatus">⏳ Waiting...</span>
+                            </div>
+                        </div>
+
+                        <div class="lbw-counter" id="lbwDisplay">
+                            LBW Count: <span id="lbwCount">0</span>/3
+                        </div>
+
+                        <div class="last-ball" id="lastBallDisplay">
+                            Last Ball: -
+                        </div>
+
+                        <!-- ===== STRIKE INFO (NEW) ===== -->
+                        <div class="double-batting-info">
+                            <div class="strike-info">
+                                <h4>🔄 Current Strike</h4>
+                                <div class="strike-display">
+                                    <span class="batsman-strike" id="strikerName">-</span>
+                                    <span class="strike-arrow">▶</span>
+                                    <span class="non-striker" id="nonStrikerName">-</span>
+                                </div>
+                                <p class="strike-hint">Strike changes on <strong>ODD</strong> numbers (1, 3, 5)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="game-controls">
+                        <div class="control-section batsman-section">
+                            <h3>🏏 Batsman</h3>
+                            <p class="hint">Enter name and PM your score</p>
+                            <input type="text" id="batsmanName" placeholder="Batsman Name" class="player-input">
+                            <div class="input-group">
+                                <input type="number" id="batsmanScore" placeholder="Score" min="1" max="6">
+                                <button onclick="submitBatScore()">Submit</button>
+                            </div>
+                            <div class="allowed-scores" id="allowedBatScores"></div>
+                        </div>
+
+                        <div class="control-section bowler-section">
+                            <h3>⚾ Bowler</h3>
+                            <p class="hint">Enter name and guess the number</p>
+                            <input type="text" id="bowlerName" placeholder="Bowler Name" class="player-input">
+                            <div class="input-group">
+                                <input type="number" id="bowlerGuess" placeholder="Guess" min="1" max="6">
+                                <button onclick="submitBowlGuess()">Guess!</button>
+                            </div>
+                            <div class="allowed-scores" id="allowedBowlScores"></div>
+                        </div>
+                    </div>
+
+                    <div class="notification" id="notification"></div>
+                </div>
+            </div>
+
+            <!-- ===== TOP 10 PLAYERS TAB ===== -->
+            <div class="tab-content" id="tab-top10">
+                <div class="top10-container">
+                    <h2>🏅 Top 10 Players</h2>
+                    
+                    <div class="top10-grid">
+                        <div class="top10-section">
+                            <h3>🏏 Top Batsmen</h3>
+                            <div class="top10-table-container">
+                                <table class="stats-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player</th>
+                                            <th>Runs</th>
+                                            <th>Balls</th>
+                                            <th>Fours</th>
+                                            <th>Sixes</th>
+                                            <th>Avg</th>
+                                            <th>SR</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="topBatsmenBody">
+                                        <tr><td colspan="8" class="empty-message">No data available</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="top10-section">
+                            <h3>⚾ Top Bowlers</h3>
+                            <div class="top10-table-container">
+                                <table class="stats-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Player</th>
+                                            <th>Wickets</th>
+                                            <th>Balls</th>
+                                            <th>Runs</th>
+                                            <th>Economy</th>
+                                            <th>Best</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="topBowlersBody">
+                                        <tr><td colspan="7" class="empty-message">No data available</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mom-section">
+                        <h3>⭐ Most Man of the Match Awards</h3>
+                        <div class="mom-list" id="momList">
+                            <p class="empty-message">No data available</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ADMIN TAB ===== -->
+            <div class="tab-content" id="tab-admin">
+                <div class="admin-container">
+                    <h2>⚙️ Admin Panel</h2>
+                    
+                    <div class="admin-grid">
+                        <div class="admin-card">
+                            <h3>📋 Create Team</h3>
+                            <div class="form-group">
+                                <input type="text" id="teamName" placeholder="Team Name">
+                                <input type="text" id="managerName" placeholder="Manager Name">
+                                <input type="text" id="captainName" placeholder="Captain Name">
+                                <input type="text" id="viceCaptainName" placeholder="Vice Captain">
+                                <input type="text" id="rtmPlayer" placeholder="RTM Player">
+                                <input type="text" id="auctionPlayers" placeholder="Auction Players (comma separated)">
+                                <button onclick="createTeam()">Create Team</button>
+                            </div>
+                        </div>
+
+                        <div class="admin-card">
+                            <h3>⚔️ Setup Match</h3>
+                            <div class="form-group">
+                                <select id="team1Select"><option value="">Select Team 1</option></select>
+                                <select id="team2Select"><option value="">Select Team 2</option></select>
+                                <input type="text" id="team1Order" placeholder="Team 1 Batting Order (comma separated)">
+                                <input type="text" id="team2Order" placeholder="Team 2 Batting Order (comma separated)">
+                                <button onclick="setupMatch()">Start Match</button>
+                                <button onclick="resetMatch()" class="danger">Reset Match</button>
+                            </div>
+                        </div>
+
+                        <div class="admin-card">
+                            <h3>📅 Create Fixture</h3>
+                            <div class="form-group">
+                                <select id="fixtureTeam1"><option value="">Select Team 1</option></select>
+                                <select id="fixtureTeam2"><option value="">Select Team 2</option></select>
+                                <input type="datetime-local" id="fixtureDate">
+                                <input type="text" id="fixtureVenue" placeholder="Venue">
+                                <button onclick="createFixture()">Create Fixture</button>
+                            </div>
+                        </div>
+
+                        <div class="admin-card">
+                            <h3>🏆 Complete Match</h3>
+                            <div class="form-group">
+                                <select id="completeFixtureSelect">
+                                    <option value="">Select Ongoing Match</option>
+                                </select>
+                                <select id="winnerSelect">
+                                    <option value="">Select Winner</option>
+                                </select>
+                                <input type="text" id="manOfMatch" placeholder="Man of the Match">
+                                <button onclick="completeMatch()">Complete Match</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end main-content -->
+
+        <footer class="footer">
+            <p>🏏 Gem-Star Champions League 2026 • Powered by GCL Tournament System</p>
+        </footer>
+
+    </div><!-- end app-container -->
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
