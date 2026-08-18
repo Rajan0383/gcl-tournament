@@ -984,7 +984,6 @@ function pickRandom() {
     
     showPlayerReveal(selectedRandomPlayer);
 }
-
 function showPlayerReveal(player) {
     // Create overlay
     const overlay = document.createElement('div');
