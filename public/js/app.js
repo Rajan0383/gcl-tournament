@@ -753,7 +753,7 @@ let allAuctionPlayers = [
 ];
 
 // Admin password
-const AUCTION_PASSWORD = "gcl2026";
+const AUCTION_PASSWORD = "gscl2026";
 
 // ============================================
 // INITIALIZATION
