@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
 console.log('🏏 GCL Frontend loaded successfully!');
 console.log('📡 Waiting for socket connection...');
 // ============================================
-// AUCTION SYSTEM
+// AUCTION SYSTEM - COMPLETE
 // ============================================
 
 // Auction Data
@@ -717,37 +717,76 @@ let auctionTeams = [];
 let auctionWallet = 60000;
 let selectedRandomPlayer = null;
 let allAuctionPlayers = [
-    { id: 1, name: "Virat Kohli", type: "Batsman" },
-    { id: 2, name: "Rohit Sharma", type: "Batsman" },
-    { id: 3, name: "Jasprit Bumrah", type: "Bowler" },
-    { id: 4, name: "Ravindra Jadeja", type: "All-Rounder" },
-    { id: 5, name: "KL Rahul", type: "Wicket-Keeper" },
-    { id: 6, name: "Mohammed Shami", type: "Bowler" },
-    { id: 7, name: "Suryakumar Yadav", type: "Batsman" },
-    { id: 8, name: "Rishabh Pant", type: "Wicket-Keeper" },
-    { id: 9, name: "MS Dhoni", type: "Wicket-Keeper" },
-    { id: 10, name: "David Warner", type: "Batsman" },
-    { id: 11, name: "Kieron Pollard", type: "All-Rounder" },
-    { id: 12, name: "Ravichandran Ashwin", type: "All-Rounder" },
-    { id: 13, name: "Yuzvendra Chahal", type: "Bowler" },
-    { id: 14, name: "Shubman Gill", type: "Batsman" },
-    { id: 15, name: "Sanju Samson", type: "Wicket-Keeper" },
-    { id: 16, name: "Hardik Pandya", type: "All-Rounder" },
-    { id: 17, name: "Rashid Khan", type: "Bowler" },
-    { id: 18, name: "Ben Stokes", type: "All-Rounder" },
-    { id: 19, name: "Jos Buttler", type: "Wicket-Keeper" },
-    { id: 20, name: "Andre Russell", type: "All-Rounder" },
-    { id: 21, name: "Pat Cummins", type: "Bowler" },
-    { id: 22, name: "Glenn Maxwell", type: "All-Rounder" },
-    { id: 23, name: "Moeen Ali", type: "All-Rounder" },
-    { id: 24, name: "Kagiso Rabada", type: "Bowler" },
-    { id: 25, name: "Shreyas Iyer", type: "Batsman" },
-    { id: 26, name: "Ishan Kishan", type: "Wicket-Keeper" },
-    { id: 27, name: "Axar Patel", type: "All-Rounder" },
-    { id: 28, name: "Trent Boult", type: "Bowler" },
-    { id: 29, name: "Faf du Plessis", type: "Batsman" },
-    { id: 30, name: "Jofra Archer", type: "Bowler" },
-    // Add more players as needed (up to 70+)
+    { id: 1, name: "Virat Kohli" },
+    { id: 2, name: "Rohit Sharma" },
+    { id: 3, name: "Jasprit Bumrah" },
+    { id: 4, name: "Ravindra Jadeja" },
+    { id: 5, name: "KL Rahul" },
+    { id: 6, name: "Mohammed Shami" },
+    { id: 7, name: "Suryakumar Yadav" },
+    { id: 8, name: "Rishabh Pant" },
+    { id: 9, name: "MS Dhoni" },
+    { id: 10, name: "David Warner" },
+    { id: 11, name: "Kieron Pollard" },
+    { id: 12, name: "Ravichandran Ashwin" },
+    { id: 13, name: "Yuzvendra Chahal" },
+    { id: 14, name: "Shubman Gill" },
+    { id: 15, name: "Sanju Samson" },
+    { id: 16, name: "Hardik Pandya" },
+    { id: 17, name: "Rashid Khan" },
+    { id: 18, name: "Ben Stokes" },
+    { id: 19, name: "Jos Buttler" },
+    { id: 20, name: "Andre Russell" },
+    { id: 21, name: "Pat Cummins" },
+    { id: 22, name: "Glenn Maxwell" },
+    { id: 23, name: "Moeen Ali" },
+    { id: 24, name: "Kagiso Rabada" },
+    { id: 25, name: "Shreyas Iyer" },
+    { id: 26, name: "Ishan Kishan" },
+    { id: 27, name: "Axar Patel" },
+    { id: 28, name: "Trent Boult" },
+    { id: 29, name: "Faf du Plessis" },
+    { id: 30, name: "Jofra Archer" },
+    { id: 31, name: "Quinton de Kock" },
+    { id: 32, name: "Mitchell Starc" },
+    { id: 33, name: "Steve Smith" },
+    { id: 34, name: "Joe Root" },
+    { id: 35, name: "Kane Williamson" },
+    { id: 36, name: "Babar Azam" },
+    { id: 37, name: "Shaheen Afridi" },
+    { id: 38, name: "Rassie van der Dussen" },
+    { id: 39, name: "Mushfiqur Rahim" },
+    { id: 40, name: "Shakib Al Hasan" },
+    { id: 41, name: "Lungi Ngidi" },
+    { id: 42, name: "Anrich Nortje" },
+    { id: 43, name: "Tabraiz Shamsi" },
+    { id: 44, name: "Aiden Markram" },
+    { id: 45, name: "David Miller" },
+    { id: 46, name: "Marcus Stoinis" },
+    { id: 47, name: "Adam Zampa" },
+    { id: 48, name: "Josh Hazlewood" },
+    { id: 49, name: "Marnus Labuschagne" },
+    { id: 50, name: "Daryl Mitchell" },
+    { id: 51, name: "Devon Conway" },
+    { id: 52, name: "James Neesham" },
+    { id: 53, name: "Sikandar Raza" },
+    { id: 54, name: "Graeme Cremer" },
+    { id: 55, name: "Brendan Taylor" },
+    { id: 56, name: "Craig Ervine" },
+    { id: 57, name: "Gary Ballance" },
+    { id: 58, name: "Peter Moor" },
+    { id: 59, name: "Ryan Burl" },
+    { id: 60, name: "Sean Williams" },
+    { id: 61, name: "Tendai Chatara" },
+    { id: 62, name: "Blessing Muzarabani" },
+    { id: 63, name: "Wellington Masakadza" },
+    { id: 64, name: "Regis Chakabva" },
+    { id: 65, name: "Milton Shumba" },
+    { id: 66, name: "Tadiwanashe Marumani" },
+    { id: 67, name: "Zimbabwe Hameed" },
+    { id: 68, name: "Janneman Malan" },
+    { id: 69, name: "Keegan Petersen" },
+    { id: 70, name: "Marco Jansen" },
 ];
 
 // Admin password (same as main admin)
@@ -766,11 +805,11 @@ function loadAuctionData() {
     const saved = localStorage.getItem('gcl_auction_data');
     if (saved) {
         const data = JSON.parse(saved);
-        auctionPlayers = data.players || allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, type: null, amount: 0 }));
+        auctionPlayers = data.players || allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
         myTeamPicks = data.picks || {};
         auctionWallet = data.wallet || 60000;
     } else {
-        auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, type: null, amount: 0 }));
+        auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
         myTeamPicks = {};
         auctionWallet = 60000;
         saveAuctionData();
@@ -820,7 +859,6 @@ function updateTeamDropdowns() {
     const select = document.getElementById('assignTeam');
     if (!select) return;
     
-    // Get teams from main system
     const teams = window.teams || [];
     select.innerHTML = '<option value="">Select Team</option>';
     teams.forEach(team => {
@@ -837,11 +875,9 @@ function spinWheel() {
     }
     document.getElementById('noPlayersMessage').style.display = 'none';
     
-    // Random pick
     const randomIndex = Math.floor(Math.random() * available.length);
     selectedRandomPlayer = available[randomIndex];
     
-    // Show selected player
     const container = document.getElementById('selectedPlayer');
     const nameDisplay = document.getElementById('randomPlayerName');
     container.style.display = 'block';
@@ -867,7 +903,6 @@ function showAssignForm() {
     document.getElementById('assignAmount').value = '';
     document.getElementById('assignAmount').placeholder = `Enter bid amount for ${selectedRandomPlayer.name}`;
     
-    // Update team dropdown
     updateTeamDropdowns();
 }
 
@@ -882,4 +917,249 @@ function confirmAssign() {
         return;
     }
     if (!amount || amount < 0) {
-       
+        showNotification('⚠️ Please enter a valid amount!', 'danger');
+        return;
+    }
+    if (amount > auctionWallet) {
+        showNotification('⚠️ Insufficient balance! You have ₹' + auctionWallet.toLocaleString(), 'danger');
+        return;
+    }
+    
+    const team = window.teams.find(t => t.id === teamId);
+    if (!team) {
+        showNotification('⚠️ Team not found!', 'danger');
+        return;
+    }
+    
+    selectedRandomPlayer.sold = true;
+    selectedRandomPlayer.team = team.name;
+    selectedRandomPlayer.amount = amount;
+    selectedRandomPlayer.pickType = pickType;
+    
+    if (!myTeamPicks[teamId]) {
+        myTeamPicks[teamId] = [];
+    }
+    myTeamPicks[teamId].push({
+        playerId: selectedRandomPlayer.id,
+        name: selectedRandomPlayer.name,
+        amount: amount,
+        pickType: pickType
+    });
+    
+    auctionWallet -= amount;
+    
+    saveAuctionData();
+    renderAuctionPlayers();
+    renderTeamSquads();
+    updateAuctionWallet();
+    updateTeamDropdowns();
+    
+    document.getElementById('selectedPlayer').style.display = 'none';
+    document.getElementById('assignSection').style.display = 'none';
+    selectedRandomPlayer = null;
+    
+    showNotification(`✅ ${team.name} picked player for ₹${amount.toLocaleString()}`, 'success');
+}
+
+// Render auction players list
+function renderAuctionPlayers() {
+    const tbody = document.getElementById('auctionPlayersBody');
+    if (!tbody) return;
+    
+    const search = document.getElementById('auctionSearch')?.value?.toLowerCase() || '';
+    
+    let filtered = auctionPlayers;
+    if (search) {
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
+    }
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-message">No players found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = filtered.map((player, index) => {
+        const status = player.sold ? 
+            `<span class="status-badge sold">✅ Sold to ${player.team || 'Unknown'}</span>` : 
+            `<span class="status-badge available">Available</span>`;
+        
+        const action = player.sold ? 
+            `<button class="delete-btn" onclick="removePlayerFromTeam(${player.id})">🗑️ Remove</button>` :
+            `<button class="delete-btn" onclick="deletePlayerFromAuction(${player.id})">🗑️ Delete</button>`;
+        
+        return `
+            <tr>
+                <td>${index + 1}</td>
+                <td><strong>${player.name}</strong></td>
+                <td>${status}</td>
+                <td>${action}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Render team squads
+function renderTeamSquads() {
+    const container = document.getElementById('auctionTeamSquads');
+    if (!container) return;
+    
+    const teams = window.teams || [];
+    if (teams.length === 0) {
+        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = teams.map(team => {
+        const picks = myTeamPicks[team.id] || [];
+        const totalPlayers = picks.length;
+        const rtmCount = picks.filter(p => p.pickType === 'rtm').length;
+        const totalSpent = picks.reduce((sum, p) => sum + p.amount, 0);
+        const isComplete = totalPlayers >= 4;
+        const hasRtm = rtmCount >= 1;
+        
+        return `
+            <div class="squad-card">
+                <div class="team-name-squad">🏏 ${team.name}</div>
+                <div class="team-status">
+                    ${isComplete ? '✅ Complete' : '⏳ Incomplete'} • 
+                    ${totalPlayers}/4 Players • 
+                    ${hasRtm ? '✅ RTM' : '❌ No RTM'} • 
+                    💰 ₹${totalSpent.toLocaleString()} spent
+                </div>
+                <div class="squad-players">
+                    ${picks.length === 0 ? '<span style="color: var(--text-muted);">No players yet</span>' : ''}
+                    ${picks.map(p => `
+                        <span class="squad-player ${p.pickType === 'rtm' ? 'rtm-tag' : ''}">
+                            ${p.name} (₹${p.amount.toLocaleString()})
+                            ${p.pickType === 'rtm' ? '⭐ RTM' : ''}
+                            <button class="remove-from-team" onclick="removePlayerFromTeam(${p.playerId})">✕</button>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Update wallet display
+function updateAuctionWallet() {
+    const walletEl = document.getElementById('auctionWalletAmount');
+    const pickedEl = document.getElementById('auctionPickedCount');
+    const rtmEl = document.getElementById('auctionRtmCount');
+    const spentEl = document.getElementById('auctionSpent');
+    const remainingEl = document.getElementById('auctionRemaining');
+    
+    if (walletEl) walletEl.textContent = auctionWallet.toLocaleString();
+    
+    let totalPicks = 0;
+    let totalRtm = 0;
+    let totalSpent = 0;
+    
+    Object.values(myTeamPicks).forEach(picks => {
+        totalPicks += picks.length;
+        totalRtm += picks.filter(p => p.pickType === 'rtm').length;
+        totalSpent += picks.reduce((sum, p) => sum + p.amount, 0);
+    });
+    
+    const teams = window.teams || [];
+    if (pickedEl) pickedEl.textContent = `${totalPicks} / ${teams.length * 4}`;
+    if (rtmEl) rtmEl.textContent = `${totalRtm} / ${teams.length}`;
+    if (spentEl) spentEl.textContent = `₹${totalSpent.toLocaleString()}`;
+    if (remainingEl) remainingEl.textContent = `₹${(auctionWallet - totalSpent).toLocaleString()}`;
+}
+
+// Delete player from auction (Admin)
+function deletePlayerFromAuction(playerId) {
+    if (!confirm('Are you sure you want to delete this player from the auction?')) return;
+    
+    const player = auctionPlayers.find(p => p.id === playerId);
+    if (!player) return;
+    
+    if (player.sold) {
+        showNotification('⚠️ Player is already sold! Remove from team first.', 'danger');
+        return;
+    }
+    
+    auctionPlayers = auctionPlayers.filter(p => p.id !== playerId);
+    saveAuctionData();
+    renderAuctionPlayers();
+    showNotification(`🗑️ ${player.name} removed from auction`, 'warning');
+}
+
+// Remove player from team (Admin)
+function removePlayerFromTeam(playerId) {
+    if (!confirm('Are you sure you want to remove this player from the team?')) return;
+    
+    const player = auctionPlayers.find(p => p.id === playerId);
+    if (!player) return;
+    
+    let removed = false;
+    Object.keys(myTeamPicks).forEach(teamId => {
+        const index = myTeamPicks[teamId].findIndex(p => p.playerId === playerId);
+        if (index !== -1) {
+            const pick = myTeamPicks[teamId][index];
+            auctionWallet += pick.amount;
+            myTeamPicks[teamId].splice(index, 1);
+            if (myTeamPicks[teamId].length === 0) {
+                delete myTeamPicks[teamId];
+            }
+            removed = true;
+        }
+    });
+    
+    if (removed) {
+        player.sold = false;
+        player.team = null;
+        player.amount = 0;
+        player.pickType = null;
+        saveAuctionData();
+        renderAuctionPlayers();
+        renderTeamSquads();
+        updateAuctionWallet();
+        showNotification(`🔄 ${player.name} removed from team`, 'warning');
+    } else {
+        showNotification('⚠️ Player not found in any team', 'danger');
+    }
+}
+
+// Reset auction
+function resetAuction() {
+    if (!confirm('⚠️ Are you sure you want to reset the entire auction? All data will be lost!')) return;
+    
+    auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
+    myTeamPicks = {};
+    auctionWallet = 60000;
+    selectedRandomPlayer = null;
+    
+    localStorage.removeItem('gcl_auction_data');
+    saveAuctionData();
+    renderAuctionPlayers();
+    renderTeamSquads();
+    updateAuctionWallet();
+    
+    document.getElementById('selectedPlayer').style.display = 'none';
+    document.getElementById('assignSection').style.display = 'none';
+    
+    showNotification('🔄 Auction has been reset!', 'success');
+}
+
+// Filter functions
+function filterAuctionPlayers() {
+    renderAuctionPlayers();
+}
+
+function resetAuctionFilters() {
+    document.getElementById('auctionSearch').value = '';
+    renderAuctionPlayers();
+}
+
+// Enter key support for password
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('auctionPassword') === document.activeElement) {
+        checkAuctionPassword();
+    }
+});
+
+// ============================================
+// END OF AUCTION SYSTEM
+// ============================================
