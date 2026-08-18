@@ -1001,18 +1001,21 @@ function updateTeamDropdowns() {
     const select = document.getElementById('assignTeam');
     if (!select) return;
     
+    // Get teams from the global teams array
     const teams = window.teams || [];
+    
+    console.log('🔄 Updating team dropdown. Teams found:', teams.length);
+    
+    if (teams.length === 0) {
+        select.innerHTML = '<option value="">⚠️ No teams created yet. Go to Admin tab first.</option>';
+        return;
+    }
+    
     select.innerHTML = '<option value="">Select Team</option>';
     teams.forEach(team => {
         select.innerHTML += `<option value="${team.id}">${team.name}</option>`;
     });
 }
-
-function closeAssignSection() {
-    document.getElementById('assignSection').style.display = 'none';
-    selectedRandomPlayer = null;
-}
-
 function confirmAssign() {
     const teamId = document.getElementById('assignTeam').value;
     const amount = parseInt(document.getElementById('assignAmount').value);
