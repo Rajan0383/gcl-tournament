@@ -6,8 +6,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>🏏 GCL - Gem-Star Championship 2026</title>
-    <link rel="stylesheet" href="/css/style.css?v=4">
+    <title>🏏 GCL - Gemstar Champions League 2026</title>
+    <link rel="stylesheet" href="/css/style.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -19,7 +19,7 @@
                 <div class="logo">
                     <span class="logo-icon">🏏</span>
                     <span class="logo-text">GCL</span>
-                    <span class="logo-sub">Gem-Star Championship</span>
+                    <span class="logo-sub">Gemstar Champions League</span>
                 </div>
                 <div class="header-status">
                     <span id="connectionStatus" class="status-dot offline">●</span>
@@ -51,7 +51,7 @@
                         <div class="hero-content">
                             <h1 class="tournament-title">
                                 <span class="title-gem">✦ GEM-STAR ✦</span>
-                                <span class="title-champions">CHAMPIONSHIP</span>
+                                <span class="title-champions">CHAMPIONS LEAGUE</span>
                                 <span class="title-year">2026</span>
                             </h1>
                             <div class="hero-subtitle">🏆 The Ultimate PalTalk Cricket Tournament 🏆</div>
@@ -60,15 +60,13 @@
                     <div class="tournament-info">
                         <div class="info-grid">
                             <div class="info-card">
-    <div class="info-icon">👔</div>
-    <h3>Organizers</h3>
-    <p style="font-size: 1.3rem; font-weight: 900; color: var(--primary); margin: 8px 0;">
-        ✦ Gem &amp; Lavanya_Star ✦
-    </p>
-    <p><strong>Host:</strong> Gem-Star Room</p>
-    <p><strong>Admin:</strong> </p>
-    <p><strong>Platform:</strong> PalTalk</p>
-</div>
+                                <div class="info-icon">👔</div>
+                                <h3>Organizers</h3>
+                                <p style="font-size: 1.3rem; font-weight: 900; color: var(--primary); margin: 8px 0;">✦ Gem &amp; Lavanya_Star ✦</p>
+                                <p><strong>Host:</strong> Gemstar Room</p>
+                                <p><strong>Admin:</strong> Lavanya_Star</p>
+                                <p><strong>Platform:</strong> PalTalk</p>
+                            </div>
                             <div class="info-card">
                                 <div class="info-icon">🏏</div>
                                 <h3>Team Format</h3>
@@ -296,15 +294,17 @@
             </div>
 
             <!-- ========================================== -->
-            <!-- AUCTION TAB - NEW LAYOUT -->
+            <!-- AUCTION TAB - COMPLETE -->
             <!-- ========================================== -->
             <div class="tab-content" id="tab-auction">
                 <div class="auction-container">
                     
+                    <!-- Header -->
                     <div class="auction-header">
                         <h1>💰 Player Auction 2026</h1>
                     </div>
 
+                    <!-- Rules Banner -->
                     <div class="auction-rules-banner">
                         <div class="rule-item">
                             <span class="rule-icon">📋</span>
@@ -317,6 +317,7 @@
                         </div>
                     </div>
 
+                    <!-- Admin Login -->
                     <div id="auctionLogin" class="auction-login">
                         <div class="login-box">
                             <h2>🔐 Admin Access Required</h2>
@@ -329,13 +330,16 @@
                         </div>
                     </div>
 
+                    <!-- Auction Content -->
                     <div id="auctionContent" style="display: none;">
 
+                        <!-- LEFT + RIGHT LAYOUT -->
                         <div class="auction-main-layout">
 
-                            <!-- LEFT SIDE -->
+                            <!-- ===== LEFT SIDE ===== -->
                             <div class="auction-left">
 
+                                <!-- Available Players -->
                                 <div class="players-list-section">
                                     <div class="players-header">
                                         <h3>📋 Available Players</h3>
@@ -363,6 +367,7 @@
                                     </div>
                                 </div>
 
+                                <!-- Team Status -->
                                 <div class="team-status-section">
                                     <h3>🏏 Team Status</h3>
                                     <div class="team-status-grid" id="auctionTeamStatus">
@@ -373,9 +378,10 @@
 
                             </div>
 
-                            <!-- RIGHT SIDE -->
+                            <!-- ===== RIGHT SIDE ===== -->
                             <div class="auction-right">
 
+                                <!-- Random Pick -->
                                 <div class="random-pick-section">
                                     <h3>🎰 Random Pick</h3>
                                     <button onclick="pickRandom()" class="pick-random-btn">🎲 PICK RANDOM</button>
@@ -384,12 +390,14 @@
                                     </div>
                                 </div>
 
+                                <!-- Add Player -->
                                 <div class="add-player-section">
                                     <h4>➕ Add Player</h4>
                                     <input type="text" id="newPlayerName" placeholder="Enter player name" class="add-player-input">
                                     <button onclick="addPlayerToAuction()" class="add-player-btn">Add to Auction</button>
                                 </div>
 
+                                <!-- Assign Section -->
                                 <div id="assignSection" class="assign-section" style="display: none;">
                                     <div class="assign-header">
                                         <h3>✅ Assign Player</h3>
@@ -421,6 +429,7 @@
                                     </div>
                                 </div>
 
+                                <!-- Admin Settings -->
                                 <div class="admin-settings">
                                     <h4>⚙️ Admin</h4>
                                     <div class="admin-buttons">
@@ -498,6 +507,6 @@
     </div><!-- end app-container -->
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/js/app.js?v=2"></script>
+    <script src="/js/app.js?v=3"></script>
 </body>
 </html>
