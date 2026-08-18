@@ -1,3 +1,5 @@
+/* FORCE UPDATE - DO NOT REMOVE */
+.auction-main-layout { display: grid !important; grid-template-columns: 65% 35% !important; gap: 20px !important; }
 * {
     margin: 0;
     padding: 0;
