@@ -706,3 +706,180 @@ document.addEventListener('DOMContentLoaded', () => {
 
 console.log('🏏 GCL Frontend loaded successfully!');
 console.log('📡 Waiting for socket connection...');
+// ============================================
+// AUCTION SYSTEM
+// ============================================
+
+// Auction Data
+let auctionPlayers = [];
+let myTeamPicks = {};
+let auctionTeams = [];
+let auctionWallet = 60000;
+let selectedRandomPlayer = null;
+let allAuctionPlayers = [
+    { id: 1, name: "Virat Kohli", type: "Batsman" },
+    { id: 2, name: "Rohit Sharma", type: "Batsman" },
+    { id: 3, name: "Jasprit Bumrah", type: "Bowler" },
+    { id: 4, name: "Ravindra Jadeja", type: "All-Rounder" },
+    { id: 5, name: "KL Rahul", type: "Wicket-Keeper" },
+    { id: 6, name: "Mohammed Shami", type: "Bowler" },
+    { id: 7, name: "Suryakumar Yadav", type: "Batsman" },
+    { id: 8, name: "Rishabh Pant", type: "Wicket-Keeper" },
+    { id: 9, name: "MS Dhoni", type: "Wicket-Keeper" },
+    { id: 10, name: "David Warner", type: "Batsman" },
+    { id: 11, name: "Kieron Pollard", type: "All-Rounder" },
+    { id: 12, name: "Ravichandran Ashwin", type: "All-Rounder" },
+    { id: 13, name: "Yuzvendra Chahal", type: "Bowler" },
+    { id: 14, name: "Shubman Gill", type: "Batsman" },
+    { id: 15, name: "Sanju Samson", type: "Wicket-Keeper" },
+    { id: 16, name: "Hardik Pandya", type: "All-Rounder" },
+    { id: 17, name: "Rashid Khan", type: "Bowler" },
+    { id: 18, name: "Ben Stokes", type: "All-Rounder" },
+    { id: 19, name: "Jos Buttler", type: "Wicket-Keeper" },
+    { id: 20, name: "Andre Russell", type: "All-Rounder" },
+    { id: 21, name: "Pat Cummins", type: "Bowler" },
+    { id: 22, name: "Glenn Maxwell", type: "All-Rounder" },
+    { id: 23, name: "Moeen Ali", type: "All-Rounder" },
+    { id: 24, name: "Kagiso Rabada", type: "Bowler" },
+    { id: 25, name: "Shreyas Iyer", type: "Batsman" },
+    { id: 26, name: "Ishan Kishan", type: "Wicket-Keeper" },
+    { id: 27, name: "Axar Patel", type: "All-Rounder" },
+    { id: 28, name: "Trent Boult", type: "Bowler" },
+    { id: 29, name: "Faf du Plessis", type: "Batsman" },
+    { id: 30, name: "Jofra Archer", type: "Bowler" },
+    // Add more players as needed (up to 70+)
+];
+
+// Admin password (same as main admin)
+const AUCTION_PASSWORD = "gcl2026";
+
+// Initialize auction
+function initAuction() {
+    loadAuctionData();
+    renderAuctionPlayers();
+    renderTeamSquads();
+    updateAuctionWallet();
+}
+
+// Load auction data from localStorage
+function loadAuctionData() {
+    const saved = localStorage.getItem('gcl_auction_data');
+    if (saved) {
+        const data = JSON.parse(saved);
+        auctionPlayers = data.players || allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, type: null, amount: 0 }));
+        myTeamPicks = data.picks || {};
+        auctionWallet = data.wallet || 60000;
+    } else {
+        auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, type: null, amount: 0 }));
+        myTeamPicks = {};
+        auctionWallet = 60000;
+        saveAuctionData();
+    }
+}
+
+// Save auction data
+function saveAuctionData() {
+    localStorage.setItem('gcl_auction_data', JSON.stringify({
+        players: auctionPlayers,
+        picks: myTeamPicks,
+        wallet: auctionWallet
+    }));
+}
+
+// Check auction password
+function checkAuctionPassword() {
+    const password = document.getElementById('auctionPassword').value;
+    const error = document.getElementById('auctionError');
+    const login = document.getElementById('auctionLogin');
+    const content = document.getElementById('auctionContent');
+    
+    if (password === AUCTION_PASSWORD) {
+        login.style.display = 'none';
+        content.style.display = 'block';
+        error.style.display = 'none';
+        initAuction();
+        updateTeamDropdowns();
+        showNotification('✅ Auction admin access granted!', 'success');
+    } else {
+        error.style.display = 'block';
+        document.getElementById('auctionPassword').value = '';
+        showNotification('❌ Incorrect password!', 'danger');
+    }
+}
+
+// Logout from auction
+function logoutAuction() {
+    document.getElementById('auctionLogin').style.display = 'block';
+    document.getElementById('auctionContent').style.display = 'none';
+    document.getElementById('auctionPassword').value = '';
+    showNotification('🔒 Logged out from auction', 'warning');
+}
+
+// Update team dropdowns
+function updateTeamDropdowns() {
+    const select = document.getElementById('assignTeam');
+    if (!select) return;
+    
+    // Get teams from main system
+    const teams = window.teams || [];
+    select.innerHTML = '<option value="">Select Team</option>';
+    teams.forEach(team => {
+        select.innerHTML += `<option value="${team.id}">${team.name}</option>`;
+    });
+}
+
+// Spin Wheel - Random pick with animation
+function spinWheel() {
+    const available = auctionPlayers.filter(p => !p.sold);
+    if (available.length === 0) {
+        document.getElementById('noPlayersMessage').style.display = 'block';
+        return;
+    }
+    document.getElementById('noPlayersMessage').style.display = 'none';
+    
+    // Random pick
+    const randomIndex = Math.floor(Math.random() * available.length);
+    selectedRandomPlayer = available[randomIndex];
+    
+    // Show selected player
+    const container = document.getElementById('selectedPlayer');
+    const nameDisplay = document.getElementById('randomPlayerName');
+    container.style.display = 'block';
+    nameDisplay.textContent = selectedRandomPlayer.name.toUpperCase();
+    
+    showNotification(`🎰 Player picked: ${selectedRandomPlayer.name}`, 'warning');
+}
+
+// Pick random player (simple version)
+function pickRandom() {
+    spinWheel();
+}
+
+// Show assign form
+function showAssignForm() {
+    if (!selectedRandomPlayer) {
+        showNotification('⚠️ Please pick a player first!', 'danger');
+        return;
+    }
+    
+    document.getElementById('assignSection').style.display = 'block';
+    document.getElementById('assignPlayerName').textContent = selectedRandomPlayer.name;
+    document.getElementById('assignAmount').value = '';
+    document.getElementById('assignAmount').placeholder = `Enter bid amount for ${selectedRandomPlayer.name}`;
+    
+    // Update team dropdown
+    updateTeamDropdowns();
+}
+
+// Confirm assignment
+function confirmAssign() {
+    const teamId = document.getElementById('assignTeam').value;
+    const amount = parseInt(document.getElementById('assignAmount').value);
+    const pickType = document.querySelector('input[name="pickType"]:checked').value;
+    
+    if (!teamId) {
+        showNotification('⚠️ Please select a team!', 'danger');
+        return;
+    }
+    if (!amount || amount < 0) {
+       
