@@ -418,7 +418,7 @@
                     </div>
                 </div>
             </div>
-            <!-- ========================================== -->
+                        <!-- ========================================== -->
             <!-- AUCTION TAB -->
             <!-- ========================================== -->
             <div class="tab-content" id="tab-auction">
@@ -455,13 +455,13 @@
                         </div>
                     </div>
 
-                    <!-- Auction Content (Hidden) -->
+                    <!-- Auction Content -->
                     <div id="auctionContent" style="display: none;">
 
-                        <!-- Main Auction Layout -->
+                        <!-- MAIN LAYOUT: Left + Right -->
                         <div class="auction-main-layout">
 
-                            <!-- LEFT SIDE: Players List -->
+                            <!-- ====== LEFT SIDE ====== -->
                             <div class="auction-left">
 
                                 <!-- Available Players -->
@@ -490,9 +490,9 @@
                                         </table>
                                     </div>
                                     <div class="pagination" id="auctionPagination">
-                                        <button onclick="prevPage()" class="page-btn">◀ Prev</button>
+                                        <button onclick="prevPage()" class="page-btn" id="prevPageBtn">◀ Prev</button>
                                         <span class="page-info" id="pageInfo">Page 1 of 1</span>
-                                        <button onclick="nextPage()" class="page-btn">Next ▶</button>
+                                        <button onclick="nextPage()" class="page-btn" id="nextPageBtn">Next ▶</button>
                                     </div>
                                 </div>
 
@@ -509,7 +509,7 @@
 
                             </div>
 
-                            <!-- RIGHT SIDE: Random Pick -->
+                            <!-- ====== RIGHT SIDE ====== -->
                             <div class="auction-right">
 
                                 <!-- Random Pick -->
@@ -528,6 +528,38 @@
                                     <button onclick="addPlayerToAuction()" class="add-player-btn">Add to Auction</button>
                                 </div>
 
+                                <!-- Assign Player Form -->
+                                <div id="assignSection" class="assign-section" style="display: none;">
+                                    <div class="assign-header">
+                                        <h3>✅ Assign Player</h3>
+                                        <button onclick="closeAssignSection()" class="assign-close-btn">✕</button>
+                                    </div>
+                                    <div class="assign-form">
+                                        <div class="form-row full-width">
+                                            <label>Player:</label>
+                                            <span class="assign-player-name" id="assignPlayerName">Virat Kohli</span>
+                                        </div>
+                                        <div class="form-row full-width">
+                                            <label>Select Team:</label>
+                                            <select id="assignTeam" class="assign-select">
+                                                <option value="">Select Team</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-row full-width">
+                                            <label>Pick Type:</label>
+                                            <div class="radio-group">
+                                                <label><input type="radio" name="pickType" value="normal" checked> Normal Player</label>
+                                                <label><input type="radio" name="pickType" value="rtm"> RTM Player</label>
+                                            </div>
+                                        </div>
+                                        <div class="form-row full-width">
+                                            <label>Bid Amount:</label>
+                                            <input type="number" id="assignAmount" placeholder="Enter bid amount" class="amount-input">
+                                        </div>
+                                        <button onclick="confirmAssign()" class="confirm-btn">✅ CONFIRM & ADD TO TEAM</button>
+                                    </div>
+                                </div>
+
                                 <!-- Admin Settings -->
                                 <div class="admin-settings">
                                     <h4>⚙️ Admin</h4>
@@ -544,7 +576,7 @@
                     </div><!-- end auctionContent -->
 
                 </div>
-            </div>
+            </div>           
             <!-- ===== ADMIN TAB ===== -->
             <div class="tab-content" id="tab-admin">
                 <div class="admin-container">
