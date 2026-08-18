@@ -752,8 +752,7 @@ let allAuctionPlayers = [
     { id: 30, name: "Jofra Archer" },
 ];
 
-// Admin password
-const AUCTION_PASSWORD = "gscl2026";
+const AUCTION_PASSWORD = "gcl2026";
 
 // ============================================
 // INITIALIZATION
@@ -864,10 +863,9 @@ function renderPlayers() {
         `).join('');
     }
     
-    // Update pagination
     const pageInfo = document.getElementById('pageInfo');
-    const prevBtn = document.querySelector('.page-btn:first-child');
-    const nextBtn = document.querySelector('.page-btn:last-child');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
     
     if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
     if (prevBtn) prevBtn.disabled = currentPage <= 1;
@@ -984,8 +982,8 @@ function pickRandom() {
     
     showPlayerReveal(selectedRandomPlayer);
 }
+
 function showPlayerReveal(player) {
-    // Create overlay
     const overlay = document.createElement('div');
     overlay.className = 'player-reveal-overlay';
     overlay.id = 'playerRevealOverlay';
@@ -1003,8 +1001,6 @@ function showPlayerReveal(player) {
         </div>
     `;
     document.body.appendChild(overlay);
-    
-    // Show notification
     showNotification(`🎰 Player picked: ${player.name}`, 'warning');
 }
 
@@ -1024,18 +1020,15 @@ function showAssignForm() {
         return;
     }
     
-    // Close reveal overlay
     const overlay = document.getElementById('playerRevealOverlay');
     if (overlay) overlay.remove();
     
-    // Show assign section
     const assignSection = document.getElementById('assignSection');
     assignSection.style.display = 'block';
     document.getElementById('assignPlayerName').textContent = selectedRandomPlayer.name;
     document.getElementById('assignAmount').value = '';
     document.getElementById('assignAmount').placeholder = `Enter bid amount for ${selectedRandomPlayer.name}`;
     
-    // Update team dropdown
     updateTeamDropdowns();
 }
 
@@ -1069,7 +1062,6 @@ function confirmAssign() {
         return;
     }
     
-    // Check wallet
     let totalSpent = 0;
     Object.values(myTeamPicks).forEach(picks => {
         totalSpent += picks.reduce((sum, p) => sum + p.amount, 0);
@@ -1086,7 +1078,6 @@ function confirmAssign() {
         return;
     }
     
-    // Assign player
     selectedRandomPlayer.sold = true;
     selectedRandomPlayer.team = team.name;
     selectedRandomPlayer.amount = amount;
@@ -1108,7 +1099,7 @@ function confirmAssign() {
     document.getElementById('assignSection').style.display = 'none';
     selectedRandomPlayer = null;
     
-    showNotification(`✅ ${team.name} picked ${selectedRandomPlayer ? '' : ''} for ₹${amount.toLocaleString()}`, 'success');
+    showNotification(`✅ ${team.name} picked player for ₹${amount.toLocaleString()}`, 'success');
 }
 
 // ============================================
@@ -1124,7 +1115,6 @@ function addPlayerToAuction() {
         return;
     }
     
-    // Check if player already exists
     if (auctionPlayers.some(p => p.name.toLowerCase() === name.toLowerCase())) {
         showNotification('⚠️ Player already exists in auction!', 'danger');
         return;
@@ -1195,7 +1185,6 @@ function resetAuction() {
     saveAuctionData();
     renderAll();
     document.getElementById('assignSection').style.display = 'none';
-    document.getElementById('selectedPlayer').style.display = 'none';
     
     showNotification('🔄 Auction has been reset!', 'success');
 }
