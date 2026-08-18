@@ -418,187 +418,133 @@
                     </div>
                 </div>
             </div>
-<!-- ===== AUCTION TAB ===== -->
-<div class="tab-content" id="tab-auction">
-    <div class="auction-container">
-        
-        <!-- Header -->
-        <div class="auction-header">
-            <h2>💰 Player Auction 2026</h2>
-            <p class="auction-subtitle">👑 Admin Only - Manage auction players</p>
-        </div>
-
-        <!-- Admin Login (Hidden by default) -->
-        <div id="auctionLogin" style="text-align: center; padding: 40px 20px;">
-            <h2 style="color: var(--primary); margin-bottom: 20px;">🔐 Admin Access Required</h2>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Enter the admin password to access the auction panel.</p>
-            <div style="display: flex; justify-content: center; gap: 10px; max-width: 400px; margin: 0 auto;">
-                <input type="password" id="auctionPassword" placeholder="Enter Password" 
-                       style="flex: 1; padding: 12px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 1rem;">
-                <button onclick="checkAuctionPassword()" 
-                        style="padding: 12px 30px; background: var(--primary); color: var(--bg-dark); border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">
-                    Unlock
-                </button>
-            </div>
-            <div id="auctionError" style="color: var(--danger); margin-top: 12px; display: none;">❌ Incorrect password!</div>
-        </div>
-
-        <!-- Auction Content (Hidden by default) -->
-        <div id="auctionContent" style="display: none;">
-
-            <!-- Admin Controls Top -->
-            <div class="auction-admin-bar">
-                <span class="admin-badge">👑 Admin Mode</span>
-                <button onclick="logoutAuction()" class="logout-btn">🔒 Logout</button>
-                <button onclick="resetAuction()" class="reset-btn">🔄 Reset Auction</button>
-            </div>
-
-            <!-- Rules Box -->
-            <div class="auction-rules">
-                <div class="rules-grid">
-                    <div class="rule-item">
-                        <span class="rule-icon">📋</span>
-                        <span><strong>4 Players</strong> per team</span>
+            <!-- ========================================== -->
+            <!-- AUCTION TAB -->
+            <!-- ========================================== -->
+            <div class="tab-content" id="tab-auction">
+                <div class="auction-container">
+                    
+                    <!-- Header -->
+                    <div class="auction-header">
+                        <h1>💰 Player Auction 2026</h1>
                     </div>
-                    <div class="rule-item">
-                        <span class="rule-icon">⭐</span>
-                        <span><strong>1 RTM</strong> player included</span>
-                    </div>
-                    <div class="rule-item">
-                        <span class="rule-icon">💰</span>
-                        <span><strong>₹60,000</strong> virtual wallet</span>
-                    </div>
-                    <div class="rule-item">
-                        <span class="rule-icon">🎯</span>
-                        <span>Bidding in <strong>PalTalk room</strong></span>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Wallet & Status -->
-            <div class="auction-wallet-section">
-                <div class="wallet-card">
-                    <h3>🏦 Team Wallet</h3>
-                    <div class="wallet-amount" id="auctionWalletAmount">60,000</div>
-                    <p class="wallet-label">Available Balance</p>
-                </div>
-                <div class="status-card">
-                    <div class="status-grid">
-                        <div class="status-item">
-                            <span class="status-label">Players Picked</span>
-                            <span class="status-value" id="auctionPickedCount">0 / 4</span>
+                    <!-- Rules Banner -->
+                    <div class="auction-rules-banner">
+                        <div class="rule-item">
+                            <span class="rule-icon">📋</span>
+                            <span><strong>4 Players</strong> per team <span class="rule-highlight">(including 1 RTM)</span></span>
                         </div>
-                        <div class="status-item">
-                            <span class="status-label">RTM Used</span>
-                            <span class="status-value" id="auctionRtmCount">0 / 1</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Coins Spent</span>
-                            <span class="status-value" id="auctionSpent">₹0</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">Remaining</span>
-                            <span class="status-value" id="auctionRemaining">₹60,000</span>
+                        <div class="rule-divider"></div>
+                        <div class="rule-item">
+                            <span class="rule-icon">💰</span>
+                            <span>Each team has <strong>₹60,000</strong> virtual wallet</span>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Random Player Pick -->
-            <div class="random-pick-section">
-                <h3>🎰 Random Player Pick</h3>
-                <p class="pick-hint">Click to randomly pick a player from the auction list!</p>
-                <div class="pick-buttons">
-                    <button onclick="spinWheel()" class="spin-btn">🎡 SPIN WHEEL</button>
-                    <button onclick="pickRandom()" class="random-btn">🎲 PICK RANDOM</button>
-                </div>
-                <div class="selected-player" id="selectedPlayer" style="display: none;">
-                    <div class="player-reveal">
-                        <span class="player-name-display" id="randomPlayerName">VIRAT KOHLI</span>
-                        <div class="player-actions">
-                            <button onclick="showAssignForm()" class="assign-btn">✅ ASSIGN TO TEAM</button>
-                            <button onclick="pickRandom()" class="again-btn">🔄 PICK AGAIN</button>
+                    <!-- Admin Login -->
+                    <div id="auctionLogin" class="auction-login">
+                        <div class="login-box">
+                            <h2>🔐 Admin Access Required</h2>
+                            <p>Enter the admin password to access the auction panel.</p>
+                            <div class="login-input-group">
+                                <input type="password" id="auctionPassword" placeholder="Enter Password">
+                                <button onclick="checkAuctionPassword()">Unlock</button>
+                            </div>
+                            <div id="auctionError" class="login-error">❌ Incorrect password!</div>
                         </div>
                     </div>
-                </div>
-                <div id="noPlayersMessage" style="display: none;" class="no-players-msg">
-                    ⚠️ No players available in auction!
-                </div>
-            </div>
 
-            <!-- Assign Player to Team -->
-            <div class="assign-section" id="assignSection" style="display: none;">
-                <h3>✅ Assign Player to Team</h3>
-                <div class="assign-form">
-                    <div class="form-row">
-                        <label>Player:</label>
-                        <span class="assign-player-name" id="assignPlayerName">Virat Kohli</span>
-                    </div>
-                    <div class="form-row">
-                        <label>Select Team:</label>
-                        <select id="assignTeam" class="assign-select">
-                            <option value="">Select Team</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label>Pick Type:</label>
-                        <div class="radio-group">
-                            <label><input type="radio" name="pickType" value="normal" checked> Normal Player</label>
-                            <label><input type="radio" name="pickType" value="rtm"> RTM Player</label>
+                    <!-- Auction Content (Hidden) -->
+                    <div id="auctionContent" style="display: none;">
+
+                        <!-- Main Auction Layout -->
+                        <div class="auction-main-layout">
+
+                            <!-- LEFT SIDE: Players List -->
+                            <div class="auction-left">
+
+                                <!-- Available Players -->
+                                <div class="players-list-section">
+                                    <div class="players-header">
+                                        <h3>📋 Available Players</h3>
+                                        <span class="player-count" id="playerCount">0 players</span>
+                                    </div>
+                                    <div class="search-filter">
+                                        <input type="text" id="auctionSearch" placeholder="🔍 Search players..." class="search-input">
+                                        <button onclick="filterAuctionPlayers()" class="filter-btn">Search</button>
+                                        <button onclick="resetAuctionFilters()" class="reset-filter-btn">Reset</button>
+                                    </div>
+                                    <div class="players-table-container">
+                                        <table class="auction-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Player Name</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="auctionPlayersBody">
+                                                <tr><td colspan="3" class="empty-message">No players available</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="pagination" id="auctionPagination">
+                                        <button onclick="prevPage()" class="page-btn">◀ Prev</button>
+                                        <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                                        <button onclick="nextPage()" class="page-btn">Next ▶</button>
+                                    </div>
+                                </div>
+
+                                <!-- Team Status -->
+                                <div class="team-status-section">
+                                    <h3>🏏 Team Status</h3>
+                                    <div class="team-status-grid" id="auctionTeamStatus">
+                                        <p class="empty-message">No teams created yet.</p>
+                                    </div>
+                                    <div class="summary-bar" id="auctionSummary">
+                                        <!-- Summary will be shown here -->
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <!-- RIGHT SIDE: Random Pick -->
+                            <div class="auction-right">
+
+                                <!-- Random Pick -->
+                                <div class="random-pick-section">
+                                    <h3>🎰 Random Pick</h3>
+                                    <button onclick="pickRandom()" class="pick-random-btn">🎲 PICK RANDOM</button>
+                                    <div id="noPlayersMessage" class="no-players-msg" style="display: none;">
+                                        ⚠️ No players available!
+                                    </div>
+                                </div>
+
+                                <!-- Add Player -->
+                                <div class="add-player-section">
+                                    <h4>➕ Add Player</h4>
+                                    <input type="text" id="newPlayerName" placeholder="Enter player name" class="add-player-input">
+                                    <button onclick="addPlayerToAuction()" class="add-player-btn">Add to Auction</button>
+                                </div>
+
+                                <!-- Admin Settings -->
+                                <div class="admin-settings">
+                                    <h4>⚙️ Admin</h4>
+                                    <div class="admin-buttons">
+                                        <button onclick="logoutAuction()" class="logout-btn">🔒 Logout</button>
+                                        <button onclick="resetAuction()" class="reset-btn">🔄 Reset</button>
+                                    </div>
+                                </div>
+
+                            </div>
+
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <label>Bid Amount:</label>
-                        <input type="number" id="assignAmount" placeholder="Enter bid amount" class="amount-input">
-                    </div>
-                    <button onclick="confirmAssign()" class="confirm-btn">✅ CONFIRM & ADD TO TEAM</button>
+
+                    </div><!-- end auctionContent -->
+
                 </div>
             </div>
-
-            <!-- Available Players List -->
-            <div class="players-list-section">
-                <h3>📋 Available Players</h3>
-                <div class="search-filter">
-                    <input type="text" id="auctionSearch" placeholder="🔍 Search players..." class="search-input">
-                    <select id="auctionTypeFilter" class="filter-select">
-                        <option value="all">All Types</option>
-                        <option value="Batsman">Batsman</option>
-                        <option value="Bowler">Bowler</option>
-                        <option value="All-Rounder">All-Rounder</option>
-                        <option value="Wicket-Keeper">Wicket-Keeper</option>
-                    </select>
-                    <button onclick="filterAuctionPlayers()" class="filter-btn">Apply</button>
-                    <button onclick="resetAuctionFilters()" class="reset-filter-btn">Reset</button>
-                </div>
-                <div class="players-table-container">
-                    <table class="auction-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Player Name</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="auctionPlayersBody">
-                            <tr><td colspan="5" class="empty-message">No players available</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Team Squads -->
-            <div class="team-squads-section">
-                <h3>🏏 All Team Squads</h3>
-                <div id="auctionTeamSquads">
-                    <p class="empty-message">No teams created yet.</p>
-                </div>
-            </div>
-
-        </div><!-- end auctionContent -->
-    </div>
-</div>
             <!-- ===== ADMIN TAB ===== -->
             <div class="tab-content" id="tab-admin">
                 <div class="admin-container">
