@@ -6,11 +6,14 @@ const socket = io();
 let matchState = null;
 let teams = [];
 
+console.log('🏏 GCL Frontend Loading...');
+
 // ============================================
 // SOCKET EVENTS
 // ============================================
 
 socket.on('connect', () => {
+    console.log('✅ Connected to server!');
     updateConnectionStatus(true);
     socket.emit('getState');
     socket.emit('getTeams');
@@ -20,15 +23,19 @@ socket.on('connect', () => {
 });
 
 socket.on('disconnect', () => {
+    console.log('❌ Disconnected from server');
     updateConnectionStatus(false);
 });
 
 socket.on('stateUpdate', (state) => {
+    console.log('📊 State Update:', state);
     matchState = state;
     updateScoreboard(state);
 });
 
 socket.on('scoreUpdate', (data) => {
+    console.log('🎯 Score Update:', data);
+    
     if (data.result && data.result.message) {
         showNotification(data.result.message, 
             data.result.isOut ? 'danger' : 
@@ -42,6 +49,7 @@ socket.on('scoreUpdate', (data) => {
 });
 
 socket.on('teamsList', (data) => {
+    console.log('🏏 Teams List:', data);
     teams = data;
     updateTeamsList(data);
     updateTeamSelects(data);
@@ -53,14 +61,17 @@ socket.on('teamCreated', (team) => {
 });
 
 socket.on('fixturesUpdate', (fixtures) => {
+    console.log('📅 Fixtures Update:', fixtures);
     updateFixtures(fixtures);
 });
 
 socket.on('pointsTable', (data) => {
+    console.log('🏆 Points Table:', data);
     updatePointsTable(data);
 });
 
 socket.on('topStats', (data) => {
+    console.log('🏅 Top Stats:', data);
     updateTop10Players(data);
 });
 
@@ -69,6 +80,7 @@ socket.on('notification', (message) => {
 });
 
 socket.on('error', (data) => {
+    console.error('❌ Error:', data);
     showNotification(`❌ ${data.message}`, 'danger');
 });
 
@@ -110,7 +122,6 @@ function updateScoreboard(state) {
     const overTypeEl = document.getElementById('overTypeDisplay');
     if (overTypeEl) overTypeEl.textContent = overTypes[state.overType] || 'LBW Over';
 
-    // Batting Team
     if (state.battingTeam) {
         const battingName = document.getElementById('battingTeamName');
         const runs = document.getElementById('runsDisplay');
@@ -127,7 +138,6 @@ function updateScoreboard(state) {
         if (batsman) batsman.textContent = state.battingTeam.currentBatsman || '-';
     }
 
-    // Bowling Team
     if (state.bowlingTeam) {
         const bowlingName = document.getElementById('bowlingTeamName');
         const bowler = document.getElementById('currentBowler');
@@ -136,29 +146,18 @@ function updateScoreboard(state) {
         if (bowler) bowler.textContent = state.bowlingTeam.currentBowler || '-';
     }
 
-    // Target
     const targetDisplay = document.getElementById('targetDisplay');
     if (targetDisplay) {
-        if (state.target) {
-            targetDisplay.textContent = `Target: ${state.target}`;
-        } else {
-            targetDisplay.textContent = '';
-        }
+        targetDisplay.textContent = state.target ? `Target: ${state.target}` : '';
     }
 
-    // LBW Count
     const lbwCount = document.getElementById('lbwCount');
     const lbwDisplay = document.getElementById('lbwDisplay');
     if (lbwCount) lbwCount.textContent = state.lbwCount || 0;
     if (lbwDisplay) {
-        if (state.overType === 'lbw') {
-            lbwDisplay.style.display = 'block';
-        } else {
-            lbwDisplay.style.display = 'none';
-        }
+        lbwDisplay.style.display = state.overType === 'lbw' ? 'block' : 'none';
     }
 
-    // Batsman Status
     const batsmanStatus = document.getElementById('batsmanStatus');
     if (batsmanStatus) {
         if (state.batsmanSet) {
@@ -170,7 +169,6 @@ function updateScoreboard(state) {
         }
     }
 
-    // Bowler Status
     const bowlerStatus = document.getElementById('bowlerStatus');
     if (bowlerStatus) {
         if (state.bowlerGuessed) {
@@ -182,7 +180,6 @@ function updateScoreboard(state) {
         }
     }
 
-    // Last Ball
     const lastBallDisplay = document.getElementById('lastBallDisplay');
     if (lastBallDisplay) {
         if (state.lastBallResult) {
@@ -205,17 +202,6 @@ function updateScoreboard(state) {
         }
     }
 
-    // Strike Info (NEW)
-    const strikerName = document.getElementById('strikerName');
-    const nonStrikerName = document.getElementById('nonStrikerName');
-    if (strikerName && state.striker) {
-        strikerName.textContent = state.striker;
-    }
-    if (nonStrikerName && state.nonStriker) {
-        nonStrikerName.textContent = state.nonStriker;
-    }
-
-    // Update allowed scores
     updateAllowedScores(state);
 }
 
@@ -235,17 +221,6 @@ function updateAllowedScores(state) {
     const bowlHint = document.getElementById('allowedBowlScores');
     if (batHint) batHint.textContent = `Allowed: ${scores.join(', ')}`;
     if (bowlHint) bowlHint.textContent = `Allowed: ${scores.join(', ')}`;
-    
-    const batScore = document.getElementById('batsmanScore');
-    const bowlGuess = document.getElementById('bowlerGuess');
-    if (batScore) {
-        batScore.min = Math.min(...scores);
-        batScore.max = Math.max(...scores);
-    }
-    if (bowlGuess) {
-        bowlGuess.min = Math.min(...scores);
-        bowlGuess.max = Math.max(...scores);
-    }
 }
 
 function updateTeamsList(teams) {
@@ -384,6 +359,48 @@ function updateTop10Players(data) {
 }
 
 // ============================================
+// GAME ACTIONS
+// ============================================
+
+function submitBatScore() {
+    const name = document.getElementById('batsmanName').value.trim();
+    const score = parseInt(document.getElementById('batsmanScore').value);
+    
+    if (!name) {
+        showNotification('⚠️ Please enter batsman name!', 'danger');
+        return;
+    }
+    
+    if (!score || score < 1 || score > 6) {
+        showNotification('⚠️ Please enter a valid score (1-6)', 'danger');
+        return;
+    }
+    
+    socket.emit('batsmanSetScore', { name, score });
+    document.getElementById('batsmanScore').value = '';
+    showNotification(`✅ ${name} set score: ${score}`, 'success');
+}
+
+function submitBowlGuess() {
+    const name = document.getElementById('bowlerName').value.trim();
+    const guess = parseInt(document.getElementById('bowlerGuess').value);
+    
+    if (!name) {
+        showNotification('⚠️ Please enter bowler name!', 'danger');
+        return;
+    }
+    
+    if (!guess || guess < 1 || guess > 6) {
+        showNotification('⚠️ Please enter a valid guess (1-6)', 'danger');
+        return;
+    }
+    
+    socket.emit('bowlerGuess', { name, guess });
+    document.getElementById('bowlerGuess').value = '';
+    showNotification(`⚾ ${name} guessed: ${guess}`, 'warning');
+}
+
+// ============================================
 // FIXTURE FUNCTIONS
 // ============================================
 
@@ -406,7 +423,6 @@ function createFixture() {
     socket.emit('createFixture', { team1, team2, date, venue });
     showNotification(`📅 Fixture created: ${team1} vs ${team2}`, 'success');
     
-    // Clear fields
     document.getElementById('fixtureTeam1').value = '';
     document.getElementById('fixtureTeam2').value = '';
     document.getElementById('fixtureDate').value = '';
@@ -526,52 +542,9 @@ function completeMatch() {
 
     showNotification(`🏆 Match completed! Winner: ${winner}`, 'success');
     
-    // Clear fields
     document.getElementById('completeFixtureSelect').value = '';
     document.getElementById('winnerSelect').value = '';
     document.getElementById('manOfMatch').value = '';
-}
-
-// ============================================
-// GAME ACTIONS
-// ============================================
-
-function submitBatScore() {
-    const name = document.getElementById('batsmanName').value.trim();
-    const score = parseInt(document.getElementById('batsmanScore').value);
-    
-    if (!name) {
-        showNotification('⚠️ Please enter batsman name!', 'danger');
-        return;
-    }
-    
-    if (!score || score < 1 || score > 6) {
-        showNotification('⚠️ Please enter a valid score (1-6)', 'danger');
-        return;
-    }
-    
-    socket.emit('batsmanSetScore', { name, score });
-    document.getElementById('batsmanScore').value = '';
-    showNotification(`✅ ${name} set score: ${score}`, 'success');
-}
-
-function submitBowlGuess() {
-    const name = document.getElementById('bowlerName').value.trim();
-    const guess = parseInt(document.getElementById('bowlerGuess').value);
-    
-    if (!name) {
-        showNotification('⚠️ Please enter bowler name!', 'danger');
-        return;
-    }
-    
-    if (!guess || guess < 1 || guess > 6) {
-        showNotification('⚠️ Please enter a valid guess (1-6)', 'danger');
-        return;
-    }
-    
-    socket.emit('bowlerGuess', { name, guess });
-    document.getElementById('bowlerGuess').value = '';
-    showNotification(`⚾ ${name} guessed: ${guess}`, 'warning');
 }
 
 // ============================================
@@ -603,7 +576,6 @@ function createTeam() {
         auctionPlayers
     });
 
-    // Clear fields
     ['teamName', 'managerName', 'captainName', 'viceCaptainName', 'rtmPlayer', 'auctionPlayers']
         .forEach(id => document.getElementById(id).value = '');
 }
@@ -692,7 +664,6 @@ document.addEventListener('keydown', (e) => {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Tab switching
     document.querySelectorAll('.nav-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             switchTab(this.dataset.tab);
@@ -700,12 +671,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// ============================================
-// INIT
-// ============================================
-
-console.log('🏏 GCL Frontend loaded successfully!');
-console.log('📡 Waiting for socket connection...');
 // ============================================
 // AUCTION SYSTEM - COMPLETE
 // ============================================
@@ -1205,3 +1170,6 @@ document.addEventListener('keydown', function(e) {
 // ============================================
 // END OF AUCTION SYSTEM
 // ============================================
+
+console.log('🏏 GCL Frontend loaded successfully!');
+console.log('📡 Waiting for socket connection...');
