@@ -717,6 +717,8 @@ let auctionWallet = 60000;
 let selectedRandomPlayer = null;
 let currentPage = 1;
 const playersPerPage = 20;
+
+// All Auction Players
 let allAuctionPlayers = [
     { id: 1, name: "Virat Kohli" },
     { id: 2, name: "Rohit Sharma" },
@@ -748,16 +750,6 @@ let allAuctionPlayers = [
     { id: 28, name: "Trent Boult" },
     { id: 29, name: "Faf du Plessis" },
     { id: 30, name: "Jofra Archer" },
-    { id: 31, name: "Quinton de Kock" },
-    { id: 32, name: "Mitchell Starc" },
-    { id: 33, name: "Steve Smith" },
-    { id: 34, name: "Joe Root" },
-    { id: 35, name: "Kane Williamson" },
-    { id: 36, name: "Babar Azam" },
-    { id: 37, name: "Shaheen Afridi" },
-    { id: 38, name: "Rassie van der Dussen" },
-    { id: 39, name: "Mushfiqur Rahim" },
-    { id: 40, name: "Shakib Al Hasan" },
 ];
 
 // Admin password
@@ -772,8 +764,456 @@ function initAuction() {
     renderAll();
 }
 
+// ============================================
+// LOAD & SAVE DATA
+// ============================================
+
 function loadAuctionData() {
     const saved = localStorage.getItem('gcl_auction_data');
     if (saved) {
         const data = JSON.parse(saved);
-        auctionPlayers = data.players || allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 
+        auctionPlayers = data.players || allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
+        myTeamPicks = data.picks || {};
+        auctionWallet = data.wallet || 60000;
+    } else {
+        auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
+        myTeamPicks = {};
+        auctionWallet = 60000;
+        saveAuctionData();
+    }
+}
+
+function saveAuctionData() {
+    localStorage.setItem('gcl_auction_data', JSON.stringify({
+        players: auctionPlayers,
+        picks: myTeamPicks,
+        wallet: auctionWallet
+    }));
+}
+
+// ============================================
+// CHECK PASSWORD
+// ============================================
+
+function checkAuctionPassword() {
+    const password = document.getElementById('auctionPassword').value;
+    const error = document.getElementById('auctionError');
+    const login = document.getElementById('auctionLogin');
+    const content = document.getElementById('auctionContent');
+    
+    if (password === AUCTION_PASSWORD) {
+        login.style.display = 'none';
+        content.style.display = 'block';
+        error.style.display = 'none';
+        initAuction();
+        showNotification('✅ Auction admin access granted!', 'success');
+    } else {
+        error.style.display = 'block';
+        document.getElementById('auctionPassword').value = '';
+        showNotification('❌ Incorrect password!', 'danger');
+    }
+}
+
+function logoutAuction() {
+    document.getElementById('auctionLogin').style.display = 'block';
+    document.getElementById('auctionContent').style.display = 'none';
+    document.getElementById('auctionPassword').value = '';
+    showNotification('🔒 Logged out from auction', 'warning');
+}
+
+// ============================================
+// RENDER FUNCTIONS
+// ============================================
+
+function renderAll() {
+    renderPlayers();
+    renderTeamStatus();
+    renderSummary();
+    updatePlayerCount();
+}
+
+function renderPlayers() {
+    const tbody = document.getElementById('auctionPlayersBody');
+    if (!tbody) return;
+    
+    const search = document.getElementById('auctionSearch')?.value?.toLowerCase() || '';
+    let filtered = auctionPlayers.filter(p => !p.sold);
+    
+    if (search) {
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
+    }
+    
+    const totalPages = Math.ceil(filtered.length / playersPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    
+    const start = (currentPage - 1) * playersPerPage;
+    const end = start + playersPerPage;
+    const pagePlayers = filtered.slice(start, end);
+    
+    if (pagePlayers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-message">No players available</td></tr>';
+    } else {
+        tbody.innerHTML = pagePlayers.map((player, index) => `
+            <tr>
+                <td>${start + index + 1}</td>
+                <td><strong>${player.name}</strong></td>
+                <td>
+                    <button class="delete-btn" onclick="deletePlayerFromAuction(${player.id})">🗑️</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Update pagination
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.querySelector('.page-btn:first-child');
+    const nextBtn = document.querySelector('.page-btn:last-child');
+    
+    if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+}
+
+function renderTeamStatus() {
+    const container = document.getElementById('auctionTeamStatus');
+    if (!container) return;
+    
+    const teams = window.teams || [];
+    if (teams.length === 0) {
+        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = teams.map(team => {
+        const picks = myTeamPicks[team.id] || [];
+        const total = picks.length;
+        const rtmCount = picks.filter(p => p.pickType === 'rtm').length;
+        const totalSpent = picks.reduce((sum, p) => sum + p.amount, 0);
+        const isComplete = total >= 4;
+        const hasRtm = rtmCount >= 1;
+        
+        return `
+            <div class="team-status-card">
+                <div class="team-name-status">🏏 ${team.name}</div>
+                <div class="team-progress">
+                    ${isComplete ? '<span class="complete">✅ 4/4</span>' : `<span class="incomplete">⏳ ${total}/4</span>`}
+                </div>
+                <div class="team-rtm-status">
+                    ${hasRtm ? '<span class="has-rtm">⭐ RTM ✅</span>' : '<span class="no-rtm">❌ No RTM</span>'}
+                </div>
+                <div class="team-wallet-status">💰 ₹${totalSpent.toLocaleString()}</div>
+                <div class="team-players-list">
+                    ${picks.map(p => `${p.name}${p.pickType === 'rtm' ? ' ⭐' : ''}`).join(', ') || 'No players yet'}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderSummary() {
+    const container = document.getElementById('auctionSummary');
+    if (!container) return;
+    
+    const teams = window.teams || [];
+    const totalTeams = teams.length;
+    let totalPicks = 0;
+    let totalRtm = 0;
+    let completedTeams = 0;
+    
+    Object.values(myTeamPicks).forEach(picks => {
+        totalPicks += picks.length;
+        totalRtm += picks.filter(p => p.pickType === 'rtm').length;
+    });
+    
+    teams.forEach(team => {
+        const picks = myTeamPicks[team.id] || [];
+        if (picks.length >= 4) completedTeams++;
+    });
+    
+    container.innerHTML = `
+        📊 <strong>${completedTeams}/${totalTeams}</strong> Teams Complete &nbsp;|&nbsp;
+        Total Players: <strong>${totalPicks}/${totalTeams * 4}</strong> &nbsp;|&nbsp;
+        Total RTM: <strong>${totalRtm}/${totalTeams}</strong>
+    `;
+}
+
+function updatePlayerCount() {
+    const countEl = document.getElementById('playerCount');
+    if (!countEl) return;
+    const available = auctionPlayers.filter(p => !p.sold).length;
+    countEl.textContent = `${available} players available`;
+}
+
+// ============================================
+// PAGINATION
+// ============================================
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        renderPlayers();
+    }
+}
+
+function nextPage() {
+    const search = document.getElementById('auctionSearch')?.value?.toLowerCase() || '';
+    let filtered = auctionPlayers.filter(p => !p.sold);
+    if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
+    const totalPages = Math.ceil(filtered.length / playersPerPage) || 1;
+    
+    if (currentPage < totalPages) {
+        currentPage++;
+        renderPlayers();
+    }
+}
+
+// ============================================
+// RANDOM PICK
+// ============================================
+
+function pickRandom() {
+    const available = auctionPlayers.filter(p => !p.sold);
+    if (available.length === 0) {
+        document.getElementById('noPlayersMessage').style.display = 'block';
+        return;
+    }
+    document.getElementById('noPlayersMessage').style.display = 'none';
+    
+    const randomIndex = Math.floor(Math.random() * available.length);
+    selectedRandomPlayer = available[randomIndex];
+    
+    showPlayerReveal(selectedRandomPlayer);
+}
+
+function showPlayerReveal(player) {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'player-reveal-overlay';
+    overlay.id = 'playerRevealOverlay';
+    overlay.innerHTML = `
+        <div class="player-reveal-content">
+            <div class="player-reveal-close" onclick="closePlayerReveal()">✕</div>
+            <div class="player-reveal-card">
+                <div class="player-reveal-icon">🏏</div>
+                <div class="player-reveal-name">${player.name.toUpperCase()}</div>
+                <div class="player-reveal-actions">
+                    <button onclick="showAssignForm()" class="assign-btn">✅ Assign to Team</button>
+                    <button onclick="closePlayerReveal()" class="again-btn">🔄 Pick Again</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // Show notification
+    showNotification(`🎰 Player picked: ${player.name}`, 'warning');
+}
+
+function closePlayerReveal() {
+    const overlay = document.getElementById('playerRevealOverlay');
+    if (overlay) overlay.remove();
+    document.getElementById('assignSection').style.display = 'none';
+}
+
+// ============================================
+// ASSIGN PLAYER TO TEAM
+// ============================================
+
+function showAssignForm() {
+    if (!selectedRandomPlayer) {
+        showNotification('⚠️ Please pick a player first!', 'danger');
+        return;
+    }
+    
+    // Close reveal overlay
+    const overlay = document.getElementById('playerRevealOverlay');
+    if (overlay) overlay.remove();
+    
+    // Show assign section
+    const assignSection = document.getElementById('assignSection');
+    assignSection.style.display = 'block';
+    document.getElementById('assignPlayerName').textContent = selectedRandomPlayer.name;
+    document.getElementById('assignAmount').value = '';
+    document.getElementById('assignAmount').placeholder = `Enter bid amount for ${selectedRandomPlayer.name}`;
+    
+    // Update team dropdown
+    updateTeamDropdowns();
+}
+
+function updateTeamDropdowns() {
+    const select = document.getElementById('assignTeam');
+    if (!select) return;
+    
+    const teams = window.teams || [];
+    select.innerHTML = '<option value="">Select Team</option>';
+    teams.forEach(team => {
+        select.innerHTML += `<option value="${team.id}">${team.name}</option>`;
+    });
+}
+
+function closeAssignSection() {
+    document.getElementById('assignSection').style.display = 'none';
+    selectedRandomPlayer = null;
+}
+
+function confirmAssign() {
+    const teamId = document.getElementById('assignTeam').value;
+    const amount = parseInt(document.getElementById('assignAmount').value);
+    const pickType = document.querySelector('input[name="pickType"]:checked').value;
+    
+    if (!teamId) {
+        showNotification('⚠️ Please select a team!', 'danger');
+        return;
+    }
+    if (!amount || amount < 0) {
+        showNotification('⚠️ Please enter a valid amount!', 'danger');
+        return;
+    }
+    
+    // Check wallet
+    let totalSpent = 0;
+    Object.values(myTeamPicks).forEach(picks => {
+        totalSpent += picks.reduce((sum, p) => sum + p.amount, 0);
+    });
+    
+    if (amount > (60000 - totalSpent)) {
+        showNotification('⚠️ Insufficient balance! Remaining: ₹' + (60000 - totalSpent).toLocaleString(), 'danger');
+        return;
+    }
+    
+    const team = window.teams.find(t => t.id === teamId);
+    if (!team) {
+        showNotification('⚠️ Team not found!', 'danger');
+        return;
+    }
+    
+    // Assign player
+    selectedRandomPlayer.sold = true;
+    selectedRandomPlayer.team = team.name;
+    selectedRandomPlayer.amount = amount;
+    selectedRandomPlayer.pickType = pickType;
+    
+    if (!myTeamPicks[teamId]) {
+        myTeamPicks[teamId] = [];
+    }
+    myTeamPicks[teamId].push({
+        playerId: selectedRandomPlayer.id,
+        name: selectedRandomPlayer.name,
+        amount: amount,
+        pickType: pickType
+    });
+    
+    saveAuctionData();
+    renderAll();
+    
+    document.getElementById('assignSection').style.display = 'none';
+    selectedRandomPlayer = null;
+    
+    showNotification(`✅ ${team.name} picked ${selectedRandomPlayer ? '' : ''} for ₹${amount.toLocaleString()}`, 'success');
+}
+
+// ============================================
+// ADD / DELETE PLAYERS
+// ============================================
+
+function addPlayerToAuction() {
+    const nameInput = document.getElementById('newPlayerName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        showNotification('⚠️ Please enter a player name!', 'danger');
+        return;
+    }
+    
+    // Check if player already exists
+    if (auctionPlayers.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        showNotification('⚠️ Player already exists in auction!', 'danger');
+        return;
+    }
+    
+    const newId = Math.max(...auctionPlayers.map(p => p.id), 0) + 1;
+    auctionPlayers.push({
+        id: newId,
+        name: name,
+        sold: false,
+        team: null,
+        amount: 0,
+        pickType: null
+    });
+    
+    saveAuctionData();
+    renderAll();
+    nameInput.value = '';
+    showNotification(`✅ ${name} added to auction!`, 'success');
+}
+
+function deletePlayerFromAuction(playerId) {
+    if (!confirm('Are you sure you want to delete this player from the auction?')) return;
+    
+    const player = auctionPlayers.find(p => p.id === playerId);
+    if (!player) return;
+    
+    if (player.sold) {
+        showNotification('⚠️ Player is already sold! Remove from team first.', 'danger');
+        return;
+    }
+    
+    auctionPlayers = auctionPlayers.filter(p => p.id !== playerId);
+    saveAuctionData();
+    renderAll();
+    showNotification(`🗑️ ${player.name} removed from auction`, 'warning');
+}
+
+// ============================================
+// FILTERS
+// ============================================
+
+function filterAuctionPlayers() {
+    currentPage = 1;
+    renderPlayers();
+}
+
+function resetAuctionFilters() {
+    document.getElementById('auctionSearch').value = '';
+    currentPage = 1;
+    renderPlayers();
+}
+
+// ============================================
+// RESET AUCTION
+// ============================================
+
+function resetAuction() {
+    if (!confirm('⚠️ Are you sure you want to reset the entire auction? All data will be lost!')) return;
+    
+    auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
+    myTeamPicks = {};
+    auctionWallet = 60000;
+    selectedRandomPlayer = null;
+    currentPage = 1;
+    
+    localStorage.removeItem('gcl_auction_data');
+    saveAuctionData();
+    renderAll();
+    document.getElementById('assignSection').style.display = 'none';
+    document.getElementById('selectedPlayer').style.display = 'none';
+    
+    showNotification('🔄 Auction has been reset!', 'success');
+}
+
+// ============================================
+// KEYBOARD SUPPORT
+// ============================================
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('auctionPassword') === document.activeElement) {
+        checkAuctionPassword();
+    }
+    if (e.key === 'Enter' && document.getElementById('newPlayerName') === document.activeElement) {
+        addPlayerToAuction();
+    }
+});
+
+// ============================================
+// END OF AUCTION SYSTEM
+// ============================================
