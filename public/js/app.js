@@ -51,6 +51,7 @@ socket.on('scoreUpdate', (data) => {
 socket.on('teamsList', (data) => {
     console.log('🏏 Teams List:', data);
     teams = data;
+     window.teams = data;
     updateTeamsList(data);
     updateTeamSelects(data);
 });
