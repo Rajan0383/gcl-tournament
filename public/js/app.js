@@ -1,956 +1,1178 @@
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const socketIo = require('socket.io');
-const fs = require('fs');
-const path = require('path');
-const { MongoClient } = require('mongodb');
+// ============================================
+// GCL FRONTEND APPLICATION - COMPLETE
+// ============================================
 
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
+const socket = io();
+let matchState = null;
+let teams = [];
+
+console.log('🏏 GCL Frontend Loading...');
+
+// ============================================
+// SOCKET EVENTS
+// ============================================
+
+socket.on('connect', () => {
+    console.log('✅ Connected to server!');
+    updateConnectionStatus(true);
+    socket.emit('getState');
+    socket.emit('getTeams');
+    socket.emit('getFixtures');
+    socket.emit('getTopStats');
+    socket.emit('getPointsTable');
+});
+
+socket.on('disconnect', () => {
+    console.log('❌ Disconnected from server');
+    updateConnectionStatus(false);
+});
+
+socket.on('stateUpdate', (state) => {
+    console.log('📊 State Update:', state);
+    matchState = state;
+    updateScoreboard(state);
+});
+
+socket.on('scoreUpdate', (data) => {
+    console.log('🎯 Score Update:', data);
+    
+    if (data.result && data.result.message) {
+        showNotification(data.result.message, 
+            data.result.isOut ? 'danger' : 
+            data.result.isWide ? 'warning' : 'success'
+        );
+    }
+    if (data.state) {
+        matchState = data.state;
+        updateScoreboard(data.state);
     }
 });
 
-const PORT = process.env.PORT || 3000;
+socket.on('teamsList', (data) => {
+    console.log('🏏 Teams List:', data);
+    teams = data;
+    updateTeamsList(data);
+    updateTeamSelects(data);
+});
+
+socket.on('teamCreated', (team) => {
+    showNotification(`✅ Team "${team.name}" created!`, 'success');
+    socket.emit('getTeams');
+});
+
+socket.on('fixturesUpdate', (fixtures) => {
+    console.log('📅 Fixtures Update:', fixtures);
+    updateFixtures(fixtures);
+});
+
+socket.on('pointsTable', (data) => {
+    console.log('🏆 Points Table:', data);
+    updatePointsTable(data);
+});
+
+socket.on('topStats', (data) => {
+    console.log('🏅 Top Stats:', data);
+    updateTop10Players(data);
+});
+
+socket.on('notification', (message) => {
+    showNotification(message, 'warning');
+});
+
+socket.on('error', (data) => {
+    console.error('❌ Error:', data);
+    showNotification(`❌ ${data.message}`, 'danger');
+});
 
 // ============================================
-// MONGODB CONNECTION
+// UI UPDATE FUNCTIONS
 // ============================================
 
-const MONGODB_URI = process.env.MONGODB_URI || '';
-let dbClient = null;
-let db = null;
-let useDatabase = false;
+function updateConnectionStatus(online) {
+    const statusDot = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('statusText');
+    if (statusDot) {
+        statusDot.className = `status-dot ${online ? 'online' : 'offline'}`;
+    }
+    if (statusText) {
+        statusText.textContent = online ? 'Connected' : 'Disconnected';
+    }
+}
 
-async function connectMongoDB() {
-    if (!MONGODB_URI) {
-        console.log('⚠️ MONGODB_URI not found. Using local file storage.');
-        return false;
+function updateScoreboard(state) {
+    if (!state) return;
+
+    const inningEl = document.querySelector('.inning-badge');
+    if (inningEl) {
+        inningEl.textContent = state.inning ? `Inning ${state.inning}` : 'Inning 1';
     }
     
-    try {
-        console.log('🔄 Connecting to MongoDB...');
-        dbClient = new MongoClient(MONGODB_URI);
-        await dbClient.connect();
-        db = dbClient.db('gcl_tournament');
-        useDatabase = true;
-        console.log('✅ Connected to MongoDB successfully!');
-        return true;
-    } catch (error) {
-        console.error('❌ MongoDB connection failed:', error.message);
-        console.log('📁 Falling back to local file storage.');
-        return false;
+    const overEl = document.querySelector('.over-info');
+    if (overEl) {
+        const ball = state.currentBall || 0;
+        const over = state.currentOver || 1;
+        overEl.textContent = `Over: ${over}.${ball} / ${state.totalOvers || 4}`;
     }
+
+    const overTypes = {
+        'lbw': '🔥 LBW Over',
+        'normal': '⚡ Normal Over',
+        'powerplay': '💥 POWERPLAY Over'
+    };
+    const overTypeEl = document.getElementById('overTypeDisplay');
+    if (overTypeEl) overTypeEl.textContent = overTypes[state.overType] || 'LBW Over';
+
+    if (state.battingTeam) {
+        const battingName = document.getElementById('battingTeamName');
+        const runs = document.getElementById('runsDisplay');
+        const wickets = document.getElementById('wicketsDisplay');
+        const balls = document.getElementById('ballsDisplay');
+        const extras = document.getElementById('extrasDisplay');
+        const batsman = document.getElementById('currentBatsman');
+        
+        if (battingName) battingName.textContent = state.battingTeam.name || 'Team 1';
+        if (runs) runs.textContent = state.battingTeam.runs || 0;
+        if (wickets) wickets.textContent = state.battingTeam.wickets || 0;
+        if (balls) balls.textContent = state.battingTeam.balls || 0;
+        if (extras) extras.textContent = state.battingTeam.extras || 0;
+        if (batsman) batsman.textContent = state.battingTeam.currentBatsman || '-';
+    }
+
+    if (state.bowlingTeam) {
+        const bowlingName = document.getElementById('bowlingTeamName');
+        const bowler = document.getElementById('currentBowler');
+        
+        if (bowlingName) bowlingName.textContent = state.bowlingTeam.name || 'Team 2';
+        if (bowler) bowler.textContent = state.bowlingTeam.currentBowler || '-';
+    }
+
+    const targetDisplay = document.getElementById('targetDisplay');
+    if (targetDisplay) {
+        targetDisplay.textContent = state.target ? `Target: ${state.target}` : '';
+    }
+
+    const lbwCount = document.getElementById('lbwCount');
+    const lbwDisplay = document.getElementById('lbwDisplay');
+    if (lbwCount) lbwCount.textContent = state.lbwCount || 0;
+    if (lbwDisplay) {
+        lbwDisplay.style.display = state.overType === 'lbw' ? 'block' : 'none';
+    }
+
+    const batsmanStatus = document.getElementById('batsmanStatus');
+    if (batsmanStatus) {
+        if (state.batsmanSet) {
+            batsmanStatus.textContent = '✅ Set';
+            batsmanStatus.style.color = '#4ade80';
+        } else {
+            batsmanStatus.textContent = '⏳ Waiting...';
+            batsmanStatus.style.color = '';
+        }
+    }
+
+    const bowlerStatus = document.getElementById('bowlerStatus');
+    if (bowlerStatus) {
+        if (state.bowlerGuessed) {
+            bowlerStatus.textContent = '✅ Guessed';
+            bowlerStatus.style.color = '#4ade80';
+        } else {
+            bowlerStatus.textContent = '⏳ Waiting...';
+            bowlerStatus.style.color = '';
+        }
+    }
+
+    const lastBallDisplay = document.getElementById('lastBallDisplay');
+    if (lastBallDisplay) {
+        if (state.lastBallResult) {
+            const result = state.lastBallResult;
+            let displayText = '';
+            if (result.isOut) {
+                displayText = `🎯 OUT! ${result.message}`;
+            } else if (result.isWide) {
+                displayText = `📏 WIDE! ${result.runsScored} runs`;
+            } else if (result.isNoBall) {
+                displayText = `❌ NO-BALL! ${result.runsScored} runs`;
+            } else if (result.isPowerplay) {
+                displayText = `⚡ ${result.message}`;
+            } else {
+                displayText = `${result.runsScored} runs`;
+            }
+            lastBallDisplay.textContent = `Last Ball: ${displayText}`;
+        } else {
+            lastBallDisplay.textContent = 'Last Ball: -';
+        }
+    }
+
+    updateAllowedScores(state);
 }
 
-// ============================================
-// DATA HELPER FUNCTIONS
-// ============================================
-
-async function loadData(collectionName, defaultData) {
-    if (useDatabase && db) {
-        try {
-            const collection = db.collection(collectionName);
-            const data = await collection.findOne({ _id: 'data' });
-            return data ? data.value : defaultData;
-        } catch (error) {
-            console.error(`Error loading ${collectionName}:`, error);
-            return defaultData;
-        }
+function updateAllowedScores(state) {
+    const overType = state?.overType || 'lbw';
+    let scores = [];
+    
+    if (overType === 'lbw') {
+        scores = [2, 3, 4, 5, 6];
+    } else if (overType === 'powerplay') {
+        scores = [1, 2, 3, 4, 5, 6];
     } else {
-        // Local file fallback
-        const filePath = path.join(__dirname, 'data', `${collectionName}.json`);
-        if (fs.existsSync(filePath)) {
-            try {
-                return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            } catch (e) {
-                return defaultData;
-            }
+        scores = [3, 4, 5, 6];
+    }
+
+    const batHint = document.getElementById('allowedBatScores');
+    const bowlHint = document.getElementById('allowedBowlScores');
+    if (batHint) batHint.textContent = `Allowed: ${scores.join(', ')}`;
+    if (bowlHint) bowlHint.textContent = `Allowed: ${scores.join(', ')}`;
+}
+
+function updateTeamsList(teams) {
+    const container = document.getElementById('teamsList');
+    if (!container) return;
+    
+    if (!teams || teams.length === 0) {
+        container.innerHTML = '<p class="empty-message">No teams created yet. Go to Admin tab to create teams.</p>';
+        return;
+    }
+
+    container.innerHTML = teams.map(team => `
+        <div class="team-card">
+            <div>
+                <div class="team-name-card">🏏 ${team.name}</div>
+                <div class="team-meta">
+                    👔 Manager: ${team.manager} | 🧢 Captain: ${team.captain} | ⭐ RTM: ${team.rtmPlayer}
+                </div>
+                <div class="team-squad">
+                    Squad: ${team.squad ? team.squad.join(', ') : 'Not set'}
+                </div>
+            </div>
+            <div class="team-stats">
+                <span class="stat">🎯 ${team.wins || 0}W</span>
+                <span class="stat">📉 ${team.losses || 0}L</span>
+                <span class="stat">⭐ ${team.points || 0}Pts</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateTeamSelects(teams) {
+    const options = teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    
+    const selects = ['team1Select', 'team2Select', 'fixtureTeam1', 'fixtureTeam2', 'winnerSelect'];
+    selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const currentValue = el.value;
+            el.innerHTML = `<option value="">Select ${el.id.includes('winner') ? 'Winner' : 'Team'}</option>${options}`;
+            if (currentValue) el.value = currentValue;
         }
-        return defaultData;
+    });
+}
+
+function updatePointsTable(pointsTable) {
+    const tbody = document.getElementById('pointsTableBody');
+    if (!tbody) return;
+    
+    if (!pointsTable || pointsTable.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = pointsTable.map(team => {
+        const rankClass = team.rank === 1 ? 'gold' : team.rank === 2 ? 'silver' : team.rank === 3 ? 'bronze' : '';
+        return `
+            <tr>
+                <td class="rank ${rankClass}">#${team.rank}</td>
+                <td><strong>${team.name}</strong></td>
+                <td>${team.matches || 0}</td>
+                <td class="wins">${team.wins || 0}</td>
+                <td class="losses">${team.losses || 0}</td>
+                <td class="points">${team.points || 0}</td>
+                <td>${(team.netRunRate || 0).toFixed(3)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updateTop10Players(data) {
+    // Batsmen
+    const batsmenBody = document.getElementById('topBatsmenBody');
+    if (batsmenBody) {
+        if (data.batsmen && data.batsmen.length > 0) {
+            batsmenBody.innerHTML = data.batsmen.slice(0, 10).map((player, index) => {
+                const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
+                return `
+                    <tr>
+                        <td class="rank ${rankClass}">#${index + 1}</td>
+                        <td><strong>${player.name}</strong></td>
+                        <td>${player.runs || 0}</td>
+                        <td>${player.balls || 0}</td>
+                        <td>${player.fours || 0}</td>
+                        <td>${player.sixes || 0}</td>
+                        <td>${(player.average || 0).toFixed(2)}</td>
+                        <td>${(player.strikeRate || 0).toFixed(2)}</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            batsmenBody.innerHTML = '<tr><td colspan="8" class="empty-message">No data available</td></tr>';
+        }
+    }
+
+    // Bowlers
+    const bowlersBody = document.getElementById('topBowlersBody');
+    if (bowlersBody) {
+        if (data.bowlers && data.bowlers.length > 0) {
+            bowlersBody.innerHTML = data.bowlers.slice(0, 10).map((player, index) => {
+                const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
+                return `
+                    <tr>
+                        <td class="rank ${rankClass}">#${index + 1}</td>
+                        <td><strong>${player.name}</strong></td>
+                        <td>${player.wickets || 0}</td>
+                        <td>${player.balls || 0}</td>
+                        <td>${player.runsConceded || 0}</td>
+                        <td>${(player.economy || 0).toFixed(2)}</td>
+                        <td>${player.best || 0}</td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            bowlersBody.innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
+        }
+    }
+
+    // Man of the Match
+    const momList = document.getElementById('momList');
+    if (momList) {
+        if (data.manOfMatch && data.manOfMatch.length > 0) {
+            momList.innerHTML = data.manOfMatch.slice(0, 5).map((player, index) => {
+                const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
+                return `
+                    <div class="mom-item">
+                        <span class="player-name">${rankClass ? '🏅' : ''} ${player.name}</span>
+                        <span class="player-count">${player.count} times</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            momList.innerHTML = '<p class="empty-message">No data available</p>';
+        }
     }
 }
 
-async function saveData(collectionName, data) {
-    if (useDatabase && db) {
-        try {
-            const collection = db.collection(collectionName);
-            await collection.updateOne(
-                { _id: 'data' },
-                { $set: { value: data } },
-                { upsert: true }
-            );
-            return true;
-        } catch (error) {
-            console.error(`Error saving ${collectionName}:`, error);
-            return false;
+// ============================================
+// GAME ACTIONS
+// ============================================
+
+function submitBatScore() {
+    const name = document.getElementById('batsmanName').value.trim();
+    const score = parseInt(document.getElementById('batsmanScore').value);
+    
+    if (!name) {
+        showNotification('⚠️ Please enter batsman name!', 'danger');
+        return;
+    }
+    
+    if (!score || score < 1 || score > 6) {
+        showNotification('⚠️ Please enter a valid score (1-6)', 'danger');
+        return;
+    }
+    
+    socket.emit('batsmanSetScore', { name, score });
+    document.getElementById('batsmanScore').value = '';
+    showNotification(`✅ ${name} set score: ${score}`, 'success');
+}
+
+function submitBowlGuess() {
+    const name = document.getElementById('bowlerName').value.trim();
+    const guess = parseInt(document.getElementById('bowlerGuess').value);
+    
+    if (!name) {
+        showNotification('⚠️ Please enter bowler name!', 'danger');
+        return;
+    }
+    
+    if (!guess || guess < 1 || guess > 6) {
+        showNotification('⚠️ Please enter a valid guess (1-6)', 'danger');
+        return;
+    }
+    
+    socket.emit('bowlerGuess', { name, guess });
+    document.getElementById('bowlerGuess').value = '';
+    showNotification(`⚾ ${name} guessed: ${guess}`, 'warning');
+}
+
+// ============================================
+// FIXTURE FUNCTIONS
+// ============================================
+
+function createFixture() {
+    const team1 = document.getElementById('fixtureTeam1').value;
+    const team2 = document.getElementById('fixtureTeam2').value;
+    const date = document.getElementById('fixtureDate').value;
+    const venue = document.getElementById('fixtureVenue').value || 'PalTalk Room';
+
+    if (!team1 || !team2) {
+        showNotification('Please select both teams', 'danger');
+        return;
+    }
+
+    if (team1 === team2) {
+        showNotification('Teams must be different', 'danger');
+        return;
+    }
+
+    socket.emit('createFixture', { team1, team2, date, venue });
+    showNotification(`📅 Fixture created: ${team1} vs ${team2}`, 'success');
+    
+    document.getElementById('fixtureTeam1').value = '';
+    document.getElementById('fixtureTeam2').value = '';
+    document.getElementById('fixtureDate').value = '';
+    document.getElementById('fixtureVenue').value = '';
+}
+
+function updateFixtures(fixtures) {
+    const upcomingContainer = document.getElementById('upcomingFixtures');
+    const completedContainer = document.getElementById('completedFixtures');
+
+    if (upcomingContainer) {
+        const upcoming = fixtures.matches.filter(m => fixtures.upcoming.includes(m.id));
+        if (upcoming.length === 0) {
+            upcomingContainer.innerHTML = '<p class="empty-message">No upcoming fixtures</p>';
+        } else {
+            upcomingContainer.innerHTML = upcoming.map(f => createFixtureCard(f)).join('');
         }
+    }
+
+    if (completedContainer) {
+        const completed = fixtures.matches.filter(m => fixtures.completed.includes(m.id));
+        if (completed.length === 0) {
+            completedContainer.innerHTML = '<p class="empty-message">No completed matches</p>';
+        } else {
+            completedContainer.innerHTML = completed.map(f => createFixtureCard(f)).join('');
+        }
+    }
+
+    updateCompleteFixtureSelect(fixtures);
+}
+
+function createFixtureCard(fixture) {
+    const statusColors = {
+        scheduled: 'scheduled',
+        ongoing: 'ongoing',
+        completed: 'completed'
+    };
+    
+    const actions = fixture.status === 'scheduled' ? `
+        <div class="fixture-actions">
+            <button class="start-btn" onclick="startFixture('${fixture.id}')">▶ Start Match</button>
+        </div>
+    ` : fixture.status === 'ongoing' ? `
+        <div class="fixture-actions">
+            <button class="complete-btn" onclick="completeMatchFromFixture('${fixture.id}')">🏆 Complete Match</button>
+        </div>
+    ` : '';
+
+    return `
+        <div class="fixture-card">
+            <div class="teams">🏏 ${fixture.team1} vs ${fixture.team2}</div>
+            <div class="meta">
+                📅 ${new Date(fixture.date).toLocaleString()} | 📍 ${fixture.venue}
+                ${fixture.result ? ` | Winner: 🏆 ${fixture.result}` : ''}
+                ${fixture.manOfMatch ? ` | ⭐ MOM: ${fixture.manOfMatch}` : ''}
+            </div>
+            <span class="status ${statusColors[fixture.status] || 'scheduled'}">${fixture.status.toUpperCase()}</span>
+            ${actions}
+        </div>
+    `;
+}
+
+function startFixture(fixtureId) {
+    if (confirm('Start this match? The scoreboard will be reset.')) {
+        socket.emit('startFixture', fixtureId);
+        switchTab('livescore');
+    }
+}
+
+function completeMatchFromFixture(fixtureId) {
+    switchTab('admin');
+    document.getElementById('completeFixtureSelect').value = fixtureId;
+    showNotification('Please select the winner and Man of the Match, then click Complete Match', 'warning');
+}
+
+function updateCompleteFixtureSelect(fixtures) {
+    const select = document.getElementById('completeFixtureSelect');
+    if (!select) return;
+    
+    const ongoing = fixtures.matches.filter(m => m.status === 'ongoing');
+    
+    if (ongoing.length === 0) {
+        select.innerHTML = '<option value="">No ongoing matches</option>';
+        return;
+    }
+
+    select.innerHTML = `
+        <option value="">Select Ongoing Match</option>
+        ${ongoing.map(f => `<option value="${f.id}">${f.team1} vs ${f.team2}</option>`).join('')}
+    `;
+}
+
+function completeMatch() {
+    const fixtureId = document.getElementById('completeFixtureSelect').value;
+    const winner = document.getElementById('winnerSelect').value;
+    const manOfMatch = document.getElementById('manOfMatch').value.trim();
+
+    if (!fixtureId) {
+        showNotification('Please select a match', 'danger');
+        return;
+    }
+    if (!winner) {
+        showNotification('Please select the winner', 'danger');
+        return;
+    }
+    if (!manOfMatch) {
+        showNotification('Please enter Man of the Match', 'danger');
+        return;
+    }
+
+    socket.emit('completeFixture', {
+        fixtureId,
+        winner,
+        manOfMatch,
+        playerStats: {}
+    });
+
+    showNotification(`🏆 Match completed! Winner: ${winner}`, 'success');
+    
+    document.getElementById('completeFixtureSelect').value = '';
+    document.getElementById('winnerSelect').value = '';
+    document.getElementById('manOfMatch').value = '';
+}
+
+// ============================================
+// ADMIN ACTIONS
+// ============================================
+
+function createTeam() {
+    const teamName = document.getElementById('teamName').value.trim();
+    const manager = document.getElementById('managerName').value.trim();
+    const captain = document.getElementById('captainName').value.trim();
+    const viceCaptain = document.getElementById('viceCaptainName').value.trim();
+    const rtmPlayer = document.getElementById('rtmPlayer').value.trim();
+    const auctionPlayersRaw = document.getElementById('auctionPlayers').value.trim();
+    
+    if (!teamName || !manager || !captain || !viceCaptain || !rtmPlayer) {
+        showNotification('Please fill all required fields', 'danger');
+        return;
+    }
+
+    const auctionPlayers = auctionPlayersRaw ? 
+        auctionPlayersRaw.split(',').map(p => p.trim()).filter(p => p) : [];
+
+    socket.emit('createTeam', {
+        name: teamName,
+        manager,
+        captain,
+        viceCaptain,
+        rtmPlayer,
+        auctionPlayers
+    });
+
+    ['teamName', 'managerName', 'captainName', 'viceCaptainName', 'rtmPlayer', 'auctionPlayers']
+        .forEach(id => document.getElementById(id).value = '');
+}
+
+function setupMatch() {
+    const team1Id = document.getElementById('team1Select').value;
+    const team2Id = document.getElementById('team2Select').value;
+    const team1Order = document.getElementById('team1Order').value.trim();
+    const team2Order = document.getElementById('team2Order').value.trim();
+
+    if (!team1Id || !team2Id) {
+        showNotification('Please select both teams', 'danger');
+        return;
+    }
+
+    if (team1Id === team2Id) {
+        showNotification('Teams must be different', 'danger');
+        return;
+    }
+
+    socket.emit('setupMatch', {
+        team1Id,
+        team2Id,
+        team1Order: team1Order ? team1Order.split(',').map(p => p.trim()) : undefined,
+        team2Order: team2Order ? team2Order.split(',').map(p => p.trim()) : undefined
+    });
+    
+    switchTab('livescore');
+}
+
+function resetMatch() {
+    if (confirm('Are you sure you want to reset the match? All data will be lost.')) {
+        socket.emit('resetMatch');
+    }
+}
+
+// ============================================
+// TAB SWITCHING
+// ============================================
+
+function switchTab(tabName) {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    const tabButton = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
+    if (tabButton) tabButton.classList.add('active');
+    
+    const tabContent = document.getElementById(`tab-${tabName}`);
+    if (tabContent) tabContent.classList.add('active');
+}
+
+// ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+let notificationTimeout = null;
+
+function showNotification(message, type = 'warning') {
+    const el = document.getElementById('notification');
+    if (!el) return;
+    
+    el.textContent = message;
+    el.className = `notification ${type}`;
+    
+    clearTimeout(notificationTimeout);
+    notificationTimeout = setTimeout(() => {
+        el.className = 'notification';
+    }, 5000);
+}
+
+// ============================================
+// KEYBOARD SHORTCUTS
+// ============================================
+
+document.addEventListener('keydown', (e) => {
+    if (e.target.id === 'batsmanScore' && e.key === 'Enter') {
+        submitBatScore();
+    }
+    if (e.target.id === 'bowlerGuess' && e.key === 'Enter') {
+        submitBowlGuess();
+    }
+});
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            switchTab(this.dataset.tab);
+        });
+    });
+});
+
+// ============================================
+// AUCTION SYSTEM - COMPLETE
+// ============================================
+
+// Auction Data
+let auctionPlayers = [];
+let myTeamPicks = {};
+let auctionWallet = 60000;
+let selectedRandomPlayer = null;
+let currentPage = 1;
+const playersPerPage = 20;
+
+// All Auction Players
+let allAuctionPlayers = [
+    { id: 1, name: "Virat Kohli" },
+    { id: 2, name: "Rohit Sharma" },
+    { id: 3, name: "Jasprit Bumrah" },
+    { id: 4, name: "Ravindra Jadeja" },
+    { id: 5, name: "KL Rahul" },
+    { id: 6, name: "Mohammed Shami" },
+    { id: 7, name: "Suryakumar Yadav" },
+    { id: 8, name: "Rishabh Pant" },
+    { id: 9, name: "MS Dhoni" },
+    { id: 10, name: "David Warner" },
+    { id: 11, name: "Kieron Pollard" },
+    { id: 12, name: "Ravichandran Ashwin" },
+    { id: 13, name: "Yuzvendra Chahal" },
+    { id: 14, name: "Shubman Gill" },
+    { id: 15, name: "Sanju Samson" },
+    { id: 16, name: "Hardik Pandya" },
+    { id: 17, name: "Rashid Khan" },
+    { id: 18, name: "Ben Stokes" },
+    { id: 19, name: "Jos Buttler" },
+    { id: 20, name: "Andre Russell" },
+    { id: 21, name: "Pat Cummins" },
+    { id: 22, name: "Glenn Maxwell" },
+    { id: 23, name: "Moeen Ali" },
+    { id: 24, name: "Kagiso Rabada" },
+    { id: 25, name: "Shreyas Iyer" },
+    { id: 26, name: "Ishan Kishan" },
+    { id: 27, name: "Axar Patel" },
+    { id: 28, name: "Trent Boult" },
+    { id: 29, name: "Faf du Plessis" },
+    { id: 30, name: "Jofra Archer" },
+];
+
+const AUCTION_PASSWORD = "gcl2026";
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+function initAuction() {
+    loadAuctionData();
+    renderAll();
+}
+
+// ============================================
+// LOAD & SAVE DATA
+// ============================================
+
+function loadAuctionData() {
+    const saved = localStorage.getItem('gcl_auction_data');
+    if (saved) {
+        const data = JSON.parse(saved);
+        auctionPlayers = data.players || allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
+        myTeamPicks = data.picks || {};
+        auctionWallet = data.wallet || 60000;
     } else {
-        // Local file fallback
-        const dataDir = path.join(__dirname, 'data');
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir);
-        }
-        const filePath = path.join(dataDir, `${collectionName}.json`);
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        return true;
+        auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
+        myTeamPicks = {};
+        auctionWallet = 60000;
+        saveAuctionData();
+    }
+}
+
+function saveAuctionData() {
+    localStorage.setItem('gcl_auction_data', JSON.stringify({
+        players: auctionPlayers,
+        picks: myTeamPicks,
+        wallet: auctionWallet
+    }));
+}
+
+// ============================================
+// CHECK PASSWORD
+// ============================================
+
+function checkAuctionPassword() {
+    const password = document.getElementById('auctionPassword').value;
+    const error = document.getElementById('auctionError');
+    const login = document.getElementById('auctionLogin');
+    const content = document.getElementById('auctionContent');
+    
+    if (password === AUCTION_PASSWORD) {
+        login.style.display = 'none';
+        content.style.display = 'block';
+        error.style.display = 'none';
+        initAuction();
+        showNotification('✅ Auction admin access granted!', 'success');
+    } else {
+        error.style.display = 'block';
+        document.getElementById('auctionPassword').value = '';
+        showNotification('❌ Incorrect password!', 'danger');
+    }
+}
+
+function logoutAuction() {
+    document.getElementById('auctionLogin').style.display = 'block';
+    document.getElementById('auctionContent').style.display = 'none';
+    document.getElementById('auctionPassword').value = '';
+    showNotification('🔒 Logged out from auction', 'warning');
+}
+
+// ============================================
+// RENDER FUNCTIONS
+// ============================================
+
+function renderAll() {
+    renderPlayers();
+    renderTeamStatus();
+    renderSummary();
+    updatePlayerCount();
+}
+
+function renderPlayers() {
+    const tbody = document.getElementById('auctionPlayersBody');
+    if (!tbody) return;
+    
+    const search = document.getElementById('auctionSearch')?.value?.toLowerCase() || '';
+    let filtered = auctionPlayers.filter(p => !p.sold);
+    
+    if (search) {
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
+    }
+    
+    const totalPages = Math.ceil(filtered.length / playersPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    
+    const start = (currentPage - 1) * playersPerPage;
+    const end = start + playersPerPage;
+    const pagePlayers = filtered.slice(start, end);
+    
+    if (pagePlayers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="empty-message">No players available</td></tr>';
+    } else {
+        tbody.innerHTML = pagePlayers.map((player, index) => `
+            <tr>
+                <td>${start + index + 1}</td>
+                <td><strong>${player.name}</strong></td>
+                <td>
+                    <button class="delete-btn" onclick="deletePlayerFromAuction(${player.id})">🗑️</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    
+    if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+}
+
+function renderTeamStatus() {
+    const container = document.getElementById('auctionTeamStatus');
+    if (!container) return;
+    
+    const teams = window.teams || [];
+    if (teams.length === 0) {
+        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = teams.map(team => {
+        const picks = myTeamPicks[team.id] || [];
+        const total = picks.length;
+        const rtmCount = picks.filter(p => p.pickType === 'rtm').length;
+        const totalSpent = picks.reduce((sum, p) => sum + p.amount, 0);
+        const isComplete = total >= 4;
+        const hasRtm = rtmCount >= 1;
+        
+        return `
+            <div class="team-status-card">
+                <div class="team-name-status">🏏 ${team.name}</div>
+                <div class="team-progress">
+                    ${isComplete ? '<span class="complete">✅ 4/4</span>' : `<span class="incomplete">⏳ ${total}/4</span>`}
+                </div>
+                <div class="team-rtm-status">
+                    ${hasRtm ? '<span class="has-rtm">⭐ RTM ✅</span>' : '<span class="no-rtm">❌ No RTM</span>'}
+                </div>
+                <div class="team-wallet-status">💰 ₹${totalSpent.toLocaleString()}</div>
+                <div class="team-players-list">
+                    ${picks.map(p => `${p.name}${p.pickType === 'rtm' ? ' ⭐' : ''}`).join(', ') || 'No players yet'}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderSummary() {
+    const container = document.getElementById('auctionSummary');
+    if (!container) return;
+    
+    const teams = window.teams || [];
+    const totalTeams = teams.length;
+    let totalPicks = 0;
+    let totalRtm = 0;
+    let completedTeams = 0;
+    
+    Object.values(myTeamPicks).forEach(picks => {
+        totalPicks += picks.length;
+        totalRtm += picks.filter(p => p.pickType === 'rtm').length;
+    });
+    
+    teams.forEach(team => {
+        const picks = myTeamPicks[team.id] || [];
+        if (picks.length >= 4) completedTeams++;
+    });
+    
+    container.innerHTML = `
+        📊 <strong>${completedTeams}/${totalTeams}</strong> Teams Complete &nbsp;|&nbsp;
+        Total Players: <strong>${totalPicks}/${totalTeams * 4}</strong> &nbsp;|&nbsp;
+        Total RTM: <strong>${totalRtm}/${totalTeams}</strong>
+    `;
+}
+
+function updatePlayerCount() {
+    const countEl = document.getElementById('playerCount');
+    if (!countEl) return;
+    const available = auctionPlayers.filter(p => !p.sold).length;
+    countEl.textContent = `${available} players available`;
+}
+
+// ============================================
+// PAGINATION
+// ============================================
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        renderPlayers();
+    }
+}
+
+function nextPage() {
+    const search = document.getElementById('auctionSearch')?.value?.toLowerCase() || '';
+    let filtered = auctionPlayers.filter(p => !p.sold);
+    if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
+    const totalPages = Math.ceil(filtered.length / playersPerPage) || 1;
+    
+    if (currentPage < totalPages) {
+        currentPage++;
+        renderPlayers();
     }
 }
 
 // ============================================
-// GAME ENGINE
+// RANDOM PICK
 // ============================================
 
-class GCLEngine {
-    constructor() {
-        this.resetMatch();
-        this.teams = [];
-        this.tournamentStats = { matches: 0, teams: {} };
-        this.fixtures = { matches: [], upcoming: [], completed: [] };
-        this.playerStats = { batsmen: {}, bowlers: {}, manOfMatch: [] };
-        this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
-        this.isLoaded = false;
+function pickRandom() {
+    const available = auctionPlayers.filter(p => !p.sold);
+    if (available.length === 0) {
+        document.getElementById('noPlayersMessage').style.display = 'block';
+        return;
     }
+    document.getElementById('noPlayersMessage').style.display = 'none';
+    
+    const randomIndex = Math.floor(Math.random() * available.length);
+    selectedRandomPlayer = available[randomIndex];
+    
+    showPlayerReveal(selectedRandomPlayer);
+}
 
-    async loadAllData() {
-        try {
-            this.teams = await loadData('teams', []);
-            this.tournamentStats = await loadData('stats', { matches: 0, teams: {} });
-            this.fixtures = await loadData('fixtures', { matches: [], upcoming: [], completed: [] });
-            this.playerStats = await loadData('playerStats', { batsmen: {}, bowlers: {}, manOfMatch: [] });
-            this.isLoaded = true;
-            console.log('📊 All data loaded successfully!');
-        } catch (error) {
-            console.error('Error loading data:', error);
-        }
+function showPlayerReveal(player) {
+    const overlay = document.createElement('div');
+    overlay.className = 'player-reveal-overlay';
+    overlay.id = 'playerRevealOverlay';
+    overlay.innerHTML = `
+        <div class="player-reveal-content">
+            <div class="player-reveal-close" onclick="closePlayerReveal()">✕</div>
+            <div class="player-reveal-card">
+                <div class="player-reveal-icon">🏏</div>
+                <div class="player-reveal-name">${player.name.toUpperCase()}</div>
+                <div class="player-reveal-actions">
+                    <button onclick="showAssignForm()" class="assign-btn">✅ Assign to Team</button>
+                    <button onclick="closePlayerReveal()" class="again-btn">🔄 Pick Again</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    showNotification(`🎰 Player picked: ${player.name}`, 'warning');
+}
+
+function closePlayerReveal() {
+    const overlay = document.getElementById('playerRevealOverlay');
+    if (overlay) overlay.remove();
+    document.getElementById('assignSection').style.display = 'none';
+}
+
+// ============================================
+// ASSIGN PLAYER TO TEAM
+// ============================================
+
+function showAssignForm() {
+    if (!selectedRandomPlayer) {
+        showNotification('⚠️ Please pick a player first!', 'danger');
+        return;
     }
+    
+    const overlay = document.getElementById('playerRevealOverlay');
+    if (overlay) overlay.remove();
+    
+    const assignSection = document.getElementById('assignSection');
+    assignSection.style.display = 'block';
+    document.getElementById('assignPlayerName').textContent = selectedRandomPlayer.name;
+    document.getElementById('assignAmount').value = '';
+    document.getElementById('assignAmount').placeholder = `Enter bid amount for ${selectedRandomPlayer.name}`;
+    
+    updateTeamDropdowns();
+}
 
-    async saveAllData() {
-        if (!this.isLoaded) return;
-        try {
-            await saveData('teams', this.teams);
-            await saveData('stats', this.tournamentStats);
-            await saveData('fixtures', this.fixtures);
-            await saveData('playerStats', this.playerStats);
-        } catch (error) {
-            console.error('Error saving data:', error);
-        }
+function updateTeamDropdowns() {
+    const select = document.getElementById('assignTeam');
+    if (!select) return;
+    
+    // Get teams from the global teams array
+    const teams = window.teams || [];
+    
+    console.log('🔄 Updating team dropdown. Teams found:', teams.length);
+    
+    if (teams.length === 0) {
+        select.innerHTML = '<option value="">⚠️ No teams created yet. Go to Admin tab first.</option>';
+        return;
     }
-
-    // ============================================
-    // TEAM MANAGEMENT
-    // ============================================
-
-    async createTeam(teamData) {
-        const team = {
-            id: Date.now().toString(),
-            name: teamData.name,
-            manager: teamData.manager,
-            captain: teamData.captain,
-            viceCaptain: teamData.viceCaptain,
-            rtmPlayer: teamData.rtmPlayer,
-            auctionPlayers: teamData.auctionPlayers || [],
-            squad: [],
-            points: 0,
-            matchesPlayed: 0,
-            wins: 0,
-            losses: 0,
-            netRunRate: 0,
-            runsScored: 0,
-            runsConceded: 0,
-            oversPlayed: 0,
-            oversBowled: 0,
-            createdAt: new Date().toISOString()
-        };
-        
-        team.squad = [
-            teamData.captain,
-            teamData.viceCaptain,
-            teamData.rtmPlayer,
-            ...teamData.auctionPlayers
-        ];
-        
-        this.teams.push(team);
-        await this.saveAllData();
-        return team;
+    
+    select.innerHTML = '<option value="">Select Team</option>';
+    teams.forEach(team => {
+        select.innerHTML += `<option value="${team.id}">${team.name}</option>`;
+    });
+}
+function confirmAssign() {
+    const teamId = document.getElementById('assignTeam').value;
+    const amount = parseInt(document.getElementById('assignAmount').value);
+    const pickType = document.querySelector('input[name="pickType"]:checked').value;
+    
+    if (!teamId) {
+        showNotification('⚠️ Please select a team!', 'danger');
+        return;
     }
-
-    getTeam(id) {
-        return this.teams.find(t => t.id === id);
+    if (!amount || amount < 0) {
+        showNotification('⚠️ Please enter a valid amount!', 'danger');
+        return;
     }
-
-    getAllTeams() {
-        return this.teams;
+    
+    let totalSpent = 0;
+    Object.values(myTeamPicks).forEach(picks => {
+        totalSpent += picks.reduce((sum, p) => sum + p.amount, 0);
+    });
+    
+    if (amount > (60000 - totalSpent)) {
+        showNotification('⚠️ Insufficient balance! Remaining: ₹' + (60000 - totalSpent).toLocaleString(), 'danger');
+        return;
     }
-
-    // ============================================
-    // FIXTURE MANAGEMENT
-    // ============================================
-
-    async createFixture(matchData) {
-        const fixture = {
-            id: `FIX-${Date.now()}`,
-            team1: matchData.team1,
-            team2: matchData.team2,
-            date: matchData.date || new Date().toISOString(),
-            venue: matchData.venue || 'PalTalk Room',
-            status: 'scheduled',
-            result: null,
-            matchId: null,
-            manOfMatch: null,
-            createdAt: new Date().toISOString()
-        };
-
-        this.fixtures.matches.push(fixture);
-        this.fixtures.upcoming.push(fixture.id);
-        await this.saveAllData();
-        return fixture;
+    
+    const team = window.teams.find(t => t.id === teamId);
+    if (!team) {
+        showNotification('⚠️ Team not found!', 'danger');
+        return;
     }
-
-    getFixtures() {
-        return this.fixtures;
+    
+    selectedRandomPlayer.sold = true;
+    selectedRandomPlayer.team = team.name;
+    selectedRandomPlayer.amount = amount;
+    selectedRandomPlayer.pickType = pickType;
+    
+    if (!myTeamPicks[teamId]) {
+        myTeamPicks[teamId] = [];
     }
+    myTeamPicks[teamId].push({
+        playerId: selectedRandomPlayer.id,
+        name: selectedRandomPlayer.name,
+        amount: amount,
+        pickType: pickType
+    });
+    
+    saveAuctionData();
+    renderAll();
+    
+    document.getElementById('assignSection').style.display = 'none';
+    selectedRandomPlayer = null;
+    
+    showNotification(`✅ ${team.name} picked player for ₹${amount.toLocaleString()}`, 'success');
+}
 
-    async startFixture(fixtureId) {
-        const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
-        if (!fixture) throw new Error('Fixture not found');
+// ============================================
+// ADD / DELETE PLAYERS
+// ============================================
 
-        this.fixtures.upcoming = this.fixtures.upcoming.filter(id => id !== fixtureId);
-        fixture.status = 'ongoing';
-        
-        const team1 = this.teams.find(t => t.name === fixture.team1);
-        const team2 = this.teams.find(t => t.name === fixture.team2);
-        
-        if (team1 && team2) {
-            this.setupMatch(team1.id, team2.id, 
-                team1.squad || [team1.captain, team1.viceCaptain, team1.rtmPlayer, ...team1.auctionPlayers],
-                team2.squad || [team2.captain, team2.viceCaptain, team2.rtmPlayer, ...team2.auctionPlayers]
-            );
-            this.matchState.matchId = fixtureId;
-            fixture.matchId = fixtureId;
-        }
-
-        await this.saveAllData();
-        return fixture;
+function addPlayerToAuction() {
+    const nameInput = document.getElementById('newPlayerName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        showNotification('⚠️ Please enter a player name!', 'danger');
+        return;
     }
-
-    async completeFixture(fixtureId, winner, manOfMatch, playerStats) {
-        const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
-        if (!fixture) throw new Error('Fixture not found');
-
-        fixture.status = 'completed';
-        fixture.result = winner;
-        fixture.manOfMatch = manOfMatch;
-        fixture.completedAt = new Date().toISOString();
-
-        this.fixtures.completed.push(fixtureId);
-
-        if (playerStats) {
-            this.updatePlayerStats(playerStats);
-        }
-
-        if (manOfMatch) {
-            this.playerStats.manOfMatch.push({
-                player: manOfMatch,
-                fixtureId: fixtureId,
-                team: winner,
-                date: new Date().toISOString()
-            });
-        }
-
-        const team1 = this.teams.find(t => t.name === fixture.team1);
-        const team2 = this.teams.find(t => t.name === fixture.team2);
-        
-        if (team1 && team2) {
-            const matchResult = {
-                team1: fixture.team1,
-                team2: fixture.team2,
-                winner: winner,
-                runs1: this.matchState?.team1?.runs || 0,
-                runs2: this.matchState?.team2?.runs || 0,
-                overs1: 4,
-                overs2: 4
-            };
-            this.updateTeamStats(matchResult);
-        }
-
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
-
-        await this.saveAllData();
-        return fixture;
+    
+    if (auctionPlayers.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+        showNotification('⚠️ Player already exists in auction!', 'danger');
+        return;
     }
+    
+    const newId = Math.max(...auctionPlayers.map(p => p.id), 0) + 1;
+    auctionPlayers.push({
+        id: newId,
+        name: name,
+        sold: false,
+        team: null,
+        amount: 0,
+        pickType: null
+    });
+    
+    saveAuctionData();
+    renderAll();
+    nameInput.value = '';
+    showNotification(`✅ ${name} added to auction!`, 'success');
+}
 
-    // ============================================
-    // POINTS TABLE
-    // ============================================
-
-    getPointsTable() {
-        const table = this.teams.map(team => ({
-            rank: 0,
-            name: team.name,
-            matches: team.matchesPlayed || 0,
-            wins: team.wins || 0,
-            losses: team.losses || 0,
-            points: team.points || 0,
-            netRunRate: team.netRunRate || 0,
-            runsScored: team.runsScored || 0,
-            runsConceded: team.runsConceded || 0,
-            oversPlayed: team.oversPlayed || 4,
-            oversBowled: team.oversBowled || 4
-        }));
-
-        table.sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
-            return b.netRunRate - a.netRunRate;
-        });
-
-        table.forEach((team, index) => {
-            team.rank = index + 1;
-        });
-
-        table.forEach(team => {
-            if (team.oversPlayed > 0 && team.oversBowled > 0) {
-                const runRate = team.runsScored / team.oversPlayed;
-                const concededRate = team.runsConceded / team.oversBowled;
-                team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
-            }
-        });
-
-        return table;
+function deletePlayerFromAuction(playerId) {
+    if (!confirm('Are you sure you want to delete this player from the auction?')) return;
+    
+    const player = auctionPlayers.find(p => p.id === playerId);
+    if (!player) return;
+    
+    if (player.sold) {
+        showNotification('⚠️ Player is already sold! Remove from team first.', 'danger');
+        return;
     }
+    
+    auctionPlayers = auctionPlayers.filter(p => p.id !== playerId);
+    saveAuctionData();
+    renderAll();
+    showNotification(`🗑️ ${player.name} removed from auction`, 'warning');
+}
 
-    updateTeamStats(matchResult) {
-        const team1 = this.teams.find(t => t.name === matchResult.team1);
-        const team2 = this.teams.find(t => t.name === matchResult.team2);
+// ============================================
+// FILTERS
+// ============================================
 
-        if (team1) {
-            team1.matchesPlayed = (team1.matchesPlayed || 0) + 1;
-            team1.runsScored = (team1.runsScored || 0) + (matchResult.runs1 || 0);
-            team1.runsConceded = (team1.runsConceded || 0) + (matchResult.runs2 || 0);
-            team1.oversPlayed = (team1.oversPlayed || 0) + (matchResult.overs1 || 4);
-            team1.oversBowled = (team1.oversBowled || 0) + (matchResult.overs2 || 4);
-            
-            if (matchResult.winner === team1.name) {
-                team1.wins = (team1.wins || 0) + 1;
-                team1.points = (team1.points || 0) + 2;
-            } else {
-                team1.losses = (team1.losses || 0) + 1;
-            }
-        }
+function filterAuctionPlayers() {
+    currentPage = 1;
+    renderPlayers();
+}
 
-        if (team2) {
-            team2.matchesPlayed = (team2.matchesPlayed || 0) + 1;
-            team2.runsScored = (team2.runsScored || 0) + (matchResult.runs2 || 0);
-            team2.runsConceded = (team2.runsConceded || 0) + (matchResult.runs1 || 0);
-            team2.oversPlayed = (team2.oversPlayed || 0) + (matchResult.overs2 || 4);
-            team2.oversBowled = (team2.oversBowled || 0) + (matchResult.overs1 || 4);
-            
-            if (matchResult.winner === team2.name) {
-                team2.wins = (team2.wins || 0) + 1;
-                team2.points = (team2.points || 0) + 2;
-            } else {
-                team2.losses = (team2.losses || 0) + 1;
-            }
-        }
+function resetAuctionFilters() {
+    document.getElementById('auctionSearch').value = '';
+    currentPage = 1;
+    renderPlayers();
+}
 
-        this.saveAllData();
+// ============================================
+// RESET AUCTION
+// ============================================
+
+function resetAuction() {
+    if (!confirm('⚠️ Are you sure you want to reset the entire auction? All data will be lost!')) return;
+    
+    auctionPlayers = allAuctionPlayers.map(p => ({ ...p, sold: false, team: null, amount: 0, pickType: null }));
+    myTeamPicks = {};
+    auctionWallet = 60000;
+    selectedRandomPlayer = null;
+    currentPage = 1;
+    
+    localStorage.removeItem('gcl_auction_data');
+    saveAuctionData();
+    renderAll();
+    document.getElementById('assignSection').style.display = 'none';
+    
+    showNotification('🔄 Auction has been reset!', 'success');
+}
+
+// ============================================
+// KEYBOARD SUPPORT
+// ============================================
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('auctionPassword') === document.activeElement) {
+        checkAuctionPassword();
     }
-
-    // ============================================
-    // PLAYER STATISTICS
-    // ============================================
-
-    updatePlayerStats(stats) {
-        for (const [player, data] of Object.entries(stats)) {
-            if (!this.playerStats.batsmen[player]) {
-                this.playerStats.batsmen[player] = {
-                    runs: 0,
-                    balls: 0,
-                    fours: 0,
-                    sixes: 0,
-                    innings: 0,
-                    notOut: 0,
-                    highest: 0,
-                    average: 0,
-                    strikeRate: 0
-                };
-            }
-
-            if (!this.playerStats.bowlers[player]) {
-                this.playerStats.bowlers[player] = {
-                    wickets: 0,
-                    balls: 0,
-                    runsConceded: 0,
-                    economy: 0,
-                    best: 0,
-                    matches: 0
-                };
-            }
-
-            const bat = this.playerStats.batsmen[player];
-            bat.runs += data.runs || 0;
-            bat.balls += data.balls || 0;
-            bat.fours += data.fours || 0;
-            bat.sixes += data.sixes || 0;
-            bat.innings += 1;
-            if (data.notOut) bat.notOut += 1;
-            if (data.runs > bat.highest) bat.highest = data.runs;
-            bat.average = bat.innings > 0 ? bat.runs / bat.innings : 0;
-            bat.strikeRate = bat.balls > 0 ? (bat.runs / bat.balls) * 100 : 0;
-
-            const bowl = this.playerStats.bowlers[player];
-            bowl.wickets += data.wickets || 0;
-            bowl.balls += data.balls || 0;
-            bowl.runsConceded += data.runsConceded || 0;
-            bowl.matches += 1;
-            bowl.economy = bowl.balls > 0 ? (bowl.runsConceded / bowl.balls) * 6 : 0;
-            if (data.wickets > bowl.best) bowl.best = data.wickets;
-        }
+    if (e.key === 'Enter' && document.getElementById('newPlayerName') === document.activeElement) {
+        addPlayerToAuction();
     }
+});
 
-    getTopBatsmen(limit = 10) {
-        return Object.entries(this.playerStats.batsmen)
-            .map(([name, stats]) => ({ name, ...stats }))
-            .sort((a, b) => b.runs - a.runs)
-            .slice(0, limit);
-    }
+// ============================================
+// END OF AUCTION SYSTEM
+// ============================================
 
-    getTopBowlers(limit = 10) {
-        return Object.entries(this.playerStats.bowlers)
-            .map(([name, stats]) => ({ name, ...stats }))
-            .sort((a, b) => b.wickets - a.wickets)
-            .slice(0, limit);
-    }
-
-    getTopManOfMatch(limit = 5) {
-        const countMap = {};
-        this.playerStats.manOfMatch.forEach(m => {
-            countMap[m.player] = (countMap[m.player] || 0) + 1;
-        });
-        return Object.entries(countMap)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, limit);
-    }
-
-    getPlayerStats(playerName) {
-        return {
-            batting: this.playerStats.batsmen[playerName] || null,
-            bowling: this.playerStats.bowlers[playerName] || null,
-            manOfMatch: this.playerStats.manOfMatch.filter(m => m.player === playerName).length
-        };
-    }
-
-    // ============================================
-    // MATCH SETUP AND GAME LOGIC
-    // ============================================
-
-    resetMatch() {
-        this.matchState = {
-            isActive: false,
-            currentOver: 0,
-            currentBall: 0,
-            totalOvers: 4,
-            team1: {
-                name: '',
-                runs: 0,
-                wickets: 0,
-                balls: 0,
-                extras: 0,
-                currentBatsman: null,
-                currentBowler: null,
-                battingOrder: [],
-                bowlingOrder: [],
-                currentBattingIndex: 0,
-                currentBowlingIndex: 0,
-                partnership: 0,
-                lastBalls: []
-            },
-            team2: {
-                name: '',
-                runs: 0,
-                wickets: 0,
-                balls: 0,
-                extras: 0,
-                currentBatsman: null,
-                currentBowler: null,
-                battingOrder: [],
-                bowlingOrder: [],
-                currentBattingIndex: 0,
-                currentBowlingIndex: 0,
-                partnership: 0,
-                lastBalls: []
-            },
-            battingTeam: 1,
-            bowlingTeam: 2,
-            overType: '',
-            lbwCount: 0,
-            isFreeHit: false,
-            isWide: false,
-            isNoBall: false,
-            lastBallResult: null,
-            secretScore: null,
-            batsmanSet: false,
-            bowlerGuessed: false,
-            currentBatsmanName: '',
-            currentBowlerName: '',
-            matchId: null,
-            inning: 1,
-            target: null,
-            winner: null,
-            isComplete: false
-        };
-        this.currentMatchStats = {
-            batsmen: {},
-            bowlers: {},
-            manOfMatchCandidates: []
-        };
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
-    }
-
-    setupMatch(team1Id, team2Id, team1BattingOrder, team2BattingOrder) {
-        const team1 = this.getTeam(team1Id);
-        const team2 = this.getTeam(team2Id);
-        
-        if (!team1 || !team2) {
-            throw new Error('Team not found');
-        }
-
-        this.resetMatch();
-        this.matchState.isActive = true;
-        this.matchState.matchId = `MATCH-${Date.now()}`;
-        
-        this.matchState.team1.name = team1.name;
-        this.matchState.team2.name = team2.name;
-        
-        this.matchState.team1.battingOrder = team1BattingOrder || team1.squad;
-        this.matchState.team2.battingOrder = team2BattingOrder || team2.squad;
-        
-        this.matchState.team1.currentBatsman = this.matchState.team1.battingOrder[0];
-        this.matchState.team2.currentBatsman = this.matchState.team2.battingOrder[0];
-        
-        this.matchState.battingTeam = 1;
-        this.matchState.bowlingTeam = 2;
-        
-        this.matchState.currentOver = 1;
-        this.matchState.currentBall = 0;
-        this.matchState.overType = this.getOverType(1);
-        
-        this.matchState.currentBatsmanName = this.matchState.team1.currentBatsman;
-        
-        this.striker = this.matchState.team1.currentBatsman;
-        this.nonStriker = this.matchState.team1.battingOrder[1] || 'Non-Striker';
-        
-        return this.matchState;
-    }
-
-    getOverType(over) {
-        if (over === 1) return 'lbw';
-        if (over === 4) return 'powerplay';
-        return 'normal';
-    }
-
-    batsmanSetScore(data) {
-        const { name, score } = data;
-        
-        if (!this.matchState.isActive) {
-            return { error: 'Match not active' };
-        }
-
-        if (this.matchState.batsmanSet) {
-            return { error: 'Batsman already set score for this ball' };
-        }
-
-        const overType = this.getOverType(this.matchState.currentOver);
-        let validScores = [];
-        
-        if (overType === 'lbw') {
-            validScores = [2, 3, 4, 5, 6];
-        } else if (overType === 'powerplay') {
-            validScores = [1, 2, 3, 4, 5, 6];
-        } else {
-            validScores = [3, 4, 5, 6];
-        }
-
-        if (!validScores.includes(parseInt(score))) {
-            return { 
-                error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` 
-            };
-        }
-
-        this.matchState.secretScore = parseInt(score);
-        this.matchState.batsmanSet = true;
-        this.matchState.bowlerGuessed = false;
-        this.matchState.currentBatsmanName = name || 'Batsman';
-        
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
-        battingTeam.currentBatsman = name || battingTeam.currentBatsman;
-        
-        if (!this.striker) {
-            this.striker = name || battingTeam.currentBatsman;
-            this.nonStriker = battingTeam.battingOrder[1] || 'Non-Striker';
-        }
-        
-        return { 
-            success: true, 
-            message: `${name || 'Batsman'} set score ${score}`,
-            batsman: name || 'Batsman',
-            score: score
-        };
-    }
-
-    bowlerGuess(data) {
-        const { name, guess } = data;
-        
-        if (!this.matchState.isActive) {
-            return { error: 'Match not active' };
-        }
-
-        if (!this.matchState.batsmanSet) {
-            return { error: 'Batsman has not set score yet!' };
-        }
-
-        if (this.matchState.bowlerGuessed) {
-            return { error: 'Bowler already guessed for this ball' };
-        }
-
-        const batsmanScore = this.matchState.secretScore;
-        const bowlerGuess = parseInt(guess);
-        const overType = this.getOverType(this.matchState.currentOver);
-        
-        let validGuesses = [];
-        if (overType === 'lbw') {
-            validGuesses = [2, 3, 4, 5, 6];
-        } else if (overType === 'powerplay') {
-            validGuesses = [1, 2, 3, 4, 5, 6];
-        } else {
-            validGuesses = [3, 4, 5, 6];
-        }
-
-        if (!validGuesses.includes(bowlerGuess)) {
-            return { 
-                error: `Invalid guess! Allowed numbers: ${validGuesses.join(', ')}` 
-            };
-        }
-
-        this.matchState.bowlerGuessed = true;
-        this.matchState.currentBowlerName = name || 'Bowler';
-        
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
-        const bowlingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team2 : this.matchState.team1;
-
-        let result = {
-            batsmanScore: batsmanScore,
-            bowlerGuess: bowlerGuess,
-            isOut: false,
-            runsScored: 0,
-            isWide: false,
-            isNoBall: false,
-            isFreeHit: false,
-            isLBW: false,
-            isPowerplay: false,
-            message: '',
-            ballResult: '',
-            batsmanName: this.matchState.currentBatsmanName,
-            bowlerName: this.matchState.currentBowlerName
-        };
-
-        // OVER 1: LBW OVER
-        if (overType === 'lbw') {
-            const diff = Math.abs(batsmanScore - bowlerGuess);
-            
-            if (batsmanScore === bowlerGuess) {
-                result.isOut = true;
-                result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-                result.ballResult = 'W';
-            } else if (diff === 1) {
-                this.matchState.lbwCount += 1;
-                if (this.matchState.lbwCount >= 3) {
-                    result.isOut = true;
-                    result.isLBW = true;
-                    result.message = `🏏 LBW OUT! 3 consecutive diff of 1!`;
-                    result.ballResult = 'LBW';
-                    this.matchState.lbwCount = 0;
-                } else {
-                    result.runsScored = batsmanScore;
-                    result.message = `✅ Safe! ${batsmanScore} runs (LBW count: ${this.matchState.lbwCount}/3)`;
-                    result.ballResult = batsmanScore.toString();
-                }
-            } else {
-                result.runsScored = batsmanScore;
-                result.message = `✅ Safe! ${batsmanScore} runs`;
-                result.ballResult = batsmanScore.toString();
-                this.matchState.lbwCount = 0;
-            }
-        }
-        // OVERS 2-3: NORMAL OVER
-        else if (overType === 'normal') {
-            if ((batsmanScore === 3 && bowlerGuess === 6) || 
-                (batsmanScore === 6 && bowlerGuess === 3)) {
-                result.isWide = true;
-                result.runsScored = batsmanScore;
-                result.message = `📏 WIDE! ${batsmanScore} runs added. Ball repeated.`;
-                result.ballResult = 'WD';
-            } else if (batsmanScore === 5 && bowlerGuess !== 5) {
-                result.isNoBall = true;
-                result.isFreeHit = true;
-                result.runsScored = 5;
-                result.message = `❌ NO-BALL! 5 runs added. FREE HIT next ball!`;
-                result.ballResult = 'NB';
-                this.matchState.isFreeHit = true;
-            } else if (this.matchState.isFreeHit) {
-                if (batsmanScore === 4 || batsmanScore === 6) {
-                    result.runsScored = batsmanScore;
-                    result.message = `🚀 FREE HIT! ${batsmanScore} runs!`;
-                    result.ballResult = batsmanScore.toString();
-                } else {
-                    result.runsScored = 0;
-                    result.message = `⚫ FREE HIT! Dot ball. No wicket.`;
-                    result.ballResult = '0';
-                }
-                this.matchState.isFreeHit = false;
-            } else if (batsmanScore === bowlerGuess) {
-                result.isOut = true;
-                result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-                result.ballResult = 'W';
-            } else {
-                result.runsScored = batsmanScore;
-                result.message = `✅ Safe! ${batsmanScore} runs`;
-                result.ballResult = batsmanScore.toString();
-            }
-        }
-        // OVER 4: POWERPLAY
-        else if (overType === 'powerplay') {
-            result.isPowerplay = true;
-            
-            if (batsmanScore === bowlerGuess) {
-                result.isOut = true;
-                result.runsScored = -batsmanScore;
-                result.message = `💥 POWERPLAY! OUT! ${batsmanScore} runs DEDUCTED!`;
-                result.ballResult = 'W*';
-            } else {
-                result.runsScored = batsmanScore * 2;
-                result.message = `⚡ POWERPLAY! ${batsmanScore} × 2 = ${batsmanScore * 2} runs!`;
-                result.ballResult = (batsmanScore * 2).toString();
-            }
-        }
-
-        // UPDATE SCOREBOARD
-        battingTeam.runs += result.runsScored;
-        
-        if (!result.isWide && !result.isNoBall) {
-            battingTeam.balls += 1;
-            this.matchState.currentBall += 1;
-        }
-        
-        if (result.isWide) battingTeam.extras += 1;
-        if (result.isNoBall) battingTeam.extras += 1;
-        
-        if (result.isOut) {
-            battingTeam.wickets += 1;
-            
-            battingTeam.currentBattingIndex += 1;
-            if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
-                battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
-                this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-            } else {
-                result.message += ' 🏏 All out!';
-                this.endInnings();
-            }
-        } else {
-            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-            if (result.runsScored > 0) {
-                this.updateStrike(this.matchState.currentBatsmanName, result.runsScored);
-            }
-        }
-
-        this.matchState.lastBallResult = result;
-        
-        if (this.matchState.currentBall >= 6) {
-            this.matchState.currentBall = 0;
-            this.matchState.currentOver += 1;
-            if (this.matchState.currentOver <= this.matchState.totalOvers) {
-                this.matchState.overType = this.getOverType(this.matchState.currentOver);
-            } else {
-                this.endInnings();
-            }
-        }
-
-        this.matchState.batsmanSet = false;
-        this.matchState.bowlerGuessed = false;
-        this.matchState.secretScore = null;
-
-        return {
-            ...result,
-            matchState: this.getMatchState()
-        };
-    }
-
-    updateStrike(batsmanName, runsScored) {
-        if (runsScored % 2 !== 0 && this.striker && this.nonStriker) {
-            const temp = this.striker;
-            this.striker = this.nonStriker;
-            this.nonStriker = temp;
-            this.strikeChanged = true;
-        } else {
-            this.strikeChanged = false;
-        }
-    }
-
-    endInnings() {
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
-        
-        if (this.matchState.inning === 1) {
-            this.matchState.target = battingTeam.runs + 1;
-            this.matchState.inning = 2;
-            
-            this.matchState.battingTeam = 2;
-            this.matchState.bowlingTeam = 1;
-            
-            this.matchState.currentOver = 1;
-            this.matchState.currentBall = 0;
-            this.matchState.overType = this.getOverType(1);
-            this.matchState.lbwCount = 0;
-            this.matchState.isFreeHit = false;
-            
-            const newBattingTeam = this.matchState.team2;
-            newBattingTeam.currentBatsman = newBattingTeam.battingOrder[0] || newBattingTeam.squad[0];
-            this.matchState.currentBatsmanName = newBattingTeam.currentBatsman;
-            
-            this.striker = newBattingTeam.currentBatsman;
-            this.nonStriker = newBattingTeam.battingOrder[1] || 'Non-Striker';
-            
-            return {
-                message: `🏏 Innings complete! Target: ${this.matchState.target}`,
-                target: this.matchState.target
-            };
-        } else {
-            this.matchState.isComplete = true;
-            this.matchState.isActive = false;
-            
-            const team1Score = this.matchState.team1.runs;
-            const team2Score = this.matchState.team2.runs;
-            
-            if (team2Score > team1Score) {
-                this.matchState.winner = this.matchState.team2.name;
-            } else if (team1Score > team2Score) {
-                this.matchState.winner = this.matchState.team1.name;
-            } else {
-                this.matchState.winner = 'TIE';
-            }
-            
-            this.tournamentStats.matches += 1;
-            
-            if (this.matchState.matchId && this.matchState.matchId.startsWith('FIX-')) {
-                const fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
-                if (fixture && fixture.status === 'ongoing') {
-                    this.completeFixture(
-                        fixture.id,
-                        this.matchState.winner,
-                        null,
-                        this.currentMatchStats.batsmen
-                    );
-                }
-            }
-            
-            this.saveAllData();
-            
-            this.striker = null;
-            this.nonStriker = null;
-            this.strikeChanged = false;
-            
-            return {
-                message: `🏆 Match Complete! Winner: ${this.matchState.winner}`,
-                winner: this.matchState.winner,
-                team1Score: team1Score,
-                team2Score: team2Score
-            };
-        }
-    }
-
-    getMatchState() {
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
-        const bowlingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team2 : this.matchState.team1;
-
-        return {
-            matchId: this.matchState.matchId,
-            isActive: this.matchState.isActive,
-            isComplete: this.matchState.isComplete,
-            inning: this.matchState.inning,
-            currentOver: this.matchState.currentOver,
-            currentBall: this.matchState.currentBall,
-            totalOvers: this.matchState.totalOvers,
-            overType: this.matchState.overType,
-            
-            battingTeam: {
-                name: battingTeam.name,
-                runs: battingTeam.runs,
-                wickets: battingTeam.wickets,
-                balls: battingTeam.balls,
-                extras: battingTeam.extras,
-                currentBatsman: battingTeam.currentBatsman,
-                battingOrder: battingTeam.battingOrder
-            },
-            bowlingTeam: {
-                name: bowlingTeam.name,
-                currentBowler: bowlingTeam.currentBowler
-            },
-            
-            target: this.matchState.target,
-            winner: this.matchState.winner,
-            lbwCount: this.matchState.lbwCount,
-            isFreeHit: this.matchState.isFreeHit,
-            lastBallResult: this.matchState.lastBallResult,
-            batsmanSet: this.matchState.batsmanSet,
-            bowlerGuessed: this.matchState.bowlerGuessed,
-            currentBatsmanName: this.matchState.currentBatsmanName,
-            currentBowlerName: this.matchState.currentBowlerName,
-            striker: this.striker,
-            nonStriker: this.nonStriker,
-            strikeChanged: this.strikeChanged
-        };
-    }
-
-    resetMatchAdmin() {
-        this.resetMatch();
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
-        return { message: 'Match reset successfully' };
-    }
-
-    // ============================================
-    // EXPORT FUNCTIONS
-    // ============================================
-
-    exportTournamentData(format = 'json') {
-        const data = {
-            tournament: {
-                name: 'Gem-Star Champions League 2026',
-                exportedAt: new Date().toISOString(),
-                totalMatches: this.tournamentStats.matches || 0
-            },
-            teams: this.teams.map(t => ({
-                name: t.name,
-                manager: t.manager,
-                captain: t.captain,
-                viceCaptain: t.viceCaptain,
-                squad: t.squad,
-                matches:
+console.log('🏏 GCL Frontend loaded successfully!');
+console.log('📡 Waiting for socket connection...');
