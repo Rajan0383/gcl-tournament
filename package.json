@@ -1,7 +1,7 @@
 {
   "name": "gcl-tournament",
   "version": "1.0.0",
-  "description": "Gem-Star Champions League - PalTalk Cricket Tournament",
+  "description": "Gemstar Champions League - PalTalk Cricket Tournament",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,7 +10,8 @@
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "mongodb": "^5.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
