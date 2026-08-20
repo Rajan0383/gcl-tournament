@@ -2119,3 +2119,255 @@ body {
         padding: 6px 10px;
     }
 }
+/* ============================================
+   RULES TAB - COMPLETE STYLES
+   ============================================ */
+
+.rules-container {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.rules-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.rules-header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--primary);
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+    letter-spacing: 2px;
+}
+
+.rules-subtitle {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin-top: 4px;
+    letter-spacing: 3px;
+}
+
+/* Rule Cards */
+.rule-card {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 18px;
+    border-left: 5px solid var(--primary);
+    transition: all 0.3s;
+}
+
+.rule-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.rule-card .rule-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.rule-card .rule-header .rule-icon {
+    font-size: 1.8rem;
+}
+
+.rule-card .rule-header h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-light);
+    margin: 0;
+}
+
+/* Rule Colors */
+.rule-gold {
+    border-left-color: #ffd700;
+}
+
+.rule-gold .rule-header h2 {
+    color: #ffd700;
+}
+
+.rule-blue {
+    border-left-color: #60a5fa;
+}
+
+.rule-blue .rule-header h2 {
+    color: #60a5fa;
+}
+
+.rule-red {
+    border-left-color: #ff6b6b;
+}
+
+.rule-red .rule-header h2 {
+    color: #ff6b6b;
+}
+
+.rule-green {
+    border-left-color: #34d399;
+}
+
+.rule-green .rule-header h2 {
+    color: #34d399;
+}
+
+/* Rule Body */
+.rule-body ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.rule-body ul li {
+    padding: 4px 0;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.rule-body ul li strong {
+    color: var(--text-light);
+}
+
+/* Sub Rules */
+.sub-rule {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.sub-rule:first-child {
+    margin-top: 0;
+}
+
+.sub-rule-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.sub-rule-header .sub-rule-icon {
+    font-size: 1.2rem;
+}
+
+.sub-rule-header h4 {
+    color: var(--text-light);
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.sub-rule p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin: 4px 0 10px 0;
+    line-height: 1.5;
+}
+
+.sub-rule p strong {
+    color: var(--danger);
+}
+
+/* Penalty Box */
+.penalty-box {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 6px;
+}
+
+.penalty-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.penalty-item:last-child {
+    border-bottom: none;
+}
+
+.penalty-badge {
+    display: inline-block;
+    padding: 2px 12px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.penalty-badge.first {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.penalty-badge.second {
+    background: rgba(251, 146, 60, 0.2);
+    color: #fb923c;
+}
+
+.penalty-badge.third {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff6b6b;
+}
+
+.penalty-item strong {
+    color: var(--text-light);
+}
+
+.penalty-note {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding-left: 20px;
+    font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .rules-container {
+        padding: 16px;
+    }
+
+    .rules-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .rules-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .rule-card {
+        padding: 14px 16px;
+    }
+
+    .rule-card .rule-header h2 {
+        font-size: 1rem;
+    }
+
+    .sub-rule {
+        padding: 10px 12px;
+    }
+
+    .penalty-item {
+        font-size: 0.8rem;
+    }
+
+    .penalty-badge {
+        font-size: 0.6rem;
+        padding: 1px 10px;
+    }
+}
