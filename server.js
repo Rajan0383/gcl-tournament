@@ -4,7 +4,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
 const path = require('path');
-const { MongoClient } = require('mongodb');
 
 const app = express();
 const server = http.createServer(app);
@@ -18,87 +17,51 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 3000;
 
 // ============================================
-// MONGODB CONNECTION
+// MIDDLEWARE
 // ============================================
 
-const MONGODB_URI = process.env.MONGODB_URI || '';
-let dbClient = null;
-let db = null;
-let useDatabase = false;
+app.use(cors());
+app.use(express.json());
 
-async function connectMongoDB() {
-    if (!MONGODB_URI) {
-        console.log('⚠️ MONGODB_URI not found. Using local file storage.');
-        return false;
-    }
-    
-    try {
-        console.log('🔄 Connecting to MongoDB...');
-        dbClient = new MongoClient(MONGODB_URI);
-        await dbClient.connect();
-        db = dbClient.db('gcl_tournament');
-        useDatabase = true;
-        console.log('✅ Connected to MongoDB successfully!');
-        return true;
-    } catch (error) {
-        console.error('❌ MongoDB connection failed:', error.message);
-        console.log('📁 Falling back to local file storage.');
-        return false;
-    }
+// ✅ FIX: Static files serve karein
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ✅ FIX: Root route - index.html serve karein
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ============================================
+// DATA DIRECTORY (Local fallback)
+// ============================================
+
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR);
 }
 
 // ============================================
-// DATA HELPER FUNCTIONS
+// DATA LOAD/SAVE FUNCTIONS
 // ============================================
 
-async function loadData(collectionName, defaultData) {
-    if (useDatabase && db) {
+function loadJSON(filename, defaultData) {
+    const filePath = path.join(DATA_DIR, filename);
+    if (fs.existsSync(filePath)) {
         try {
-            const collection = db.collection(collectionName);
-            const data = await collection.findOne({ _id: 'data' });
-            return data ? data.value : defaultData;
-        } catch (error) {
-            console.error(`Error loading ${collectionName}:`, error);
+            return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        } catch (e) {
+            console.error(`Error loading ${filename}:`, e);
             return defaultData;
         }
-    } else {
-        // Local file fallback
-        const filePath = path.join(__dirname, 'data', `${collectionName}.json`);
-        if (fs.existsSync(filePath)) {
-            try {
-                return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            } catch (e) {
-                return defaultData;
-            }
-        }
-        return defaultData;
     }
+    return defaultData;
 }
 
-async function saveData(collectionName, data) {
-    if (useDatabase && db) {
-        try {
-            const collection = db.collection(collectionName);
-            await collection.updateOne(
-                { _id: 'data' },
-                { $set: { value: data } },
-                { upsert: true }
-            );
-            return true;
-        } catch (error) {
-            console.error(`Error saving ${collectionName}:`, error);
-            return false;
-        }
-    } else {
-        // Local file fallback
-        const dataDir = path.join(__dirname, 'data');
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir);
-        }
-        const filePath = path.join(dataDir, `${collectionName}.json`);
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        return true;
-    }
+function saveJSON(filename, data) {
+    fs.writeFileSync(
+        path.join(DATA_DIR, filename),
+        JSON.stringify(data, null, 2)
+    );
 }
 
 // ============================================
@@ -108,47 +71,43 @@ async function saveData(collectionName, data) {
 class GCLEngine {
     constructor() {
         this.resetMatch();
-        this.teams = [];
-        this.tournamentStats = { matches: 0, teams: {} };
-        this.fixtures = { matches: [], upcoming: [], completed: [] };
-        this.playerStats = { batsmen: {}, bowlers: {}, manOfMatch: [] };
-        this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
+        this.teams = loadJSON('teams.json', []);
+        this.tournamentStats = loadJSON('stats.json', {
+            matches: 0,
+            teams: {}
+        });
+        this.fixtures = loadJSON('fixtures.json', {
+            matches: [],
+            upcoming: [],
+            completed: []
+        });
+        this.playerStats = loadJSON('playerStats.json', {
+            batsmen: {},
+            bowlers: {},
+            manOfMatch: []
+        });
+        this.currentMatchStats = {
+            batsmen: {},
+            bowlers: {},
+            manOfMatchCandidates: []
+        };
         this.striker = null;
         this.nonStriker = null;
         this.strikeChanged = false;
-        this.isLoaded = false;
     }
 
-    async loadAllData() {
-        try {
-            this.teams = await loadData('teams', []);
-            this.tournamentStats = await loadData('stats', { matches: 0, teams: {} });
-            this.fixtures = await loadData('fixtures', { matches: [], upcoming: [], completed: [] });
-            this.playerStats = await loadData('playerStats', { batsmen: {}, bowlers: {}, manOfMatch: [] });
-            this.isLoaded = true;
-            console.log('📊 All data loaded successfully!');
-        } catch (error) {
-            console.error('Error loading data:', error);
-        }
-    }
-
-    async saveAllData() {
-        if (!this.isLoaded) return;
-        try {
-            await saveData('teams', this.teams);
-            await saveData('stats', this.tournamentStats);
-            await saveData('fixtures', this.fixtures);
-            await saveData('playerStats', this.playerStats);
-        } catch (error) {
-            console.error('Error saving data:', error);
-        }
+    saveAllData() {
+        saveJSON('teams.json', this.teams);
+        saveJSON('stats.json', this.tournamentStats);
+        saveJSON('fixtures.json', this.fixtures);
+        saveJSON('playerStats.json', this.playerStats);
     }
 
     // ============================================
     // TEAM MANAGEMENT
     // ============================================
 
-    async createTeam(teamData) {
+    createTeam(teamData) {
         const team = {
             id: Date.now().toString(),
             name: teamData.name,
@@ -178,7 +137,7 @@ class GCLEngine {
         ];
         
         this.teams.push(team);
-        await this.saveAllData();
+        this.saveAllData();
         return team;
     }
 
@@ -194,7 +153,7 @@ class GCLEngine {
     // FIXTURE MANAGEMENT
     // ============================================
 
-    async createFixture(matchData) {
+    createFixture(matchData) {
         const fixture = {
             id: `FIX-${Date.now()}`,
             team1: matchData.team1,
@@ -210,7 +169,7 @@ class GCLEngine {
 
         this.fixtures.matches.push(fixture);
         this.fixtures.upcoming.push(fixture.id);
-        await this.saveAllData();
+        this.saveAllData();
         return fixture;
     }
 
@@ -218,7 +177,7 @@ class GCLEngine {
         return this.fixtures;
     }
 
-    async startFixture(fixtureId) {
+    startFixture(fixtureId) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
 
@@ -237,11 +196,11 @@ class GCLEngine {
             fixture.matchId = fixtureId;
         }
 
-        await this.saveAllData();
+        this.saveAllData();
         return fixture;
     }
 
-    async completeFixture(fixtureId, winner, manOfMatch, playerStats) {
+    completeFixture(fixtureId, winner, manOfMatch, playerStats) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
 
@@ -285,7 +244,7 @@ class GCLEngine {
         this.nonStriker = null;
         this.strikeChanged = false;
 
-        await this.saveAllData();
+        this.saveAllData();
         return fixture;
     }
 
@@ -1447,16 +1406,8 @@ app.get('/api/tournament/stats', (req, res) => {
 // START SERVER
 // ============================================
 
-// Connect to MongoDB then start server
-async function startServer() {
-    await connectMongoDB();
-    await gameEngine.loadAllData();
-    
-    server.listen(PORT, () => {
-        console.log(`🏏 GCL Tournament Server running on port ${PORT}`);
-        console.log(`📡 Socket.IO ready for real-time updates`);
-        console.log(`📋 http://localhost:${PORT} for the interface`);
-    });
-}
-
-startServer();
+server.listen(PORT, () => {
+    console.log(`🏏 GCL Tournament Server running on port ${PORT}`);
+    console.log(`📡 Socket.IO ready for real-time updates`);
+    console.log(`📋 http://localhost:${PORT} for the interface`);
+});
