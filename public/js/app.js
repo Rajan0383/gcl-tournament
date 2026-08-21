@@ -1307,3 +1307,27 @@ document.addEventListener('keydown', function(e) {
 
 console.log('🏏 GCL Frontend loaded successfully!');
 console.log('📡 Waiting for socket connection...');
+// ============================================
+// TAB EVENT LISTENERS - PERMANENT FIX
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔄 DOM loaded, attaching tab listeners...');
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            switchTab(this.dataset.tab);
+        });
+    });
+    console.log('✅ Tab listeners attached!');
+});
+
+// Fallback: Agar DOM already loaded hai toh direct attach karein
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('🔄 Fallback: Attaching tab listeners...');
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            switchTab(this.dataset.tab);
+        });
+    });
+    console.log('✅ Tab listeners attached (fallback)!');
+}
