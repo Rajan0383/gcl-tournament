@@ -107,48 +107,29 @@ class GCLEngine {
     // TEAM MANAGEMENT
     // ============================================
 
-    createTeam(teamData) {
-        const team = {
-            id: Date.now().toString(),
-            name: teamData.name,
-            manager: teamData.manager,
-            captain: teamData.captain,
-            viceCaptain: teamData.viceCaptain,
-            rtmPlayer: teamData.rtmPlayer,
-            auctionPlayers: teamData.auctionPlayers || [],
-            squad: [],
-            points: 0,
-            matchesPlayed: 0,
-            wins: 0,
-            losses: 0,
-            netRunRate: 0,
-            runsScored: 0,
-            runsConceded: 0,
-            oversPlayed: 0,
-            oversBowled: 0,
-            createdAt: new Date().toISOString()
-        };
-        
-        team.squad = [
-            teamData.captain,
-            teamData.viceCaptain,
-            teamData.rtmPlayer,
-            ...teamData.auctionPlayers
-        ];
-        
-        this.teams.push(team);
-        this.saveAllData();
-        return team;
-    }
-
-    getTeam(id) {
-        return this.teams.find(t => t.id === id);
-    }
-
-    getAllTeams() {
-        return this.teams;
-    }
-
+   async createTeam(teamData) {
+    const team = {
+        id: Date.now().toString(),
+        name: teamData.name,
+        captain: teamData.captain,
+        viceCaptain: teamData.viceCaptain,
+        squad: teamData.squad || [],
+        points: 0,
+        matchesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        netRunRate: 0,
+        runsScored: 0,
+        runsConceded: 0,
+        oversPlayed: 0,
+        oversBowled: 0,
+        createdAt: new Date().toISOString()
+    };
+    
+    this.teams.push(team);
+    await this.saveAllData();
+    return team;
+}
     // ============================================
     // FIXTURE MANAGEMENT
     // ============================================
