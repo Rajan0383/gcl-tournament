@@ -3113,3 +3113,351 @@ body {
         font-size: 0.85rem;
     }
 }
+/* ============================================
+   POINTS TABLE - COMPLETE STYLES
+   ============================================ */
+
+.points-container {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.points-header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.points-header h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--primary);
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+    letter-spacing: 2px;
+}
+
+.points-subtitle {
+    color: #9ca3af;
+    font-size: 0.95rem;
+    margin-top: 4px;
+    letter-spacing: 2px;
+}
+
+/* Round Selector */
+.round-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 25px;
+    justify-content: center;
+}
+
+.round-btn {
+    padding: 10px 24px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+.round-btn:hover {
+    background: rgba(255, 215, 0, 0.05);
+    color: var(--text-light);
+}
+
+.round-btn.active {
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Group Stage */
+.group-stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.group-table {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.group-table h3 {
+    color: var(--primary);
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.points-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.points-table thead {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.points-table th {
+    padding: 10px 14px;
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.points-table td {
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+}
+
+.points-table tr:hover td {
+    background: rgba(255, 215, 0, 0.02);
+}
+
+.points-table .rank {
+    font-weight: 700;
+    text-align: center;
+    width: 40px;
+}
+
+.points-table .rank.gold { color: #ffd700; }
+.points-table .rank.silver { color: #c0c0c0; }
+.points-table .rank.bronze { color: #cd7f32; }
+
+.points-table .team-name {
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.points-table .points-col {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.points-table .nrr-positive {
+    color: var(--success);
+}
+
+.points-table .nrr-negative {
+    color: var(--danger);
+}
+
+.qualification-note {
+    margin-top: 10px;
+    color: var(--success);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Super Six */
+.super-six {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.super-six h3 {
+    color: var(--primary);
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+/* Playoffs */
+.playoffs {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.playoffs h3 {
+    color: var(--primary);
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.playoff-matches {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
+
+.playoff-match {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+}
+
+.match-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 8px;
+}
+
+.match-teams {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.match-teams .team {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-light);
+}
+
+.match-teams .vs {
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.match-result {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.8rem;
+}
+
+.match-result .winner {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.match-result .loser {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+/* Grand Final */
+.grand-final {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.grand-final h3 {
+    color: var(--primary);
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+}
+
+.final-teams {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.final-team {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-light);
+}
+
+.final-vs {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--primary);
+}
+
+.final-result {
+    padding: 12px;
+    background: rgba(255, 215, 0, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 215, 0, 0.1);
+}
+
+.final-result .champion {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--primary);
+}
+
+.final-result .runner-up {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .points-container {
+        padding: 16px;
+    }
+
+    .points-header h2 {
+        font-size: 1.6rem;
+    }
+
+    .group-stage {
+        grid-template-columns: 1fr;
+    }
+
+    .playoff-matches {
+        grid-template-columns: 1fr;
+    }
+
+    .round-btn {
+        padding: 8px 16px;
+        font-size: 0.75rem;
+    }
+
+    .final-teams {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .points-table {
+        font-size: 0.8rem;
+    }
+
+    .points-table th,
+    .points-table td {
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .points-table {
+        font-size: 0.7rem;
+    }
+
+    .points-table th,
+    .points-table td {
+        padding: 4px 8px;
+    }
+
+    .final-team {
+        font-size: 1rem;
+    }
+
+    .final-result .champion {
+        font-size: 1.2rem;
+    }
+}
