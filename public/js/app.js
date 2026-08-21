@@ -1308,6 +1308,54 @@ document.addEventListener('keydown', function(e) {
 console.log('🏏 GCL Frontend loaded successfully!');
 console.log('📡 Waiting for socket connection...');
 // ============================================
+// POINTS TABLE FUNCTIONS
+// ============================================
+
+function showRound(round) {
+    // Hide all round contents
+    document.querySelectorAll('.round-content').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Show selected round
+    const target = document.getElementById('round' + round);
+    if (target) {
+        target.style.display = 'block';
+    }
+    
+    // Update active button
+    document.querySelectorAll('.round-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.round-btn[data-round="${round}"]`)?.classList.add('active');
+}
+
+// Function to update points table data
+function updatePointsTableDisplay(data) {
+    // This will be implemented when we have match data
+    console.log('Points table data:', data);
+}
+
+// Function to update playoff teams
+function updatePlayoffTeams(team1, team2, team3, team4) {
+    if (team1) document.getElementById('q1t1').textContent = team1;
+    if (team2) document.getElementById('q1t2').textContent = team2;
+    if (team3) document.getElementById('e1t1').textContent = team3;
+    if (team4) document.getElementById('e1t2').textContent = team4;
+}
+
+// Function to update final teams
+function updateFinalTeams(team1, team2) {
+    if (team1) document.getElementById('finalTeam1').textContent = team1;
+    if (team2) document.getElementById('finalTeam2').textContent = team2;
+}
+
+// Function to update champion/runner-up
+function updateFinalResult(champion, runnerUp) {
+    if (champion) document.getElementById('champion').textContent = champion;
+    if (runnerUp) document.getElementById('runnerUp').textContent = runnerUp;
+}
+// ============================================
 // TAB EVENT LISTENERS - PERMANENT FIX
 // ============================================
 
