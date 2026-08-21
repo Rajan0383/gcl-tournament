@@ -139,7 +139,6 @@ getTeam(id) {
 getAllTeams() {
     return this.teams;
 }
-// 👆 YAHAN TAK
     // ============================================
     // FIXTURE MANAGEMENT
     // ============================================
