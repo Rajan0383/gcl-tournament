@@ -298,16 +298,67 @@
 
     </div>
 </div>
-            <!-- TEAMS TAB -->
-            <div class="tab-content" id="tab-teams">
-                <div class="teams-container">
-                    <h2>🏏 Tournament Teams</h2>
-                    <div id="teamsList" class="teams-grid">
-                        <p class="empty-message">No teams created yet. Go to Admin tab to create teams.</p>
-                    </div>
+           <!-- ========================================== -->
+<!-- TEAMS TAB -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-teams">
+    <div class="teams-container">
+        
+        <div class="teams-header">
+            <h2>🏏 Tournament Teams</h2>
+            <p class="teams-subtitle">Gem-Star Championship 2026</p>
+        </div>
+
+        <!-- Admin Mode Toggle (Only visible to admin) -->
+        <div id="teamsAdminLogin" class="teams-admin-login">
+            <div class="teams-login-box">
+                <h3>🔐 Admin Mode</h3>
+                <p>Enter password to manage teams</p>
+                <div class="teams-login-input">
+                    <input type="password" id="teamsPassword" placeholder="Enter Password">
+                    <button onclick="checkTeamsPassword()">Unlock</button>
+                </div>
+                <div id="teamsError" class="teams-error">❌ Incorrect password!</div>
+            </div>
+        </div>
+
+        <!-- Admin Controls (Hidden by default) -->
+        <div id="teamsAdminControls" class="teams-admin-controls" style="display: none;">
+            <div class="admin-bar">
+                <span class="admin-badge">👑 Admin Mode</span>
+                <button onclick="logoutTeams()" class="logout-btn">🔒 Logout</button>
+                <button onclick="showAddTeamForm()" class="add-team-btn">➕ Add New Team</button>
+            </div>
+            <!-- Add Team Form -->
+            <div id="addTeamForm" class="add-team-form" style="display: none;">
+                <h4>Add New Team</h4>
+                <div class="form-grid">
+                    <input type="text" id="newTeamName" placeholder="Team Name">
+                    <input type="text" id="newCaptain" placeholder="Captain Name">
+                    <input type="text" id="newViceCaptain" placeholder="Vice Captain Name">
+                </div>
+                <div class="form-grid">
+                    <input type="text" id="newSquad" placeholder="Squad (comma separated, 7 players)">
+                </div>
+                <div class="form-actions">
+                    <button onclick="createTeamFromTeams()" class="confirm-btn">✅ Create Team</button>
+                    <button onclick="hideAddTeamForm()" class="cancel-btn">❌ Cancel</button>
                 </div>
             </div>
+        </div>
 
+        <!-- Teams List -->
+        <div class="teams-list-section">
+            <div class="teams-list-header">
+                <span class="teams-count" id="teamsCount">0 teams</span>
+            </div>
+            <div id="teamsList" class="teams-grid">
+                <p class="empty-message">No teams created yet.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
             <!-- FIXTURES TAB -->
             <div class="tab-content" id="tab-fixtures">
                 <div class="fixtures-container">
