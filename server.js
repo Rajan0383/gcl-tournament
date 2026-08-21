@@ -103,11 +103,11 @@ class GCLEngine {
         saveJSON('playerStats.json', this.playerStats);
     }
 
-    // ============================================
-    // TEAM MANAGEMENT
-    // ============================================
+   // ============================================
+// TEAM MANAGEMENT
+// ============================================
 
-   async createTeam(teamData) {
+async createTeam(teamData) {
     const team = {
         id: Date.now().toString(),
         name: teamData.name,
@@ -129,7 +129,17 @@ class GCLEngine {
     this.teams.push(team);
     await this.saveAllData();
     return team;
+}   // ← createTeam function END
+
+// 👇 YAHAN SE NAYA CODE ADD KAREIN
+getTeam(id) {
+    return this.teams.find(t => t.id === id);
 }
+
+getAllTeams() {
+    return this.teams;
+}
+// 👆 YAHAN TAK
     // ============================================
     // FIXTURE MANAGEMENT
     // ============================================
