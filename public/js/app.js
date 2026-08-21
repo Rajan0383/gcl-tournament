@@ -254,6 +254,31 @@ function updateTeamsList(teams) {
         const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
         const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
         
+        const allPlayers = [];
+        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
+        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
+        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
+        
+        return `
+            <div class="team-card ${!isAdmin ? 'read-only' : ''}">
+                <div class="team-header">
+                    <span class="team-name-card">🏏 ${team.name}</span>
+                    ${actions}
+                </div>
+                <div class="team-details">
+                    <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
+                    <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
+                </div>
+                <div class="team-squad">
+                    ${allPlayers.map(p => `
+                        <span class="squad-tag ${p.cls}">${p.name}</span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+        
         // Show all players with tags
         const allPlayers = [];
         if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
