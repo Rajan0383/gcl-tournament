@@ -94,7 +94,7 @@
                 <h3>Team Format</h3>
                 <p><strong>Teams:</strong> 7 vs 7</p>
                 <p><strong>Squad:</strong> Max 9 players</p>
-                <p><strong>Team Combination:</strong> Captain +Vice Captain+7 players</p>
+                <p><strong>Team Combination:</strong>Captain+Vice Captain+7 players</p>
                 <p><strong>Overs:</strong> 4 overs per side</p>
                 <div class="playing-rules">
                     <p><strong>🏏 Playing Rules:</strong></p>
@@ -419,21 +419,169 @@
                 </div>
             </div>
 
-            <!-- POINTS TABLE TAB -->
-            <div class="tab-content" id="tab-points">
-                <div class="points-container">
-                    <h2>🏆 Points Table</h2>
-                    <div class="points-table-container">
-                        <table class="stats-table points-table">
+           <!-- ========================================== -->
+<!-- POINTS TABLE TAB -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-points">
+    <div class="points-container">
+        
+        <div class="points-header">
+            <h2>🏆 Points Table</h2>
+            <p class="points-subtitle">GEM-STAR Championship 2026</p>
+        </div>
+
+        <!-- Round Selector -->
+        <div class="round-selector">
+            <button class="round-btn active" data-round="1" onclick="showRound(1)">Round 1 - Group Stage</button>
+            <button class="round-btn" data-round="2" onclick="showRound(2)">Round 2 - Super Six</button>
+            <button class="round-btn" data-round="3" onclick="showRound(3)">Round 3 - Playoffs</button>
+            <button class="round-btn" data-round="4" onclick="showRound(4)">Round 4 - Grand Final</button>
+        </div>
+
+        <!-- Round 1: Group Stage -->
+        <div id="round1" class="round-content active">
+            <div class="group-stage">
+                <div class="group-table">
+                    <h3>GROUP A</h3>
+                    <div class="table-container">
+                        <table class="points-table">
                             <thead>
-                                <tr><th>Rank</th><th>Team</th><th>Matches</th><th>Wins</th><th>Losses</th><th>Points</th><th>NRR</th></tr>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Team</th>
+                                    <th>M</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>PTS</th>
+                                    <th>NRR</th>
+                                </tr>
                             </thead>
-                            <tbody id="pointsTableBody"><tr><td colspan="7" class="empty-message">No data available</td></tr></tbody>
+                            <tbody id="groupA">
+                                <!-- Data will be loaded here -->
+                                <tr><td colspan="7" class="empty-message">No data available</td></tr>
+                            </tbody>
                         </table>
+                    </div>
+                    <div class="qualification-note">✅ Top 4 from each group → Round 2 (Super Six)</div>
+                </div>
+                <div class="group-table">
+                    <h3>GROUP B</h3>
+                    <div class="table-container">
+                        <table class="points-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Team</th>
+                                    <th>M</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>PTS</th>
+                                    <th>NRR</th>
+                                </tr>
+                            </thead>
+                            <tbody id="groupB">
+                                <!-- Data will be loaded here -->
+                                <tr><td colspan="7" class="empty-message">No data available</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="qualification-note">✅ Top 4 from each group → Round 2 (Super Six)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Round 2: Super Six -->
+        <div id="round2" class="round-content" style="display:none;">
+            <div class="super-six">
+                <h3>SUPER SIX</h3>
+                <div class="table-container">
+                    <table class="points-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Team</th>
+                                <th>M</th>
+                                <th>W</th>
+                                <th>L</th>
+                                <th>PTS</th>
+                                <th>NRR</th>
+                            </tr>
+                        </thead>
+                        <tbody id="superSix">
+                            <!-- Data will be loaded here -->
+                            <tr><td colspan="7" class="empty-message">No data available</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="qualification-note">✅ Top 4 Teams → Playoffs</div>
+            </div>
+        </div>
+
+        <!-- Round 3: Playoffs -->
+        <div id="round3" class="round-content" style="display:none;">
+            <div class="playoffs">
+                <h3>🏆 PLAYOFFS - SEMI-FINAL ROUND</h3>
+                <div class="playoff-matches">
+                    <div class="playoff-match">
+                        <div class="match-label">⚔️ QUALIFIER 1</div>
+                        <div class="match-teams">
+                            <span class="team team1" id="q1t1">#1 Team</span>
+                            <span class="vs">vs</span>
+                            <span class="team team2" id="q1t2">#2 Team</span>
+                        </div>
+                        <div class="match-result">
+                            <span class="winner">✅ WINNER → GRAND FINAL</span>
+                            <span class="loser">❌ LOSER → SECOND QUALIFIER</span>
+                        </div>
+                    </div>
+                    <div class="playoff-match">
+                        <div class="match-label">🔥 ELIMINATOR</div>
+                        <div class="match-teams">
+                            <span class="team team1" id="e1t1">#3 Team</span>
+                            <span class="vs">vs</span>
+                            <span class="team team2" id="e1t2">#4 Team</span>
+                        </div>
+                        <div class="match-result">
+                            <span class="winner">✅ WINNER → SECOND QUALIFIER</span>
+                            <span class="loser">❌ LOSER → ELIMINATED 🚫</span>
+                        </div>
+                    </div>
+                    <div class="playoff-match">
+                        <div class="match-label">🔥 SECOND QUALIFIER</div>
+                        <div class="match-teams">
+                            <span class="team team1" id="q2t1">Loser Q1</span>
+                            <span class="vs">vs</span>
+                            <span class="team team2" id="q2t2">Winner Eliminator</span>
+                        </div>
+                        <div class="match-result">
+                            <span class="winner">✅ WINNER → GRAND FINAL</span>
+                            <span class="loser">❌ LOSER → ELIMINATED 🚫</span>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
+        <!-- Round 4: Grand Final -->
+        <div id="round4" class="round-content" style="display:none;">
+            <div class="grand-final">
+                <h3>🏆 GRAND FINAL</h3>
+                <div class="final-match">
+                    <div class="final-teams">
+                        <span class="final-team" id="finalTeam1">Winner Q1</span>
+                        <span class="final-vs">vs</span>
+                        <span class="final-team" id="finalTeam2">Winner Q2</span>
+                    </div>
+                    <div class="final-result">
+                        <div class="champion">🏆 CHAMPION: <span id="champion">-</span></div>
+                        <div class="runner-up">🥈 RUNNER UP: <span id="runnerUp">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
             <!-- LIVE SCORE TAB -->
             <div class="tab-content" id="tab-livescore">
                 <div class="livescore-container">
