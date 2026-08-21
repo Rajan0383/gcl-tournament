@@ -226,31 +226,59 @@ function updateAllowedScores(state) {
 
 function updateTeamsList(teams) {
     const container = document.getElementById('teamsList');
+    const countEl = document.getElementById('teamsCount');
+    
     if (!container) return;
     
+    if (countEl) {
+        countEl.textContent = `${teams.length} teams`;
+    }
+    
     if (!teams || teams.length === 0) {
-        container.innerHTML = '<p class="empty-message">No teams created yet. Go to Admin tab to create teams.</p>';
+        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
         return;
     }
 
-    container.innerHTML = teams.map(team => `
-        <div class="team-card">
-            <div>
-                <div class="team-name-card">🏏 ${team.name}</div>
-                <div class="team-meta">
-                    👔 Manager: ${team.manager} | 🧢 Captain: ${team.captain} | ⭐ RTM: ${team.rtmPlayer}
+    const isAdmin = teamsAdminMode;
+    
+    container.innerHTML = teams.map(team => {
+        const actions = isAdmin ? `
+            <div class="team-actions">
+                <button class="edit-btn" onclick="editTeam('${team.id}')">✏️ Edit</button>
+                <button class="delete-btn" onclick="deleteTeam('${team.id}')">🗑️</button>
+            </div>
+        ` : '';
+        
+        const squad = team.squad || [];
+        const captainTag = team.captain ? `${team.captain} (C)` : '';
+        const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
+        const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
+        
+        // Show all players with tags
+        const allPlayers = [];
+        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
+        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
+        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
+        
+        return `
+            <div class="team-card ${!isAdmin ? 'read-only' : ''}">
+                <div class="team-header">
+                    <span class="team-name-card">🏏 ${team.name}</span>
+                    ${actions}
+                </div>
+                <div class="team-details">
+                    <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
+                    <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
                 </div>
                 <div class="team-squad">
-                    Squad: ${team.squad ? team.squad.join(', ') : 'Not set'}
+                    ${allPlayers.map(p => `
+                        <span class="squad-tag ${p.cls}">${p.name}</span>
+                    `).join('')}
                 </div>
+                <!-- ❌ Stats REMOVED - Points table me dikhenge -->
             </div>
-            <div class="team-stats">
-                <span class="stat">🎯 ${team.wins || 0}W</span>
-                <span class="stat">📉 ${team.losses || 0}L</span>
-                <span class="stat">⭐ ${team.points || 0}Pts</span>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function updateTeamSelects(teams) {
