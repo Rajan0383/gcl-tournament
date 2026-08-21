@@ -744,15 +744,16 @@ function updateTeamsList(teams) {
             </div>
         ` : '';
         
-        const squad = team.squad || [];
-        const captainTag = team.captain ? `${team.captain} (C)` : '';
-        const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
-        const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
-        
-        const allPlayers = [];
-        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
-        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
-        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
+       const squad = team.squad || [];
+const captainTag = team.captain ? `${team.captain} (C)` : '';
+const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
+const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
+
+// Show all players with tags
+const allPlayers = [];
+if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
+if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
+otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
         
         html += `
             <div class="team-card ${!isAdmin ? 'read-only' : ''}">
