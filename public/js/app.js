@@ -51,9 +51,12 @@ socket.on('scoreUpdate', (data) => {
 socket.on('teamsList', (data) => {
     console.log('🏏 Teams List:', data);
     teams = data;
-     window.teams = data;
+    window.teams = data;
     updateTeamsList(data);
     updateTeamSelects(data);
+    if (document.getElementById('assignTeam')) {
+        updateTeamDropdowns();
+    }
 });
 
 socket.on('teamCreated', (team) => {
@@ -222,88 +225,6 @@ function updateAllowedScores(state) {
     const bowlHint = document.getElementById('allowedBowlScores');
     if (batHint) batHint.textContent = `Allowed: ${scores.join(', ')}`;
     if (bowlHint) bowlHint.textContent = `Allowed: ${scores.join(', ')}`;
-}
-
-function updateTeamsList(teams) {
-    const container = document.getElementById('teamsList');
-    const countEl = document.getElementById('teamsCount');
-    
-    if (!container) return;
-    
-    if (countEl) {
-        countEl.textContent = `${teams.length} teams`;
-    }
-    
-    if (!teams || teams.length === 0) {
-        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
-        return;
-    }
-
-    const isAdmin = teamsAdminMode;
-    
-    container.innerHTML = teams.map(team => {
-        const actions = isAdmin ? `
-            <div class="team-actions">
-                <button class="edit-btn" onclick="editTeam('${team.id}')">✏️ Edit</button>
-                <button class="delete-btn" onclick="deleteTeam('${team.id}')">🗑️</button>
-            </div>
-        ` : '';
-        
-        const squad = team.squad || [];
-        const captainTag = team.captain ? `${team.captain} (C)` : '';
-        const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
-        const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
-        
-        const allPlayers = [];
-        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
-        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
-        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
-        
-        return `
-            <div class="team-card ${!isAdmin ? 'read-only' : ''}">
-                <div class="team-header">
-                    <span class="team-name-card">🏏 ${team.name}</span>
-                    ${actions}
-                </div>
-                <div class="team-details">
-                    <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
-                    <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
-                </div>
-                <div class="team-squad">
-                    ${allPlayers.map(p => `
-                        <span class="squad-tag ${p.cls}">${p.name}</span>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-        
-        // Show all players with tags
-        const allPlayers = [];
-        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
-        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
-        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
-        
-        return `
-            <div class="team-card ${!isAdmin ? 'read-only' : ''}">
-                <div class="team-header">
-                    <span class="team-name-card">🏏 ${team.name}</span>
-                    ${actions}
-                </div>
-                <div class="team-details">
-                    <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
-                    <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
-                </div>
-                <div class="team-squad">
-                    ${allPlayers.map(p => `
-                        <span class="squad-tag ${p.cls}">${p.name}</span>
-                    `).join('')}
-                </div>
-                <!-- ❌ Stats REMOVED - Points table me dikhenge -->
-            </div>
-        `;
-    }).join('');
 }
 
 function updateTeamSelects(teams) {
@@ -623,11 +544,11 @@ function createTeam() {
 
     socket.emit('createTeam', {
         name: teamName,
-        manager,
-        captain,
-        viceCaptain,
-        rtmPlayer,
-        auctionPlayers
+        manager: manager,
+        captain: captain,
+        viceCaptain: viceCaptain,
+        rtmPlayer: rtmPlayer,
+        auctionPlayers: auctionPlayers
     });
 
     ['teamName', 'managerName', 'captainName', 'viceCaptainName', 'rtmPlayer', 'auctionPlayers']
@@ -651,8 +572,8 @@ function setupMatch() {
     }
 
     socket.emit('setupMatch', {
-        team1Id,
-        team2Id,
+        team1Id: team1Id,
+        team2Id: team2Id,
         team1Order: team1Order ? team1Order.split(',').map(p => p.trim()) : undefined,
         team2Order: team2Order ? team2Order.split(',').map(p => p.trim()) : undefined
     });
@@ -701,35 +622,248 @@ function showNotification(message, type = 'warning') {
 }
 
 // ============================================
-// KEYBOARD SHORTCUTS
+// TEAMS PAGE FUNCTIONS
 // ============================================
 
-document.addEventListener('keydown', (e) => {
-    if (e.target.id === 'batsmanScore' && e.key === 'Enter') {
-        submitBatScore();
+let teamsAdminMode = false;
+const TEAMS_PASSWORD = "gcl2026";
+
+function checkTeamsPassword() {
+    const password = document.getElementById('teamsPassword').value;
+    const error = document.getElementById('teamsError');
+    const login = document.getElementById('teamsAdminLogin');
+    const controls = document.getElementById('teamsAdminControls');
+    
+    if (password === TEAMS_PASSWORD) {
+        login.style.display = 'none';
+        controls.style.display = 'block';
+        error.style.display = 'none';
+        teamsAdminMode = true;
+        showNotification('✅ Teams admin access granted!', 'success');
+        socket.emit('getTeams');
+    } else {
+        error.style.display = 'block';
+        document.getElementById('teamsPassword').value = '';
+        showNotification('❌ Incorrect password!', 'danger');
     }
-    if (e.target.id === 'bowlerGuess' && e.key === 'Enter') {
-        submitBowlGuess();
+}
+
+function logoutTeams() {
+    document.getElementById('teamsAdminLogin').style.display = 'block';
+    document.getElementById('teamsAdminControls').style.display = 'none';
+    document.getElementById('teamsPassword').value = '';
+    teamsAdminMode = false;
+    showNotification('🔒 Logged out from teams admin', 'warning');
+    socket.emit('getTeams');
+}
+
+function showAddTeamForm() {
+    document.getElementById('addTeamForm').style.display = 'block';
+}
+
+function hideAddTeamForm() {
+    document.getElementById('addTeamForm').style.display = 'none';
+    document.getElementById('newTeamName').value = '';
+    document.getElementById('newCaptain').value = '';
+    document.getElementById('newViceCaptain').value = '';
+    document.getElementById('newSquad').value = '';
+}
+
+function createTeamFromTeams() {
+    const name = document.getElementById('newTeamName').value.trim();
+    const captain = document.getElementById('newCaptain').value.trim();
+    const viceCaptain = document.getElementById('newViceCaptain').value.trim();
+    const squadRaw = document.getElementById('newSquad').value.trim();
+    
+    if (!name) {
+        showNotification('⚠️ Please enter team name!', 'danger');
+        return;
     }
-});
-
-// ============================================
-// EVENT LISTENERS
-// ============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            switchTab(this.dataset.tab);
-        });
+    if (!captain) {
+        showNotification('⚠️ Please enter captain name!', 'danger');
+        return;
+    }
+    if (!viceCaptain) {
+        showNotification('⚠️ Please enter vice captain name!', 'danger');
+        return;
+    }
+    
+    const squad = squadRaw ? squadRaw.split(',').map(p => p.trim()).filter(p => p) : [];
+    
+    if (!squad.includes(captain)) {
+        showNotification(`⚠️ Captain "${captain}" must be in the squad list!`, 'danger');
+        return;
+    }
+    if (!squad.includes(viceCaptain)) {
+        showNotification(`⚠️ Vice Captain "${viceCaptain}" must be in the squad list!`, 'danger');
+        return;
+    }
+    
+    console.log('Creating team:', { name, captain, viceCaptain, squad });
+    
+    socket.emit('createTeam', {
+        name: name,
+        captain: captain,
+        viceCaptain: viceCaptain,
+        squad: squad
     });
-});
+    
+    hideAddTeamForm();
+    showNotification(`⏳ Creating team "${name}"...`, 'warning');
+}
+
+function updateTeamsList(teams) {
+    const container = document.getElementById('teamsList');
+    const countEl = document.getElementById('teamsCount');
+    
+    if (!container) return;
+    
+    if (countEl) {
+        countEl.textContent = `${teams.length} teams`;
+    }
+    
+    if (!teams || teams.length === 0) {
+        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
+        return;
+    }
+
+    const isAdmin = teamsAdminMode;
+    
+    let html = '';
+    teams.forEach(team => {
+        const actions = isAdmin ? `
+            <div class="team-actions">
+                <button class="edit-btn" onclick="editTeam('${team.id}')">✏️ Edit</button>
+                <button class="delete-btn" onclick="deleteTeam('${team.id}')">🗑️</button>
+            </div>
+        ` : '';
+        
+        const squad = team.squad || [];
+        const captainTag = team.captain ? `${team.captain} (C)` : '';
+        const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
+        const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
+        
+        const allPlayers = [];
+        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
+        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
+        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
+        
+        html += `
+            <div class="team-card ${!isAdmin ? 'read-only' : ''}">
+                <div class="team-header">
+                    <span class="team-name-card">🏏 ${team.name}</span>
+                    ${actions}
+                </div>
+                <div class="team-details">
+                    <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
+                    <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
+                </div>
+                <div class="team-squad">
+                    ${allPlayers.map(p => `
+                        <span class="squad-tag ${p.cls}">${p.name}</span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function editTeam(teamId) {
+    const team = teams.find(t => t.id === teamId);
+    if (!team) {
+        showNotification('⚠️ Team not found!', 'danger');
+        return;
+    }
+    
+    const newName = prompt('Team Name:', team.name);
+    if (newName === null) return;
+    
+    const newCaptain = prompt('Captain:', team.captain);
+    if (newCaptain === null) return;
+    
+    const newVC = prompt('Vice Captain:', team.viceCaptain);
+    if (newVC === null) return;
+    
+    const currentSquad = team.squad ? team.squad.join(', ') : '';
+    const newSquadRaw = prompt('Squad (comma separated):', currentSquad);
+    if (newSquadRaw === null) return;
+    
+    const newSquad = newSquadRaw.split(',').map(p => p.trim()).filter(p => p);
+    
+    if (!newSquad.includes(newCaptain.trim())) {
+        showNotification(`⚠️ Captain "${newCaptain.trim()}" must be in the squad!`, 'danger');
+        return;
+    }
+    if (!newSquad.includes(newVC.trim())) {
+        showNotification(`⚠️ Vice Captain "${newVC.trim()}" must be in the squad!`, 'danger');
+        return;
+    }
+    
+    const updatedTeam = {
+        ...team,
+        name: newName.trim(),
+        captain: newCaptain.trim(),
+        viceCaptain: newVC.trim(),
+        squad: newSquad
+    };
+    
+    fetch('/api/teams/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedTeam)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Team "${newName}" updated!`, 'success');
+            socket.emit('getTeams');
+        } else {
+            showNotification(`❌ Update failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error updating team', 'danger');
+        console.error(err);
+    });
+}
+
+function deleteTeam(teamId) {
+    const team = teams.find(t => t.id === teamId);
+    if (!team) {
+        showNotification('⚠️ Team not found!', 'danger');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete "${team.name}"? This cannot be undone!`)) {
+        return;
+    }
+    
+    fetch('/api/teams/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: teamId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`🗑️ Team "${team.name}" deleted!`, 'warning');
+            socket.emit('getTeams');
+        } else {
+            showNotification(`❌ Delete failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error deleting team', 'danger');
+        console.error(err);
+    });
+}
 
 // ============================================
-// AUCTION SYSTEM - COMPLETE
+// AUCTION SYSTEM
 // ============================================
 
-// Auction Data
 let auctionPlayers = [];
 let myTeamPicks = {};
 let auctionWallet = 60000;
@@ -737,7 +871,6 @@ let selectedRandomPlayer = null;
 let currentPage = 1;
 const playersPerPage = 20;
 
-// All Auction Players
 let allAuctionPlayers = [
     { id: 1, name: "Virat Kohli" },
     { id: 2, name: "Rohit Sharma" },
@@ -773,18 +906,10 @@ let allAuctionPlayers = [
 
 const AUCTION_PASSWORD = "gcl2026";
 
-// ============================================
-// INITIALIZATION
-// ============================================
-
 function initAuction() {
     loadAuctionData();
     renderAll();
 }
-
-// ============================================
-// LOAD & SAVE DATA
-// ============================================
 
 function loadAuctionData() {
     const saved = localStorage.getItem('gcl_auction_data');
@@ -809,10 +934,6 @@ function saveAuctionData() {
     }));
 }
 
-// ============================================
-// CHECK PASSWORD
-// ============================================
-
 function checkAuctionPassword() {
     const password = document.getElementById('auctionPassword').value;
     const error = document.getElementById('auctionError');
@@ -824,6 +945,7 @@ function checkAuctionPassword() {
         content.style.display = 'block';
         error.style.display = 'none';
         initAuction();
+        socket.emit('getTeams');
         showNotification('✅ Auction admin access granted!', 'success');
     } else {
         error.style.display = 'block';
@@ -838,10 +960,6 @@ function logoutAuction() {
     document.getElementById('auctionPassword').value = '';
     showNotification('🔒 Logged out from auction', 'warning');
 }
-
-// ============================================
-// RENDER FUNCTIONS
-// ============================================
 
 function renderAll() {
     renderPlayers();
@@ -961,33 +1079,6 @@ function updatePlayerCount() {
     countEl.textContent = `${available} players available`;
 }
 
-// ============================================
-// PAGINATION
-// ============================================
-
-function prevPage() {
-    if (currentPage > 1) {
-        currentPage--;
-        renderPlayers();
-    }
-}
-
-function nextPage() {
-    const search = document.getElementById('auctionSearch')?.value?.toLowerCase() || '';
-    let filtered = auctionPlayers.filter(p => !p.sold);
-    if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
-    const totalPages = Math.ceil(filtered.length / playersPerPage) || 1;
-    
-    if (currentPage < totalPages) {
-        currentPage++;
-        renderPlayers();
-    }
-}
-
-// ============================================
-// RANDOM PICK
-// ============================================
-
 function pickRandom() {
     const available = auctionPlayers.filter(p => !p.sold);
     if (available.length === 0) {
@@ -1029,10 +1120,6 @@ function closePlayerReveal() {
     document.getElementById('assignSection').style.display = 'none';
 }
 
-// ============================================
-// ASSIGN PLAYER TO TEAM
-// ============================================
-
 function showAssignForm() {
     if (!selectedRandomPlayer) {
         showNotification('⚠️ Please pick a player first!', 'danger');
@@ -1055,21 +1142,18 @@ function updateTeamDropdowns() {
     const select = document.getElementById('assignTeam');
     if (!select) return;
     
-    // Get teams from the global teams array
     const teams = window.teams || [];
-    
-    console.log('🔄 Updating team dropdown. Teams found:', teams.length);
-    
-    if (teams.length === 0) {
-        select.innerHTML = '<option value="">⚠️ No teams created yet. Go to Admin tab first.</option>';
-        return;
-    }
-    
     select.innerHTML = '<option value="">Select Team</option>';
     teams.forEach(team => {
         select.innerHTML += `<option value="${team.id}">${team.name}</option>`;
     });
 }
+
+function closeAssignSection() {
+    document.getElementById('assignSection').style.display = 'none';
+    selectedRandomPlayer = null;
+}
+
 function confirmAssign() {
     const teamId = document.getElementById('assignTeam').value;
     const amount = parseInt(document.getElementById('assignAmount').value);
@@ -1124,10 +1208,6 @@ function confirmAssign() {
     showNotification(`✅ ${team.name} picked player for ₹${amount.toLocaleString()}`, 'success');
 }
 
-// ============================================
-// ADD / DELETE PLAYERS
-// ============================================
-
 function addPlayerToAuction() {
     const nameInput = document.getElementById('newPlayerName');
     const name = nameInput.value.trim();
@@ -1175,10 +1255,6 @@ function deletePlayerFromAuction(playerId) {
     showNotification(`🗑️ ${player.name} removed from auction`, 'warning');
 }
 
-// ============================================
-// FILTERS
-// ============================================
-
 function filterAuctionPlayers() {
     currentPage = 1;
     renderPlayers();
@@ -1189,10 +1265,6 @@ function resetAuctionFilters() {
     currentPage = 1;
     renderPlayers();
 }
-
-// ============================================
-// RESET AUCTION
-// ============================================
 
 function resetAuction() {
     if (!confirm('⚠️ Are you sure you want to reset the entire auction? All data will be lost!')) return;
@@ -1222,270 +1294,10 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && document.getElementById('newPlayerName') === document.activeElement) {
         addPlayerToAuction();
     }
-});
-
-// ============================================
-// END OF AUCTION SYSTEM
-// ============================================
-
-console.log('🏏 GCL Frontend loaded successfully!');
-console.log('📡 Waiting for socket connection...');
-// ============================================
-// TEAMS PAGE - ADMIN FUNCTIONS
-// ============================================
-
-// Teams admin password (same as auction)
-const TEAMS_PASSWORD = "gcl2026";
-let teamsAdminMode = false;
-
-// Check teams admin password
-function checkTeamsPassword() {
-    const password = document.getElementById('teamsPassword').value;
-    const error = document.getElementById('teamsError');
-    const login = document.getElementById('teamsAdminLogin');
-    const controls = document.getElementById('teamsAdminControls');
-    
-    if (password === TEAMS_PASSWORD) {
-        login.style.display = 'none';
-        controls.style.display = 'block';
-        error.style.display = 'none';
-        teamsAdminMode = true;
-        showNotification('✅ Teams admin access granted!', 'success');
-        // Reload teams with admin mode
-        socket.emit('getTeams');
-    } else {
-        error.style.display = 'block';
-        document.getElementById('teamsPassword').value = '';
-        showNotification('❌ Incorrect password!', 'danger');
-    }
-}
-
-// Logout from teams admin
-function logoutTeams() {
-    document.getElementById('teamsAdminLogin').style.display = 'block';
-    document.getElementById('teamsAdminControls').style.display = 'none';
-    document.getElementById('teamsPassword').value = '';
-    teamsAdminMode = false;
-    showNotification('🔒 Logged out from teams admin', 'warning');
-    // Reload teams without admin mode
-    socket.emit('getTeams');
-}
-
-// Show add team form
-function showAddTeamForm() {
-    document.getElementById('addTeamForm').style.display = 'block';
-}
-
-function hideAddTeamForm() {
-    document.getElementById('addTeamForm').style.display = 'none';
-    document.getElementById('newTeamName').value = '';
-    document.getElementById('newCaptain').value = '';
-    document.getElementById('newViceCaptain').value = '';
-    document.getElementById('newSquad').value = '';
-}
-
-// Create team from teams page
-function createTeamFromTeams() {
-    const name = document.getElementById('newTeamName').value.trim();
-    const captain = document.getElementById('newCaptain').value.trim();
-    const viceCaptain = document.getElementById('newViceCaptain').value.trim();
-    const squadRaw = document.getElementById('newSquad').value.trim();
-    
-    if (!name) {
-        showNotification('⚠️ Please enter team name!', 'danger');
-        return;
-    }
-    if (!captain) {
-        showNotification('⚠️ Please enter captain name!', 'danger');
-        return;
-    }
-    if (!viceCaptain) {
-        showNotification('⚠️ Please enter vice captain name!', 'danger');
-        return;
-    }
-    
-    const squad = squadRaw ? squadRaw.split(',').map(p => p.trim()).filter(p => p) : [];
-    
-    if (!squad.includes(captain)) {
-        showNotification(`⚠️ Captain "${captain}" must be in the squad list!`, 'danger');
-        return;
-    }
-    if (!squad.includes(viceCaptain)) {
-        showNotification(`⚠️ Vice Captain "${viceCaptain}" must be in the squad list!`, 'danger');
-        return;
-    }
-    
-    console.log('Creating team:', { name, captain, viceCaptain, squad });
-    
-    socket.emit('createTeam', {
-        name: name,
-        captain: captain,
-        viceCaptain: viceCaptain,
-        squad: squad
-    });
-    
-    hideAddTeamForm();
-    showNotification(`⏳ Creating team "${name}"...`, 'warning');
-}
-
-// Update teams list display (override existing function)
-function updateTeamsList(teams) {
-    const container = document.getElementById('teamsList');
-    const countEl = document.getElementById('teamsCount');
-    
-    if (!container) return;
-    
-    if (countEl) {
-        countEl.textContent = `${teams.length} teams`;
-    }
-    
-    if (!teams || teams.length === 0) {
-        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
-        return;
-    }
-
-    const isAdmin = teamsAdminMode;
-    
-    container.innerHTML = teams.map(team => {
-        const actions = isAdmin ? `
-            <div class="team-actions">
-                <button class="edit-btn" onclick="editTeam('${team.id}')">✏️ Edit</button>
-                <button class="delete-btn" onclick="deleteTeam('${team.id}')">🗑️</button>
-            </div>
-        ` : '';
-        
-        const squad = team.squad || [];
-        const captainTag = team.captain ? `${team.captain} (C)` : '';
-        const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
-        const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
-        
-        // Show all players with tags
-        const allPlayers = [];
-        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
-        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
-        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
-        
-        return `
-            <div class="team-card ${!isAdmin ? 'read-only' : ''}">
-                <div class="team-header">
-                    <span class="team-name-card">🏏 ${team.name}</span>
-                    ${actions}
-                </div>
-                <div class="team-details">
-                    <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
-                    <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
-                </div>
-                <div class="team-squad">
-                    ${allPlayers.map(p => `
-                        <span class="squad-tag ${p.cls}">${p.name}</span>
-                    `).join('')}
-                </div>
-                <div class="team-stats">
-                    <span class="stat">📊 ${team.matchesPlayed || 0}M</span>
-                    <span class="stat wins">🎯 ${team.wins || 0}W</span>
-                    <span class="stat losses">📉 ${team.losses || 0}L</span>
-                    <span class="stat points">⭐ ${team.points || 0}Pts</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// Edit team function
-function editTeam(teamId) {
-    // Find team from global teams array
-    const team = teams.find(t => t.id === teamId);
-    if (!team) {
-        showNotification('⚠️ Team not found!', 'danger');
-        return;
-    }
-    
-    // Show edit modal/popup
-    // For now, let's use a simple prompt approach
-    const newName = prompt('Team Name:', team.name);
-    if (newName === null) return;
-    
-    const newCaptain = prompt('Captain:', team.captain);
-    if (newCaptain === null) return;
-    
-    const newVC = prompt('Vice Captain:', team.viceCaptain);
-    if (newVC === null) return;
-    
-    const currentSquad = team.squad ? team.squad.join(', ') : '';
-    const newSquadRaw = prompt('Squad (comma separated):', currentSquad);
-    if (newSquadRaw === null) return;
-    
-    const newSquad = newSquadRaw.split(',').map(p => p.trim()).filter(p => p);
-    
-    // Prepare updated team
-    const updatedTeam = {
-        ...team,
-        name: newName.trim(),
-        captain: newCaptain.trim(),
-        viceCaptain: newVC.trim(),
-        squad: newSquad
-    };
-    
-    // Send update to server
-    fetch('/api/teams/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedTeam)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(`✅ Team "${newName}" updated!`, 'success');
-            socket.emit('getTeams');
-        } else {
-            showNotification(`❌ Update failed: ${data.error}`, 'danger');
-        }
-    })
-    .catch(err => {
-        showNotification('❌ Error updating team', 'danger');
-        console.error(err);
-    });
-}
-
-// Delete team function
-function deleteTeam(teamId) {
-    const team = teams.find(t => t.id === teamId);
-    if (!team) {
-        showNotification('⚠️ Team not found!', 'danger');
-        return;
-    }
-    
-    if (!confirm(`Are you sure you want to delete "${team.name}"? This cannot be undone!`)) {
-        return;
-    }
-    
-    fetch('/api/teams/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: teamId })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            showNotification(`🗑️ Team "${team.name}" deleted!`, 'warning');
-            socket.emit('getTeams');
-        } else {
-            showNotification(`❌ Delete failed: ${data.error}`, 'danger');
-        }
-    })
-    .catch(err => {
-        showNotification('❌ Error deleting team', 'danger');
-        console.error(err);
-    });
-}
-
-// Enter key support for password
-document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && document.getElementById('teamsPassword') === document.activeElement) {
         checkTeamsPassword();
     }
 });
 
-// ============================================
-// END OF TEAMS FUNCTIONS
-// ============================================
+console.log('🏏 GCL Frontend loaded successfully!');
+console.log('📡 Waiting for socket connection...');
