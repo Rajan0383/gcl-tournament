@@ -2374,3 +2374,419 @@ body {
         padding: 1px 10px;
     }
 }
+/* ============================================
+   TEAMS TAB - COMPLETE STYLES
+   ============================================ */
+
+.teams-container {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.teams-header {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.teams-header h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--primary);
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+    letter-spacing: 2px;
+}
+
+.teams-subtitle {
+    color: #9ca3af;
+    font-size: 0.95rem;
+    margin-top: 4px;
+    letter-spacing: 2px;
+}
+
+/* Admin Login */
+.teams-admin-login {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.teams-login-box {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 25px 35px;
+    border-radius: 14px;
+    text-align: center;
+    border: 1px solid rgba(255, 215, 0, 0.1);
+    max-width: 420px;
+    width: 100%;
+}
+
+.teams-login-box h3 {
+    color: var(--primary);
+    font-size: 1.2rem;
+    margin-bottom: 4px;
+}
+
+.teams-login-box p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 14px;
+}
+
+.teams-login-input {
+    display: flex;
+    gap: 10px;
+}
+
+.teams-login-input input {
+    flex: 1;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-light);
+    font-size: 0.95rem;
+}
+
+.teams-login-input input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.teams-login-input button {
+    padding: 10px 28px;
+    background: var(--primary);
+    color: var(--bg-dark);
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    transition: all 0.3s;
+}
+
+.teams-login-input button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
+}
+
+.teams-error {
+    color: var(--danger);
+    margin-top: 10px;
+    display: none;
+    font-size: 0.9rem;
+}
+
+/* Admin Controls */
+.teams-admin-controls {
+    margin-bottom: 20px;
+}
+
+.admin-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 215, 0, 0.05);
+    border: 1px solid rgba(255, 215, 0, 0.1);
+    border-radius: 12px;
+    padding: 12px 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.admin-bar .admin-badge {
+    background: var(--primary);
+    color: var(--bg-dark);
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.admin-bar .logout-btn {
+    padding: 6px 20px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+.admin-bar .add-team-btn {
+    padding: 6px 20px;
+    background: var(--success);
+    color: var(--bg-dark);
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+/* Add Team Form */
+.add-team-form {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+    border: 1px solid rgba(255, 215, 0, 0.1);
+}
+
+.add-team-form h4 {
+    color: var(--primary);
+    font-size: 1.1rem;
+    margin-bottom: 14px;
+}
+
+.add-team-form .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.add-team-form .form-grid input {
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.add-team-form .form-grid input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.add-team-form .form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.add-team-form .confirm-btn {
+    padding: 10px 30px;
+    background: var(--primary);
+    color: var(--bg-dark);
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    transition: all 0.3s;
+}
+
+.add-team-form .confirm-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
+}
+
+.add-team-form .cancel-btn {
+    padding: 10px 30px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-light);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+/* Teams List */
+.teams-list-section {
+    margin-top: 20px;
+}
+
+.teams-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.teams-count {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* Team Cards */
+.team-card {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    border-left: 4px solid var(--primary);
+    transition: all 0.3s;
+}
+
+.team-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.team-card .team-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.team-card .team-name-card {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-light);
+}
+
+.team-card .team-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.team-card .team-actions .edit-btn {
+    padding: 4px 14px;
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: 'Rajdhani', sans-serif;
+    transition: all 0.3s;
+}
+
+.team-card .team-actions .edit-btn:hover {
+    background: #60a5fa;
+    color: var(--bg-dark);
+}
+
+.team-card .team-actions .delete-btn {
+    padding: 4px 14px;
+    background: rgba(255, 107, 107, 0.15);
+    color: var(--danger);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: 'Rajdhani', sans-serif;
+    transition: all 0.3s;
+}
+
+.team-card .team-actions .delete-btn:hover {
+    background: var(--danger);
+    color: white;
+}
+
+.team-card .team-details {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+.team-card .team-details strong {
+    color: var(--text-light);
+}
+
+.team-card .team-details .captain {
+    color: var(--primary);
+}
+
+.team-card .team-details .vice-captain {
+    color: #60a5fa;
+}
+
+.team-card .team-squad {
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.team-card .team-squad .squad-tag {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 12px;
+    border-radius: 14px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.team-card .team-squad .squad-tag.captain-tag {
+    color: var(--primary);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.team-card .team-squad .squad-tag.vc-tag {
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.team-card .team-stats {
+    margin-top: 8px;
+    display: flex;
+    gap: 18px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.team-card .team-stats .stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.team-card .team-stats .stat.wins {
+    color: var(--success);
+}
+
+.team-card .team-stats .stat.losses {
+    color: var(--danger);
+}
+
+.team-card .team-stats .stat.points {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* Read Only Mode - Hide actions */
+.team-card.read-only .team-actions {
+    display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .teams-container {
+        padding: 16px;
+    }
+
+    .teams-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .add-team-form .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .team-card .team-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .teams-login-input {
+        flex-direction: column;
+    }
+}
