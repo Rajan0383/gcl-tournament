@@ -1401,7 +1401,37 @@ app.get('/api/export/player-stats', (req, res) => {
 app.get('/api/tournament/stats', (req, res) => {
     res.json(gameEngine.tournamentStats);
 });
+// Update team
+app.post('/api/teams/update', (req, res) => {
+    try {
+        const updatedTeam = req.body;
+        const index = gameEngine.teams.findIndex(t => t.id === updatedTeam.id);
+        if (index === -1) {
+            return res.status(404).json({ success: false, error: 'Team not found' });
+        }
+        gameEngine.teams[index] = updatedTeam;
+        gameEngine.saveAllData();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
 
+// Delete team
+app.post('/api/teams/delete', (req, res) => {
+    try {
+        const { id } = req.body;
+        const index = gameEngine.teams.findIndex(t => t.id === id);
+        if (index === -1) {
+            return res.status(404).json({ success: false, error: 'Team not found' });
+        }
+        gameEngine.teams.splice(index, 1);
+        gameEngine.saveAllData();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
 // ============================================
 // START SERVER
 // ============================================
