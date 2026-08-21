@@ -1266,16 +1266,31 @@ function createTeamFromTeams() {
     const viceCaptain = document.getElementById('newViceCaptain').value.trim();
     const squadRaw = document.getElementById('newSquad').value.trim();
     
-    if (!name || !captain || !viceCaptain) {
-        showNotification('⚠️ Please fill all required fields', 'danger');
+    if (!name) {
+        showNotification('⚠️ Please enter team name!', 'danger');
+        return;
+    }
+    if (!captain) {
+        showNotification('⚠️ Please enter captain name!', 'danger');
+        return;
+    }
+    if (!viceCaptain) {
+        showNotification('⚠️ Please enter vice captain name!', 'danger');
         return;
     }
     
     const squad = squadRaw ? squadRaw.split(',').map(p => p.trim()).filter(p => p) : [];
-    if (squad.length < 5) {
-        showNotification('⚠️ Please enter at least 5 players in squad', 'danger');
+    
+    if (!squad.includes(captain)) {
+        showNotification(`⚠️ Captain "${captain}" must be in the squad list!`, 'danger');
         return;
     }
+    if (!squad.includes(viceCaptain)) {
+        showNotification(`⚠️ Vice Captain "${viceCaptain}" must be in the squad list!`, 'danger');
+        return;
+    }
+    
+    console.log('Creating team:', { name, captain, viceCaptain, squad });
     
     socket.emit('createTeam', {
         name: name,
@@ -1285,7 +1300,7 @@ function createTeamFromTeams() {
     });
     
     hideAddTeamForm();
-    showNotification(`✅ Team "${name}" created!`, 'success');
+    showNotification(`⏳ Creating team "${name}"...`, 'warning');
 }
 
 // Update teams list display (override existing function)
