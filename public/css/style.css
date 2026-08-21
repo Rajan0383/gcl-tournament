@@ -3461,3 +3461,85 @@ body {
         font-size: 1.2rem;
     }
 }
+/* Team Details - Captain & Vice Captain */
+.team-details {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.8;
+}
+
+/* Captain Label - White, Bold */
+.team-details .captain-label {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+/* Captain Name - Gold, Big, Bold, Bright */
+.team-details .captain-name {
+    color: #ffd700;
+    font-weight: 800;
+    font-size: 1.3rem;
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+    letter-spacing: 0.5px;
+}
+
+/* Vice Captain Label - White, Bold */
+.team-details .vc-label {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+/* Vice Captain Name - Blue, Big, Bold, Bright */
+.team-details .vc-name {
+    color: #60a5fa;
+    font-weight: 800;
+    font-size: 1.3rem;
+    text-shadow: 0 0 30px rgba(96, 165, 250, 0.2);
+    letter-spacing: 0.5px;
+}
+
+/* Squad Section */
+.team-squad {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* Squad Tags - Big, Bold, Bright */
+.team-squad .squad-tag {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 8px 20px;
+    border-radius: 24px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s;
+}
+
+.team-squad .squad-tag:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.1);
+}
+
+/* Captain in Squad - Gold, Extra Bold */
+.team-squad .squad-tag.captain-tag {
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    font-weight: 800;
+    background: rgba(255, 215, 0, 0.08);
+    text-shadow: 0 0 25px rgba(255, 215, 0, 0.15);
+}
+
+/* Vice Captain in Squad - Blue, Extra Bold */
+.team-squad .squad-tag.vc-tag {
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    font-weight: 800;
+    background: rgba(96, 165, 250, 0.08);
+    text-shadow: 0 0 25px rgba(96, 165, 250, 0.15);
+}
