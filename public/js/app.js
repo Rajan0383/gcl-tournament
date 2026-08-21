@@ -675,6 +675,11 @@ function createTeamFromTeams() {
     const viceCaptain = document.getElementById('newViceCaptain').value.trim();
     const squadRaw = document.getElementById('newSquad').value.trim();
     
+    console.log('📝 1. Name:', name);
+    console.log('📝 2. Captain:', captain);
+    console.log('📝 3. Vice Captain:', viceCaptain);
+    console.log('📝 4. Squad Raw:', squadRaw);
+    
     if (!name) {
         showNotification('⚠️ Please enter team name!', 'danger');
         return;
@@ -690,6 +695,8 @@ function createTeamFromTeams() {
     
     const squad = squadRaw ? squadRaw.split(',').map(p => p.trim()).filter(p => p) : [];
     
+    console.log('📝 5. Parsed Squad:', squad);
+    
     if (!squad.includes(captain)) {
         showNotification(`⚠️ Captain "${captain}" must be in the squad list!`, 'danger');
         return;
@@ -699,7 +706,7 @@ function createTeamFromTeams() {
         return;
     }
     
-    console.log('Creating team:', { name, captain, viceCaptain, squad });
+    console.log('📝 6. Emitting createTeam...');
     
     socket.emit('createTeam', {
         name: name,
@@ -711,7 +718,6 @@ function createTeamFromTeams() {
     hideAddTeamForm();
     showNotification(`⏳ Creating team "${name}"...`, 'warning');
 }
-
 function updateTeamsList(teams) {
     const container = document.getElementById('teamsList');
     const countEl = document.getElementById('teamsCount');
