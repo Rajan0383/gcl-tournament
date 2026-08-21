@@ -783,27 +783,69 @@ function editTeam(teamId) {
         return;
     }
     
-    const newName = prompt('Team Name:', team.name);
-    if (newName === null) return;
+    // Show current squad
+    const currentSquadText = team.squad ? team.squad.join(', ') : '';
+    const currentPlayerCount = team.squad ? team.squad.length : 0;
     
-    const newCaptain = prompt('Captain:', team.captain);
-    if (newCaptain === null) return;
+    // Create edit prompt
+    const message = `✏️ EDIT TEAM: ${team.name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Team Name: ${team.name}
+🧢 Captain: ${team.captain}
+🧢 Vice Captain: ${team.viceCaptain}
+🏏 Squad (${currentPlayerCount} players):
+${currentSquadText}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 Enter details below (comma separated):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Format: Team Name, Captain, Vice Captain, Player1, Player2, Player3...
+
+💡 To add/remove players, just add or remove names from the list.`;
+
+    const input = prompt(message, `${team.name}, ${team.captain}, ${team.viceCaptain}, ${currentSquadText}`);
     
-    const newVC = prompt('Vice Captain:', team.viceCaptain);
-    if (newVC === null) return;
+    if (input === null) return; // Cancel
     
-    const currentSquad = team.squad ? team.squad.join(', ') : '';
-    const newSquadRaw = prompt('Squad (comma separated):', currentSquad);
-    if (newSquadRaw === null) return;
+    // Parse input
+    const parts = input.split(',').map(p => p.trim()).filter(p => p);
     
-    const newSquad = newSquadRaw.split(',').map(p => p.trim()).filter(p => p);
-    
-    if (!newSquad.includes(newCaptain.trim())) {
-        showNotification(`⚠️ Captain "${newCaptain.trim()}" must be in the squad!`, 'danger');
+    if (parts.length < 3) {
+        showNotification('⚠️ Please enter at least: Team Name, Captain, Vice Captain', 'danger');
         return;
     }
-    if (!newSquad.includes(newVC.trim())) {
-        showNotification(`⚠️ Vice Captain "${newVC.trim()}" must be in the squad!`, 'danger');
+    
+    const newName = parts[0];
+    const newCaptain = parts[1];
+    const newVC = parts[2];
+    const newSquad = parts.slice(3);
+    
+    // ✅ Auto-add captain and VC to squad if not present
+    let finalSquad = [...newSquad];
+    if (!finalSquad.includes(newCaptain)) {
+        finalSquad.push(newCaptain);
+        showNotification(`✅ Captain "${newCaptain}" auto-added to squad`, 'warning');
+    }
+    if (!finalSquad.includes(newVC)) {
+        finalSquad.push(newVC);
+        showNotification(`✅ Vice Captain "${newVC}" auto-added to squad`, 'warning');
+    }
+    
+    // ✅ Check if captain and VC are in squad
+    if (!finalSquad.includes(newCaptain)) {
+        showNotification(`⚠️ Captain "${newCaptain}" must be in the squad!`, 'danger');
+        return;
+    }
+    if (!finalSquad.includes(newVC)) {
+        showNotification(`⚠️ Vice Captain "${newVC}" must be in the squad!`, 'danger');
+        return;
+    }
+    
+    // ✅ If squad is empty, use existing squad
+    if (finalSquad.length === 0 && team.squad) {
+        showNotification('⚠️ Squad cannot be empty! Using existing squad.', 'warning');
         return;
     }
     
@@ -812,9 +854,10 @@ function editTeam(teamId) {
         name: newName.trim(),
         captain: newCaptain.trim(),
         viceCaptain: newVC.trim(),
-        squad: newSquad
+        squad: finalSquad
     };
     
+    // Send update to server
     fetch('/api/teams/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -834,7 +877,6 @@ function editTeam(teamId) {
         console.error(err);
     });
 }
-
 function deleteTeam(teamId) {
     const team = teams.find(t => t.id === teamId);
     if (!team) {
