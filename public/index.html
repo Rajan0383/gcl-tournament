@@ -582,72 +582,166 @@
 
     </div>
 </div>
-            <!-- LIVE SCORE TAB -->
-            <div class="tab-content" id="tab-livescore">
-                <div class="livescore-container">
-                    <h2>🎯 Live Score</h2>
-                    <div class="scoreboard">
-                        <div class="inning-info">
-                            <span class="inning-badge" id="inningBadge">Inning 1</span>
-                            <span class="over-info" id="overInfo">Over: 0.0 / 4</span>
-                            <span class="over-type" id="overTypeDisplay">LBW Over</span>
-                        </div>
-                        <div class="main-score">
-                            <div class="team-batting">
-                                <div class="team-name" id="battingTeamName">Team 1</div>
-                                <div class="score">
-                                    <span class="runs" id="runsDisplay">0</span>
-                                    <span class="wickets">/ <span id="wicketsDisplay">0</span></span>
-                                </div>
-                                <div class="overs">( <span id="ballsDisplay">0</span> balls )</div>
-                                <div class="extras">Extras: <span id="extrasDisplay">0</span></div>
-                            </div>
-                            <div class="vs-divider">VS</div>
-                            <div class="team-bowling">
-                                <div class="team-name" id="bowlingTeamName">Team 2</div>
-                                <div class="target-display" id="targetDisplay"></div>
-                            </div>
-                        </div>
-                        <div class="current-players">
-                            <div class="player-info batsman">
-                                <span class="label">🏏 Batsman:</span>
-                                <span class="name" id="currentBatsman">-</span>
-                                <span class="status" id="batsmanStatus">⏳ Waiting...</span>
-                            </div>
-                            <div class="player-info bowler">
-                                <span class="label">⚾ Bowler:</span>
-                                <span class="name" id="currentBowler">-</span>
-                                <span class="status" id="bowlerStatus">⏳ Waiting...</span>
-                            </div>
-                        </div>
-                        <div class="lbw-counter" id="lbwDisplay">LBW Count: <span id="lbwCount">0</span>/3</div>
-                        <div class="last-ball" id="lastBallDisplay">Last Ball: -</div>
+           <!-- ========================================== -->
+<!-- LIVE SCORE TAB -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-livescore">
+    <div class="livescore-container">
+        
+        <div class="livescore-header">
+            <h2>🎯 Live Score</h2>
+            <p class="livescore-subtitle">GEM-STAR Championship 2026</p>
+        </div>
+
+        <!-- Scoreboard -->
+        <div class="scoreboard">
+            
+            <!-- Top Section: Batting vs Bowling -->
+            <div class="scoreboard-top">
+                <div class="batting-team">
+                    <div class="team-name" id="battingTeamName">Team 1</div>
+                    <div class="score-display">
+                        <span class="runs" id="runsDisplay">0</span>
+                        <span class="wickets">/ <span id="wicketsDisplay">0</span></span>
                     </div>
-                    <div class="game-controls">
-                        <div class="control-section batsman-section">
-                            <h3>🏏 Batsman</h3>
-                            <p class="hint">Enter name and PM your score</p>
-                            <input type="text" id="batsmanName" placeholder="Batsman Name" class="player-input">
-                            <div class="input-group">
-                                <input type="number" id="batsmanScore" placeholder="Score" min="1" max="6">
-                                <button onclick="submitBatScore()">Submit</button>
-                            </div>
-                            <div class="allowed-scores" id="allowedBatScores"></div>
-                        </div>
-                        <div class="control-section bowler-section">
-                            <h3>⚾ Bowler</h3>
-                            <p class="hint">Enter name and guess the number</p>
-                            <input type="text" id="bowlerName" placeholder="Bowler Name" class="player-input">
-                            <div class="input-group">
-                                <input type="number" id="bowlerGuess" placeholder="Guess" min="1" max="6">
-                                <button onclick="submitBowlGuess()">Guess!</button>
-                            </div>
-                            <div class="allowed-scores" id="allowedBowlScores"></div>
-                        </div>
-                    </div>
-                    <div class="notification" id="notification"></div>
+                    <div class="overs-display">( <span id="ballsDisplay">0</span> balls )</div>
+                    <div class="extras-display">Extras: <span id="extrasDisplay">0</span></div>
+                </div>
+                <div class="vs-divider">VS</div>
+                <div class="bowling-team">
+                    <div class="team-name" id="bowlingTeamName">Team 2</div>
+                    <div class="target-display" id="targetDisplay"></div>
                 </div>
             </div>
+
+            <!-- Current Players -->
+            <div class="current-players">
+                <div class="player-info batsman-info">
+                    <span class="label">🏏 Batsmen:</span>
+                    <div class="batsmen-names">
+                        <span class="striker" id="strikerName">-</span>
+                        <span class="strike-arrow">▶</span>
+                        <span class="non-striker" id="nonStrikerName">-</span>
+                    </div>
+                    <span class="status" id="batsmanStatus">⏳ Waiting...</span>
+                </div>
+                <div class="player-info bowler-info">
+                    <span class="label">⚾ Bowler:</span>
+                    <span class="name" id="currentBowler">-</span>
+                    <span class="status" id="bowlerStatus">⏳ Waiting...</span>
+                </div>
+            </div>
+
+            <!-- Over Info -->
+            <div class="over-info">
+                <div class="over-detail">
+                    <span class="over-label">Current Over:</span>
+                    <span class="over-value" id="currentOverDisplay">0.0</span>
+                </div>
+                <div class="over-detail">
+                    <span class="over-label">Numbers:</span>
+                    <span class="over-value" id="allowedNumbers">3, 4, 5, 6</span>
+                </div>
+                <div class="over-detail">
+                    <span class="over-label">Strike:</span>
+                    <span class="over-value" id="strikeDisplay">-</span>
+                </div>
+            </div>
+
+            <!-- Wide/No-Ball Info -->
+            <div class="rules-info">
+                <span class="rule-badge wide-badge">📏 Wide: 3-6 / 6-3</span>
+                <span class="rule-badge noball-badge">❌ No-Ball: 5</span>
+                <span class="rule-badge strike-badge">🔄 Strike Change: 3, 5</span>
+                <span class="rule-badge no-freehit">🚫 No Free Hit</span>
+            </div>
+
+            <!-- Last Ball -->
+            <div class="last-ball" id="lastBallDisplay">
+                Last Ball: -
+            </div>
+
+        </div>
+
+        <!-- Strike Change Rules -->
+        <div class="strike-rules">
+            <div class="strike-rule-item odd">
+                <span class="strike-rule-icon">🔄</span>
+                <span><strong>ODD</strong> (3,5) → <span class="strike-change">Strike CHANGES</span></span>
+            </div>
+            <div class="strike-rule-item even">
+                <span class="strike-rule-icon">✅</span>
+                <span><strong>EVEN</strong> (4,6) → <span class="strike-remain">Strike REMAINS</span></span>
+            </div>
+            <div class="strike-rule-item wide-3">
+                <span class="strike-rule-icon">📏</span>
+                <span><strong>WIDE 3</strong> → <span class="strike-change">Strike CHANGES</span></span>
+            </div>
+            <div class="strike-rule-item wide-6">
+                <span class="strike-rule-icon">📏</span>
+                <span><strong>WIDE 6</strong> → <span class="strike-remain">Strike REMAINS</span></span>
+            </div>
+            <div class="strike-rule-item noball">
+                <span class="strike-rule-icon">❌</span>
+                <span><strong>NO-BALL 5</strong> → <span class="strike-change">Strike CHANGES</span></span>
+            </div>
+        </div>
+
+        <!-- Batsman & Bowler Input -->
+        <div class="game-controls">
+            <div class="control-section batsman-section">
+                <h3>🏏 Batsman</h3>
+                <p class="hint">Enter name and PM your score</p>
+                <input type="text" id="batsmanName" placeholder="Batsman Name" class="player-input">
+                <div class="input-group">
+                    <input type="number" id="batsmanScore" placeholder="Score" min="3" max="6">
+                    <button onclick="submitBatScore()">Submit</button>
+                </div>
+                <div class="allowed-scores" id="allowedBatScores">Allowed: 3, 4, 5, 6</div>
+            </div>
+
+            <div class="control-section bowler-section">
+                <h3>⚾ Bowler</h3>
+                <p class="hint">Enter name and guess the number</p>
+                <input type="text" id="bowlerName" placeholder="Bowler Name" class="player-input">
+                <div class="input-group">
+                    <input type="number" id="bowlerGuess" placeholder="Guess" min="3" max="6">
+                    <button onclick="submitBowlGuess()">Guess!</button>
+                </div>
+                <div class="allowed-scores" id="allowedBowlScores">Allowed: 3, 4, 5, 6</div>
+            </div>
+        </div>
+
+        <!-- Scorecard -->
+        <div class="scorecard-section">
+            <h3>📋 Scorecard</h3>
+            <div class="scorecard-grid">
+                <div class="batsmen-scorecard">
+                    <h4>🏏 Batsmen</h4>
+                    <div id="batsmenScorecard">
+                        <p class="empty-message">No batsmen yet</p>
+                    </div>
+                </div>
+                <div class="bowlers-scorecard">
+                    <h4>⚾ Bowlers</h4>
+                    <div id="bowlersScorecard">
+                        <p class="empty-message">No bowlers yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ball-by-Ball -->
+        <div class="ball-by-ball-section">
+            <h3>📌 Ball-by-Ball</h3>
+            <div id="ballByBall">
+                <p class="empty-message">No balls bowled yet</p>
+            </div>
+        </div>
+
+        <div class="notification" id="notification"></div>
+    </div>
+</div>
 
             <!-- TOP 10 PLAYERS TAB -->
             <div class="tab-content" id="tab-top10">
