@@ -25,7 +25,18 @@ const MONGODB_URI = process.env.MONGODB_URI || '';
 let dbClient = null;
 let db = null;
 let useDatabase = false;
+// ============================================
+// MIDDLEWARE
+// ============================================
 
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Root route - Serve index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 async function connectMongoDB() {
     if (!MONGODB_URI) {
         console.log('⚠️ MONGODB_URI not found. Using local file storage.');
