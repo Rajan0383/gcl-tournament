@@ -70,6 +70,7 @@ socket.on('fixturesUpdate', (fixtures) => {
     updateFixtures(fixtures);
     updateAdminFixturesList(); // 👈 ADD THIS
     updateAdminResultsList(); // 👈 ADD THIS
+    updateCompleteFixtureSelect(fixtures);
 });
 
 socket.on('pointsTable', (data) => {
@@ -233,12 +234,20 @@ function updateAllowedScores(state) {
 function updateTeamSelects(teams) {
     const options = teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     
-    const selects = ['team1Select', 'team2Select', 'fixtureTeam1', 'fixtureTeam2', 'winnerSelect'];
+    const selects = [
+        'team1Select', 'team2Select', 'fixtureTeam1', 'fixtureTeam2', 'winnerSelect',
+        'adminTeam1', 'adminTeam2', 'adminFixtureTeam1', 'adminFixtureTeam2',
+        'adminWinner', 'adminCompleteMatch'
+    ];
+    
     selects.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             const currentValue = el.value;
-            el.innerHTML = `<option value="">Select ${el.id.includes('winner') ? 'Winner' : 'Team'}</option>${options}`;
+            const label = el.id.includes('winner') ? 'Winner' : 
+                         el.id.includes('complete') ? 'Ongoing Match' :
+                         'Team';
+            el.innerHTML = `<option value="">Select ${label}</option>${options}`;
             if (currentValue) el.value = currentValue;
         }
     });
@@ -1687,3 +1696,19 @@ function updateAdminResultsList() {
 // Override socket events for admin updates
 // Add this to existing socket.on('teamsList') and socket.on('fixturesUpdate')
 // Already existing in code, just ensure admin lists update
+function updateCompleteFixtureSelect(fixtures) {
+    const select = document.getElementById('adminCompleteMatch');
+    if (!select) return;
+    
+    const ongoing = fixtures.matches.filter(m => m.status === 'ongoing');
+    
+    if (ongoing.length === 0) {
+        select.innerHTML = '<option value="">No ongoing matches</option>';
+        return;
+    }
+
+    select.innerHTML = `
+        <option value="">Select Ongoing Match</option>
+        ${ongoing.map(f => `<option value="${f.id}">${f.team1} vs ${f.team2}</option>`).join('')}
+    `;
+}
