@@ -1,7 +1,7 @@
 {
   "name": "gcl-tournament",
   "version": "1.0.0",
-  "description": "Gemstar Champions League - PalTalk Cricket Tournament",
+  "description": "GEM-STAR Championship 2026 - PalTalk Cricket Tournament",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
