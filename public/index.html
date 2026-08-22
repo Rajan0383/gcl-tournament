@@ -834,57 +834,122 @@
                 </div>
             </div>
 
-            <!-- ADMIN TAB -->
-            <div class="tab-content" id="tab-admin">
-                <div class="admin-container">
-                    <h2>⚙️ Admin Panel</h2>
-                    <div class="admin-grid">
-                        <div class="admin-card">
-                            <h3>📋 Create Team</h3>
-                            <div class="form-group">
-                                <input type="text" id="teamName" placeholder="Team Name">
-                                <input type="text" id="managerName" placeholder="Manager Name">
-                                <input type="text" id="captainName" placeholder="Captain Name">
-                                <input type="text" id="viceCaptainName" placeholder="Vice Captain">
-                                <input type="text" id="rtmPlayer" placeholder="RTM Player">
-                                <input type="text" id="auctionPlayers" placeholder="Auction Players (comma separated)">
-                                <button onclick="createTeam()">Create Team</button>
-                            </div>
-                        </div>
-                        <div class="admin-card">
-                            <h3>⚔️ Setup Match</h3>
-                            <div class="form-group">
-                                <select id="team1Select"><option value="">Select Team 1</option></select>
-                                <select id="team2Select"><option value="">Select Team 2</option></select>
-                                <input type="text" id="team1Order" placeholder="Team 1 Batting Order">
-                                <input type="text" id="team2Order" placeholder="Team 2 Batting Order">
-                                <button onclick="setupMatch()">Start Match</button>
-                                <button onclick="resetMatch()" class="danger">Reset Match</button>
-                            </div>
-                        </div>
-                        <div class="admin-card">
-                            <h3>📅 Create Fixture</h3>
-                            <div class="form-group">
-                                <select id="fixtureTeam1"><option value="">Select Team 1</option></select>
-                                <select id="fixtureTeam2"><option value="">Select Team 2</option></select>
-                                <input type="datetime-local" id="fixtureDate">
-                                <input type="text" id="fixtureVenue" placeholder="Venue">
-                                <button onclick="createFixture()">Create Fixture</button>
-                            </div>
-                        </div>
-                        <div class="admin-card">
-                            <h3>🏆 Complete Match</h3>
-                            <div class="form-group">
-                                <select id="completeFixtureSelect"><option value="">Select Ongoing Match</option></select>
-                                <select id="winnerSelect"><option value="">Select Winner</option></select>
-                                <input type="text" id="manOfMatch" placeholder="Man of the Match">
-                                <button onclick="completeMatch()">Complete Match</button>
-                            </div>
-                        </div>
+           <!-- ========================================== -->
+<!-- ADMIN TAB -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-admin">
+    <div class="admin-container">
+        
+        <div class="admin-header">
+            <h2>⚙️ Admin Panel</h2>
+            <p class="admin-subtitle">GEM-STAR Championship 2026</p>
+        </div>
+
+        <!-- Admin Login -->
+        <div id="adminLogin" class="admin-login">
+            <div class="login-box">
+                <h3>🔐 Admin Access Required</h3>
+                <p>Enter password to access admin panel</p>
+                <div class="login-input-group">
+                    <input type="password" id="adminPassword" placeholder="Enter Password">
+                    <button onclick="checkAdminPassword()">Unlock</button>
+                </div>
+                <div id="adminError" class="login-error">❌ Incorrect password!</div>
+            </div>
+        </div>
+
+        <!-- Admin Content -->
+        <div id="adminContent" style="display: none;">
+            
+            <!-- Admin Bar -->
+            <div class="admin-bar">
+                <span class="admin-badge">👑 Admin Mode</span>
+                <button onclick="logoutAdmin()" class="logout-btn">🔒 Logout</button>
+            </div>
+
+            <!-- Admin Grid -->
+            <div class="admin-grid">
+
+                <!-- 1. Manage Teams -->
+                <div class="admin-card">
+                    <h3>📋 Manage Teams</h3>
+                    <div class="form-group">
+                        <input type="text" id="adminTeamName" placeholder="Team Name">
+                        <input type="text" id="adminCaptain" placeholder="Captain Name">
+                        <input type="text" id="adminViceCaptain" placeholder="Vice Captain Name">
+                        <input type="text" id="adminSquad" placeholder="Squad (comma separated)">
+                        <button onclick="createTeamFromAdmin()">✅ Create Team</button>
                     </div>
+                </div>
+
+                <!-- 2. Setup Match -->
+                <div class="admin-card">
+                    <h3>⚔️ Setup Match</h3>
+                    <div class="form-group">
+                        <select id="adminTeam1"><option value="">Select Team 1</option></select>
+                        <select id="adminTeam2"><option value="">Select Team 2</option></select>
+                        <input type="text" id="adminTeam1Order" placeholder="Team 1 Batting Order (comma separated)">
+                        <input type="text" id="adminTeam2Order" placeholder="Team 2 Batting Order (comma separated)">
+                        <button onclick="setupMatchFromAdmin()">▶ Start Match</button>
+                        <button onclick="resetMatchFromAdmin()" class="danger">🔄 Reset Match</button>
+                    </div>
+                </div>
+
+                <!-- 3. Create Fixture -->
+                <div class="admin-card">
+                    <h3>📅 Create Fixture</h3>
+                    <div class="form-group">
+                        <select id="adminFixtureTeam1"><option value="">Select Team 1</option></select>
+                        <select id="adminFixtureTeam2"><option value="">Select Team 2</option></select>
+                        <input type="date" id="adminFixtureDate">
+                        <input type="time" id="adminFixtureTime">
+                        <input type="text" id="adminFixtureVenue" placeholder="Venue">
+                        <input type="text" id="adminFixtureHost" placeholder="Host Name">
+                        <button onclick="createFixtureFromAdmin()">✅ Create Fixture</button>
+                    </div>
+                </div>
+
+                <!-- 4. Complete Match -->
+                <div class="admin-card">
+                    <h3>🏆 Complete Match</h3>
+                    <div class="form-group">
+                        <select id="adminCompleteMatch"><option value="">Select Ongoing Match</option></select>
+                        <select id="adminWinner"><option value="">Select Winner</option></select>
+                        <input type="text" id="adminManOfMatch" placeholder="Man of the Match">
+                        <button onclick="completeMatchFromAdmin()">✅ Complete Match</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- All Teams List -->
+            <div class="admin-teams-section">
+                <h3>🏏 All Teams</h3>
+                <div id="adminTeamsList" class="teams-grid">
+                    <p class="empty-message">No teams created yet.</p>
                 </div>
             </div>
 
+            <!-- All Fixtures List -->
+            <div class="admin-fixtures-section">
+                <h3>📅 All Fixtures</h3>
+                <div id="adminFixturesList" class="fixtures-grid">
+                    <p class="empty-message">No fixtures created yet.</p>
+                </div>
+            </div>
+
+            <!-- Match Results -->
+            <div class="admin-results-section">
+                <h3>📊 Match Results</h3>
+                <div id="adminResultsList">
+                    <p class="empty-message">No match results yet.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
         </div><!-- end main-content -->
 
         <footer class="footer">
