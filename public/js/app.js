@@ -1785,3 +1785,205 @@ function getTeamNameById(teamId) {
     // Agar nahi mila toh ID return karein
     return teamId || 'Unknown Team';
 }
+// ============================================
+// LIVE SCORE FUNCTIONS
+// ============================================
+
+let liveScoreData = {
+    battingTeam: '',
+    bowlingTeam: '',
+    runs: 0,
+    wickets: 0,
+    balls: 0,
+    extras: 0,
+    currentOver: 0,
+    currentBall: 0,
+    striker: '',
+    nonStriker: '',
+    bowler: '',
+    lastBall: '',
+    batsmen: [],
+    bowlers: [],
+    ballByBall: []
+};
+
+function submitBatScore() {
+    const name = document.getElementById('batsmanName').value.trim();
+    const score = parseInt(document.getElementById('batsmanScore').value);
+    
+    if (!name) {
+        showNotification('⚠️ Please enter batsman name!', 'danger');
+        return;
+    }
+    
+    if (!score || score < 3 || score > 6) {
+        showNotification('⚠️ Please enter a valid score (3-6)', 'danger');
+        return;
+    }
+    
+    // Update live score data
+    if (!liveScoreData.striker) {
+        liveScoreData.striker = name;
+    }
+    
+    liveScoreData.currentBatsmanName = name;
+    liveScoreData.batsmanScore = score;
+    
+    // Send to server
+    socket.emit('batsmanSetScore', { 
+        name: name, 
+        score: score 
+    });
+    
+    document.getElementById('batsmanScore').value = '';
+    showNotification(`✅ ${name} set score: ${score}`, 'success');
+    updateLiveScoreDisplay();
+}
+
+function submitBowlGuess() {
+    const name = document.getElementById('bowlerName').value.trim();
+    const guess = parseInt(document.getElementById('bowlerGuess').value);
+    
+    if (!name) {
+        showNotification('⚠️ Please enter bowler name!', 'danger');
+        return;
+    }
+    
+    if (!guess || guess < 3 || guess > 6) {
+        showNotification('⚠️ Please enter a valid guess (3-6)', 'danger');
+        return;
+    }
+    
+    liveScoreData.bowler = name;
+    liveScoreData.bowlerGuess = guess;
+    
+    socket.emit('bowlerGuess', { 
+        name: name, 
+        guess: guess 
+    });
+    
+    document.getElementById('bowlerGuess').value = '';
+    showNotification(`⚾ ${name} guessed: ${guess}`, 'warning');
+    updateLiveScoreDisplay();
+}
+
+function updateLiveScoreDisplay() {
+    // Update scoreboard
+    const state = liveScoreData;
+    
+    document.getElementById('runsDisplay').textContent = state.runs || 0;
+    document.getElementById('wicketsDisplay').textContent = state.wickets || 0;
+    document.getElementById('ballsDisplay').textContent = state.balls || 0;
+    document.getElementById('extrasDisplay').textContent = state.extras || 0;
+    
+    if (state.striker) {
+        document.getElementById('strikerName').textContent = state.striker;
+    }
+    if (state.nonStriker) {
+        document.getElementById('nonStrikerName').textContent = state.nonStriker;
+    }
+    if (state.bowler) {
+        document.getElementById('currentBowler').textContent = state.bowler;
+    }
+    
+    const overDisplay = document.getElementById('currentOverDisplay');
+    if (overDisplay) {
+        overDisplay.textContent = `${state.currentOver || 0}.${state.currentBall || 0}`;
+    }
+    
+    document.getElementById('strikeDisplay').textContent = state.striker || '-';
+}
+
+// Socket events for live score
+socket.on('scoreUpdate', (data) => {
+    if (data.state) {
+        const state = data.state;
+        liveScoreData = {
+            ...liveScoreData,
+            runs: state.battingTeam?.runs || 0,
+            wickets: state.battingTeam?.wickets || 0,
+            balls: state.battingTeam?.balls || 0,
+            extras: state.battingTeam?.extras || 0,
+            currentOver: state.currentOver || 0,
+            currentBall: state.currentBall || 0,
+            striker: state.striker || liveScoreData.striker,
+            nonStriker: state.nonStriker || liveScoreData.nonStriker,
+            bowler: state.currentBowlerName || liveScoreData.bowler
+        };
+        
+        if (state.battingTeam?.name) {
+            document.getElementById('battingTeamName').textContent = state.battingTeam.name;
+        }
+        if (state.bowlingTeam?.name) {
+            document.getElementById('bowlingTeamName').textContent = state.bowlingTeam.name;
+        }
+        if (state.target) {
+            document.getElementById('targetDisplay').textContent = `Target: ${state.target}`;
+        }
+        
+        updateLiveScoreDisplay();
+        
+        // Update last ball
+        if (state.lastBallResult) {
+            const result = state.lastBallResult;
+            let displayText = '';
+            if (result.isOut) {
+                displayText = `🎯 OUT! ${result.message}`;
+            } else if (result.isWide) {
+                displayText = `📏 WIDE! ${result.runsScored} runs`;
+            } else if (result.isNoBall) {
+                displayText = `❌ NO-BALL! ${result.runsScored} runs`;
+            } else if (result.isPowerplay) {
+                displayText = `⚡ ${result.message}`;
+            } else {
+                displayText = `${result.runsScored} runs`;
+            }
+            document.getElementById('lastBallDisplay').textContent = `Last Ball: ${displayText}`;
+            
+            // Add to ball-by-ball
+            addBallByBall(state.currentOver, state.currentBall, displayText);
+        }
+    }
+    
+    if (data.result && data.result.message) {
+        showNotification(data.result.message, 
+            data.result.isOut ? 'danger' : 
+            data.result.isWide ? 'warning' : 'success'
+        );
+    }
+});
+
+function addBallByBall(over, ball, result) {
+    const container = document.getElementById('ballByBall');
+    if (!container) return;
+    
+    const entry = document.createElement('div');
+    entry.className = 'ball-entry';
+    entry.innerHTML = `
+        <span class="ball-over">Over ${over}.${ball}</span>
+        <span class="ball-result">${result}</span>
+    `;
+    
+    container.prepend(entry);
+    
+    // Keep only last 20 balls
+    while (container.children.length > 20) {
+        container.removeChild(container.lastChild);
+    }
+}
+
+// Reset live score display on match reset
+socket.on('stateUpdate', (state) => {
+    if (state && state.isActive === false) {
+        // Reset display
+        document.getElementById('runsDisplay').textContent = '0';
+        document.getElementById('wicketsDisplay').textContent = '0';
+        document.getElementById('ballsDisplay').textContent = '0';
+        document.getElementById('extrasDisplay').textContent = '0';
+        document.getElementById('lastBallDisplay').textContent = 'Last Ball: -';
+        document.getElementById('strikerName').textContent = '-';
+        document.getElementById('nonStrikerName').textContent = '-';
+        document.getElementById('currentBowler').textContent = '-';
+        document.getElementById('ballByBall').innerHTML = '<p class="empty-message">No balls bowled yet</p>';
+    }
+});
