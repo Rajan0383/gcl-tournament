@@ -448,6 +448,31 @@ function createFixtureCard(fixture) {
         completed: 'completed'
     };
     
+    // Team names ko IDs se convert karein
+    const team1Name = getTeamNameById(fixture.team1);
+    const team2Name = getTeamNameById(fixture.team2);
+    
+    // Date format
+    let dateDisplay = 'Date not set';
+    let timeDisplay = '';
+    try {
+        const dateObj = new Date(fixture.date);
+        if (!isNaN(dateObj.getTime())) {
+            dateDisplay = dateObj.toLocaleDateString('en-IN', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric' 
+            });
+            timeDisplay = dateObj.toLocaleTimeString('en-IN', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+            });
+        }
+    } catch (e) {
+        dateDisplay = fixture.date || 'Date not set';
+    }
+    
     const actions = fixture.status === 'scheduled' ? `
         <div class="fixture-actions">
             <button class="start-btn" onclick="startFixture('${fixture.id}')">▶ Start Match</button>
@@ -458,20 +483,46 @@ function createFixtureCard(fixture) {
         </div>
     ` : '';
 
+    // Result display for completed matches
+    let resultDisplay = '';
+    if (fixture.status === 'completed' && fixture.result) {
+        resultDisplay = `<div class="fixture-result">🏆 Winner: ${fixture.result}</div>`;
+    }
+
     return `
-        <div class="fixture-card">
-            <div class="teams">🏏 ${fixture.team1} vs ${fixture.team2}</div>
-            <div class="meta">
-                📅 ${new Date(fixture.date).toLocaleString()} | 📍 ${fixture.venue}
-                ${fixture.result ? ` | Winner: 🏆 ${fixture.result}` : ''}
-                ${fixture.manOfMatch ? ` | ⭐ MOM: ${fixture.manOfMatch}` : ''}
+        <div class="fixture-card ${fixture.status === 'completed' ? 'completed-card' : ''}">
+            <div class="teams">🏏 ${team1Name} vs ${team2Name}</div>
+            <div class="fixture-details">
+                <div class="fixture-detail-item date-time">
+                    📅 ${dateDisplay} ${timeDisplay ? `| 🕐 ${timeDisplay}` : ''}
+                </div>
+                <div class="fixture-detail-item venue">
+                    📍 ${fixture.venue || 'PalTalk Room'}
+                </div>
+                ${fixture.host ? `
+                    <div class="fixture-detail-item host">
+                        <span class="host-label">🎙️ Host:</span>
+                        <span class="host-name">${fixture.host}</span>
+                    </div>
+                ` : ''}
+                ${fixture.result ? `
+                    <div class="fixture-detail-item result">
+                        🏆 Winner: ${fixture.result}
+                    </div>
+                ` : ''}
+                ${fixture.manOfMatch ? `
+                    <div class="fixture-detail-item mom">
+                        ⭐ MOM: ${fixture.manOfMatch}
+                    </div>
+                ` : ''}
             </div>
-            <span class="status ${statusColors[fixture.status] || 'scheduled'}">${fixture.status.toUpperCase()}</span>
-            ${actions}
+            <div class="fixture-bottom">
+                <span class="status ${statusColors[fixture.status] || 'scheduled'}">${fixture.status.toUpperCase()}</span>
+                ${actions}
+            </div>
         </div>
     `;
 }
-
 function startFixture(fixtureId) {
     if (confirm('Start this match? The scoreboard will be reset.')) {
         socket.emit('startFixture', fixtureId);
@@ -1563,11 +1614,15 @@ function createFixtureFromAdmin() {
         return;
     }
     
+    // Team names ko IDs se convert karein
+    const team1Name = getTeamNameById(team1);
+    const team2Name = getTeamNameById(team2);
+    
     const dateTime = date + (time ? 'T' + time : '');
     
     socket.emit('createFixture', {
-        team1: team1,
-        team2: team2,
+        team1: team1Name,
+        team2: team2Name,
         date: dateTime,
         venue: venue,
         host: host
@@ -1577,9 +1632,8 @@ function createFixtureFromAdmin() {
     ['adminFixtureDate', 'adminFixtureTime', 'adminFixtureVenue', 'adminFixtureHost']
         .forEach(id => document.getElementById(id).value = '');
     
-    showNotification(`📅 Fixture created: ${team1} vs ${team2}`, 'success');
+    showNotification(`📅 Fixture created: ${team1Name} vs ${team2Name}`, 'success');
 }
-
 function completeMatchFromAdmin() {
     const fixtureId = document.getElementById('adminCompleteMatch').value;
     const winner = document.getElementById('adminWinner').value;
@@ -1711,4 +1765,23 @@ function updateCompleteFixtureSelect(fixtures) {
         <option value="">Select Ongoing Match</option>
         ${ongoing.map(f => `<option value="${f.id}">${f.team1} vs ${f.team2}</option>`).join('')}
     `;
+}
+// ============================================
+// HELPER FUNCTION: Get Team Name by ID
+// ============================================
+
+function getTeamNameById(teamId) {
+    // Agar teamId already string hai (name)
+    if (typeof teamId === 'string' && isNaN(teamId)) {
+        return teamId;
+    }
+    
+    // Team ko ID se find karein
+    const team = teams.find(t => t.id === teamId);
+    if (team) {
+        return team.name;
+    }
+    
+    // Agar nahi mila toh ID return karein
+    return teamId || 'Unknown Team';
 }
