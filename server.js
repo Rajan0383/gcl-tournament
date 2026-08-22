@@ -4,6 +4,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
 const path = require('path');
+const { MongoClient } = require('mongodb');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,149 +18,182 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 3000;
 
 // ============================================
-// MIDDLEWARE
+// MONGODB CONNECTION
 // ============================================
 
-app.use(cors());
-app.use(express.json());
+const MONGODB_URI = process.env.MONGODB_URI || '';
+let dbClient = null;
+let db = null;
+let useDatabase = false;
 
-// ✅ FIX: Static files serve karein
-app.use(express.static(path.join(__dirname, 'public')));
-
-// ✅ FIX: Root route - index.html serve karein
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// ============================================
-// DATA DIRECTORY (Local fallback)
-// ============================================
-
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR);
+async function connectMongoDB() {
+    if (!MONGODB_URI) {
+        console.log('⚠️ MONGODB_URI not found. Using local file storage.');
+        return false;
+    }
+    
+    try {
+        console.log('🔄 Connecting to MongoDB...');
+        dbClient = new MongoClient(MONGODB_URI);
+        await dbClient.connect();
+        db = dbClient.db('gcl_tournament');
+        useDatabase = true;
+        console.log('✅ Connected to MongoDB successfully!');
+        return true;
+    } catch (error) {
+        console.error('❌ MongoDB connection failed:', error.message);
+        console.log('📁 Falling back to local file storage.');
+        return false;
+    }
 }
 
-// ============================================
-// DATA LOAD/SAVE FUNCTIONS
-// ============================================
-
-function loadJSON(filename, defaultData) {
-    const filePath = path.join(DATA_DIR, filename);
-    if (fs.existsSync(filePath)) {
+async function loadData(collectionName, defaultData) {
+    if (useDatabase && db) {
         try {
-            return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        } catch (e) {
-            console.error(`Error loading ${filename}:`, e);
+            const collection = db.collection(collectionName);
+            const data = await collection.findOne({ _id: 'data' });
+            return data ? data.value : defaultData;
+        } catch (error) {
+            console.error(`Error loading ${collectionName}:`, error);
             return defaultData;
         }
+    } else {
+        const filePath = path.join(__dirname, 'data', `${collectionName}.json`);
+        if (fs.existsSync(filePath)) {
+            try {
+                return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            } catch (e) {
+                return defaultData;
+            }
+        }
+        return defaultData;
     }
-    return defaultData;
 }
 
-function saveJSON(filename, data) {
-    fs.writeFileSync(
-        path.join(DATA_DIR, filename),
-        JSON.stringify(data, null, 2)
-    );
+async function saveData(collectionName, data) {
+    if (useDatabase && db) {
+        try {
+            const collection = db.collection(collectionName);
+            await collection.updateOne(
+                { _id: 'data' },
+                { $set: { value: data } },
+                { upsert: true }
+            );
+            return true;
+        } catch (error) {
+            console.error(`Error saving ${collectionName}:`, error);
+            return false;
+        }
+    } else {
+        const dataDir = path.join(__dirname, 'data');
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir);
+        }
+        const filePath = path.join(dataDir, `${collectionName}.json`);
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        return true;
+    }
 }
 
 // ============================================
-// GAME ENGINE
+// GAME ENGINE - COMPLETE
 // ============================================
 
 class GCLEngine {
     constructor() {
         this.resetMatch();
-        this.teams = loadJSON('teams.json', []);
-        this.tournamentStats = loadJSON('stats.json', {
-            matches: 0,
-            teams: {}
-        });
-        this.fixtures = loadJSON('fixtures.json', {
-            matches: [],
-            upcoming: [],
-            completed: []
-        });
-        this.playerStats = loadJSON('playerStats.json', {
-            batsmen: {},
-            bowlers: {},
-            manOfMatch: []
-        });
-        this.currentMatchStats = {
-            batsmen: {},
-            bowlers: {},
-            manOfMatchCandidates: []
-        };
+        this.teams = [];
+        this.tournamentStats = { matches: 0, teams: {} };
+        this.fixtures = { matches: [], upcoming: [], completed: [] };
+        this.playerStats = { batsmen: {}, bowlers: {}, manOfMatch: [] };
+        this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
         this.striker = null;
         this.nonStriker = null;
         this.strikeChanged = false;
+        this.isLoaded = false;
     }
 
-    saveAllData() {
-        saveJSON('teams.json', this.teams);
-        saveJSON('stats.json', this.tournamentStats);
-        saveJSON('fixtures.json', this.fixtures);
-        saveJSON('playerStats.json', this.playerStats);
+    async loadAllData() {
+        try {
+            this.teams = await loadData('teams', []);
+            this.tournamentStats = await loadData('stats', { matches: 0, teams: {} });
+            this.fixtures = await loadData('fixtures', { matches: [], upcoming: [], completed: [] });
+            this.playerStats = await loadData('playerStats', { batsmen: {}, bowlers: {}, manOfMatch: [] });
+            this.isLoaded = true;
+            console.log('📊 All data loaded successfully!');
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
     }
 
-   // ============================================
-// TEAM MANAGEMENT
-// ============================================
+    async saveAllData() {
+        if (!this.isLoaded) return;
+        try {
+            await saveData('teams', this.teams);
+            await saveData('stats', this.tournamentStats);
+            await saveData('fixtures', this.fixtures);
+            await saveData('playerStats', this.playerStats);
+        } catch (error) {
+            console.error('Error saving data:', error);
+        }
+    }
 
-async createTeam(teamData) {
-    const team = {
-        id: Date.now().toString(),
-        name: teamData.name,
-        captain: teamData.captain,
-        viceCaptain: teamData.viceCaptain,
-        squad: teamData.squad || [],
-        points: 0,
-        matchesPlayed: 0,
-        wins: 0,
-        losses: 0,
-        netRunRate: 0,
-        runsScored: 0,
-        runsConceded: 0,
-        oversPlayed: 0,
-        oversBowled: 0,
-        createdAt: new Date().toISOString()
-    };
-    
-    this.teams.push(team);
-    await this.saveAllData();
-    return team;
-}   // ← createTeam function END
+    // ============================================
+    // TEAM MANAGEMENT
+    // ============================================
 
-// 👇 YAHAN SE NAYA CODE ADD KAREIN
-getTeam(id) {
-    return this.teams.find(t => t.id === id);
-}
+    async createTeam(teamData) {
+        const team = {
+            id: Date.now().toString(),
+            name: teamData.name,
+            captain: teamData.captain,
+            viceCaptain: teamData.viceCaptain,
+            squad: teamData.squad || [],
+            points: 0,
+            matchesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            netRunRate: 0,
+            runsScored: 0,
+            runsConceded: 0,
+            oversPlayed: 0,
+            oversBowled: 0,
+            createdAt: new Date().toISOString()
+        };
+        this.teams.push(team);
+        await this.saveAllData();
+        return team;
+    }
 
-getAllTeams() {
-    return this.teams;
-}
+    getTeam(id) {
+        return this.teams.find(t => t.id === id);
+    }
+
+    getAllTeams() {
+        return this.teams;
+    }
+
     // ============================================
     // FIXTURE MANAGEMENT
     // ============================================
 
-    createFixture(matchData) {
+    async createFixture(matchData) {
         const fixture = {
             id: `FIX-${Date.now()}`,
             team1: matchData.team1,
             team2: matchData.team2,
             date: matchData.date || new Date().toISOString(),
             venue: matchData.venue || 'PalTalk Room',
+            host: matchData.host || '',
             status: 'scheduled',
             result: null,
             matchId: null,
             manOfMatch: null,
             createdAt: new Date().toISOString()
         };
-
         this.fixtures.matches.push(fixture);
         this.fixtures.upcoming.push(fixture.id);
-        this.saveAllData();
+        await this.saveAllData();
         return fixture;
     }
 
@@ -167,44 +201,34 @@ getAllTeams() {
         return this.fixtures;
     }
 
-    startFixture(fixtureId) {
+    async startFixture(fixtureId) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
-
         this.fixtures.upcoming = this.fixtures.upcoming.filter(id => id !== fixtureId);
         fixture.status = 'ongoing';
-        
         const team1 = this.teams.find(t => t.name === fixture.team1);
         const team2 = this.teams.find(t => t.name === fixture.team2);
-        
         if (team1 && team2) {
-            this.setupMatch(team1.id, team2.id, 
-                team1.squad || [team1.captain, team1.viceCaptain, team1.rtmPlayer, ...team1.auctionPlayers],
-                team2.squad || [team2.captain, team2.viceCaptain, team2.rtmPlayer, ...team2.auctionPlayers]
+            this.setupMatch(team1.id, team2.id,
+                team1.squad || [team1.captain, team1.viceCaptain, ...team1.squad],
+                team2.squad || [team2.captain, team2.viceCaptain, ...team2.squad]
             );
             this.matchState.matchId = fixtureId;
             fixture.matchId = fixtureId;
         }
-
-        this.saveAllData();
+        await this.saveAllData();
         return fixture;
     }
 
-    completeFixture(fixtureId, winner, manOfMatch, playerStats) {
+    async completeFixture(fixtureId, winner, manOfMatch, playerStats) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
-
         fixture.status = 'completed';
         fixture.result = winner;
         fixture.manOfMatch = manOfMatch;
         fixture.completedAt = new Date().toISOString();
-
         this.fixtures.completed.push(fixtureId);
-
-        if (playerStats) {
-            this.updatePlayerStats(playerStats);
-        }
-
+        if (playerStats) this.updatePlayerStats(playerStats);
         if (manOfMatch) {
             this.playerStats.manOfMatch.push({
                 player: manOfMatch,
@@ -213,10 +237,8 @@ getAllTeams() {
                 date: new Date().toISOString()
             });
         }
-
         const team1 = this.teams.find(t => t.name === fixture.team1);
         const team2 = this.teams.find(t => t.name === fixture.team2);
-        
         if (team1 && team2) {
             const matchResult = {
                 team1: fixture.team1,
@@ -229,12 +251,10 @@ getAllTeams() {
             };
             this.updateTeamStats(matchResult);
         }
-
         this.striker = null;
         this.nonStriker = null;
         this.strikeChanged = false;
-
-        this.saveAllData();
+        await this.saveAllData();
         return fixture;
     }
 
@@ -256,16 +276,11 @@ getAllTeams() {
             oversPlayed: team.oversPlayed || 4,
             oversBowled: team.oversBowled || 4
         }));
-
         table.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
             return b.netRunRate - a.netRunRate;
         });
-
-        table.forEach((team, index) => {
-            team.rank = index + 1;
-        });
-
+        table.forEach((team, index) => { team.rank = index + 1; });
         table.forEach(team => {
             if (team.oversPlayed > 0 && team.oversBowled > 0) {
                 const runRate = team.runsScored / team.oversPlayed;
@@ -273,21 +288,18 @@ getAllTeams() {
                 team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
             }
         });
-
         return table;
     }
 
     updateTeamStats(matchResult) {
         const team1 = this.teams.find(t => t.name === matchResult.team1);
         const team2 = this.teams.find(t => t.name === matchResult.team2);
-
         if (team1) {
             team1.matchesPlayed = (team1.matchesPlayed || 0) + 1;
             team1.runsScored = (team1.runsScored || 0) + (matchResult.runs1 || 0);
             team1.runsConceded = (team1.runsConceded || 0) + (matchResult.runs2 || 0);
             team1.oversPlayed = (team1.oversPlayed || 0) + (matchResult.overs1 || 4);
             team1.oversBowled = (team1.oversBowled || 0) + (matchResult.overs2 || 4);
-            
             if (matchResult.winner === team1.name) {
                 team1.wins = (team1.wins || 0) + 1;
                 team1.points = (team1.points || 0) + 2;
@@ -295,14 +307,12 @@ getAllTeams() {
                 team1.losses = (team1.losses || 0) + 1;
             }
         }
-
         if (team2) {
             team2.matchesPlayed = (team2.matchesPlayed || 0) + 1;
             team2.runsScored = (team2.runsScored || 0) + (matchResult.runs2 || 0);
             team2.runsConceded = (team2.runsConceded || 0) + (matchResult.runs1 || 0);
             team2.oversPlayed = (team2.oversPlayed || 0) + (matchResult.overs2 || 4);
             team2.oversBowled = (team2.oversBowled || 0) + (matchResult.overs1 || 4);
-            
             if (matchResult.winner === team2.name) {
                 team2.wins = (team2.wins || 0) + 1;
                 team2.points = (team2.points || 0) + 2;
@@ -310,7 +320,6 @@ getAllTeams() {
                 team2.losses = (team2.losses || 0) + 1;
             }
         }
-
         this.saveAllData();
     }
 
@@ -322,29 +331,14 @@ getAllTeams() {
         for (const [player, data] of Object.entries(stats)) {
             if (!this.playerStats.batsmen[player]) {
                 this.playerStats.batsmen[player] = {
-                    runs: 0,
-                    balls: 0,
-                    fours: 0,
-                    sixes: 0,
-                    innings: 0,
-                    notOut: 0,
-                    highest: 0,
-                    average: 0,
-                    strikeRate: 0
+                    runs: 0, balls: 0, fours: 0, sixes: 0, innings: 0, notOut: 0, highest: 0, average: 0, strikeRate: 0
                 };
             }
-
             if (!this.playerStats.bowlers[player]) {
                 this.playerStats.bowlers[player] = {
-                    wickets: 0,
-                    balls: 0,
-                    runsConceded: 0,
-                    economy: 0,
-                    best: 0,
-                    matches: 0
+                    wickets: 0, balls: 0, runsConceded: 0, economy: 0, best: 0, matches: 0
                 };
             }
-
             const bat = this.playerStats.batsmen[player];
             bat.runs += data.runs || 0;
             bat.balls += data.balls || 0;
@@ -355,7 +349,6 @@ getAllTeams() {
             if (data.runs > bat.highest) bat.highest = data.runs;
             bat.average = bat.innings > 0 ? bat.runs / bat.innings : 0;
             bat.strikeRate = bat.balls > 0 ? (bat.runs / bat.balls) * 100 : 0;
-
             const bowl = this.playerStats.bowlers[player];
             bowl.wickets += data.wickets || 0;
             bowl.balls += data.balls || 0;
@@ -458,11 +451,7 @@ getAllTeams() {
             winner: null,
             isComplete: false
         };
-        this.currentMatchStats = {
-            batsmen: {},
-            bowlers: {},
-            manOfMatchCandidates: []
-        };
+        this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
         this.striker = null;
         this.nonStriker = null;
         this.strikeChanged = false;
@@ -471,36 +460,24 @@ getAllTeams() {
     setupMatch(team1Id, team2Id, team1BattingOrder, team2BattingOrder) {
         const team1 = this.getTeam(team1Id);
         const team2 = this.getTeam(team2Id);
-        
-        if (!team1 || !team2) {
-            throw new Error('Team not found');
-        }
-
+        if (!team1 || !team2) throw new Error('Team not found');
         this.resetMatch();
         this.matchState.isActive = true;
         this.matchState.matchId = `MATCH-${Date.now()}`;
-        
         this.matchState.team1.name = team1.name;
         this.matchState.team2.name = team2.name;
-        
         this.matchState.team1.battingOrder = team1BattingOrder || team1.squad;
         this.matchState.team2.battingOrder = team2BattingOrder || team2.squad;
-        
         this.matchState.team1.currentBatsman = this.matchState.team1.battingOrder[0];
         this.matchState.team2.currentBatsman = this.matchState.team2.battingOrder[0];
-        
         this.matchState.battingTeam = 1;
         this.matchState.bowlingTeam = 2;
-        
         this.matchState.currentOver = 1;
         this.matchState.currentBall = 0;
         this.matchState.overType = this.getOverType(1);
-        
         this.matchState.currentBatsmanName = this.matchState.team1.currentBatsman;
-        
         this.striker = this.matchState.team1.currentBatsman;
         this.nonStriker = this.matchState.team1.battingOrder[1] || 'Non-Striker';
-        
         return this.matchState;
     }
 
@@ -512,48 +489,28 @@ getAllTeams() {
 
     batsmanSetScore(data) {
         const { name, score } = data;
-        
-        if (!this.matchState.isActive) {
-            return { error: 'Match not active' };
-        }
-
-        if (this.matchState.batsmanSet) {
-            return { error: 'Batsman already set score for this ball' };
-        }
-
+        if (!this.matchState.isActive) return { error: 'Match not active' };
+        if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
         const overType = this.getOverType(this.matchState.currentOver);
         let validScores = [];
-        
-        if (overType === 'lbw') {
-            validScores = [2, 3, 4, 5, 6];
-        } else if (overType === 'powerplay') {
-            validScores = [1, 2, 3, 4, 5, 6];
-        } else {
-            validScores = [3, 4, 5, 6];
-        }
-
+        if (overType === 'lbw') validScores = [2, 3, 4, 5, 6];
+        else if (overType === 'powerplay') validScores = [1, 2, 3, 4, 5, 6];
+        else validScores = [3, 4, 5, 6];
         if (!validScores.includes(parseInt(score))) {
-            return { 
-                error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` 
-            };
+            return { error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` };
         }
-
         this.matchState.secretScore = parseInt(score);
         this.matchState.batsmanSet = true;
         this.matchState.bowlerGuessed = false;
         this.matchState.currentBatsmanName = name || 'Batsman';
-        
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
+        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
         battingTeam.currentBatsman = name || battingTeam.currentBatsman;
-        
         if (!this.striker) {
             this.striker = name || battingTeam.currentBatsman;
             this.nonStriker = battingTeam.battingOrder[1] || 'Non-Striker';
         }
-        
-        return { 
-            success: true, 
+        return {
+            success: true,
             message: `${name || 'Batsman'} set score ${score}`,
             batsman: name || 'Batsman',
             score: score
@@ -562,46 +519,22 @@ getAllTeams() {
 
     bowlerGuess(data) {
         const { name, guess } = data;
-        
-        if (!this.matchState.isActive) {
-            return { error: 'Match not active' };
-        }
-
-        if (!this.matchState.batsmanSet) {
-            return { error: 'Batsman has not set score yet!' };
-        }
-
-        if (this.matchState.bowlerGuessed) {
-            return { error: 'Bowler already guessed for this ball' };
-        }
-
+        if (!this.matchState.isActive) return { error: 'Match not active' };
+        if (!this.matchState.batsmanSet) return { error: 'Batsman has not set score yet!' };
+        if (this.matchState.bowlerGuessed) return { error: 'Bowler already guessed for this ball' };
         const batsmanScore = this.matchState.secretScore;
         const bowlerGuess = parseInt(guess);
         const overType = this.getOverType(this.matchState.currentOver);
-        
         let validGuesses = [];
-        if (overType === 'lbw') {
-            validGuesses = [2, 3, 4, 5, 6];
-        } else if (overType === 'powerplay') {
-            validGuesses = [1, 2, 3, 4, 5, 6];
-        } else {
-            validGuesses = [3, 4, 5, 6];
-        }
-
+        if (overType === 'lbw') validGuesses = [2, 3, 4, 5, 6];
+        else if (overType === 'powerplay') validGuesses = [1, 2, 3, 4, 5, 6];
+        else validGuesses = [3, 4, 5, 6];
         if (!validGuesses.includes(bowlerGuess)) {
-            return { 
-                error: `Invalid guess! Allowed numbers: ${validGuesses.join(', ')}` 
-            };
+            return { error: `Invalid guess! Allowed numbers: ${validGuesses.join(', ')}` };
         }
-
         this.matchState.bowlerGuessed = true;
         this.matchState.currentBowlerName = name || 'Bowler';
-        
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
-        const bowlingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team2 : this.matchState.team1;
-
+        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
         let result = {
             batsmanScore: batsmanScore,
             bowlerGuess: bowlerGuess,
@@ -617,11 +550,8 @@ getAllTeams() {
             batsmanName: this.matchState.currentBatsmanName,
             bowlerName: this.matchState.currentBowlerName
         };
-
-        // OVER 1: LBW OVER
         if (overType === 'lbw') {
             const diff = Math.abs(batsmanScore - bowlerGuess);
-            
             if (batsmanScore === bowlerGuess) {
                 result.isOut = true;
                 result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
@@ -645,11 +575,8 @@ getAllTeams() {
                 result.ballResult = batsmanScore.toString();
                 this.matchState.lbwCount = 0;
             }
-        }
-        // OVERS 2-3: NORMAL OVER
-        else if (overType === 'normal') {
-            if ((batsmanScore === 3 && bowlerGuess === 6) || 
-                (batsmanScore === 6 && bowlerGuess === 3)) {
+        } else if (overType === 'normal') {
+            if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
                 result.isWide = true;
                 result.runsScored = batsmanScore;
                 result.message = `📏 WIDE! ${batsmanScore} runs added. Ball repeated.`;
@@ -681,11 +608,8 @@ getAllTeams() {
                 result.message = `✅ Safe! ${batsmanScore} runs`;
                 result.ballResult = batsmanScore.toString();
             }
-        }
-        // OVER 4: POWERPLAY
-        else if (overType === 'powerplay') {
+        } else if (overType === 'powerplay') {
             result.isPowerplay = true;
-            
             if (batsmanScore === bowlerGuess) {
                 result.isOut = true;
                 result.runsScored = -batsmanScore;
@@ -697,21 +621,15 @@ getAllTeams() {
                 result.ballResult = (batsmanScore * 2).toString();
             }
         }
-
-        // UPDATE SCOREBOARD
         battingTeam.runs += result.runsScored;
-        
         if (!result.isWide && !result.isNoBall) {
             battingTeam.balls += 1;
             this.matchState.currentBall += 1;
         }
-        
         if (result.isWide) battingTeam.extras += 1;
         if (result.isNoBall) battingTeam.extras += 1;
-        
         if (result.isOut) {
             battingTeam.wickets += 1;
-            
             battingTeam.currentBattingIndex += 1;
             if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
                 battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
@@ -726,9 +644,7 @@ getAllTeams() {
                 this.updateStrike(this.matchState.currentBatsmanName, result.runsScored);
             }
         }
-
         this.matchState.lastBallResult = result;
-        
         if (this.matchState.currentBall >= 6) {
             this.matchState.currentBall = 0;
             this.matchState.currentOver += 1;
@@ -738,11 +654,9 @@ getAllTeams() {
                 this.endInnings();
             }
         }
-
         this.matchState.batsmanSet = false;
         this.matchState.bowlerGuessed = false;
         this.matchState.secretScore = null;
-
         return {
             ...result,
             matchState: this.getMatchState()
@@ -761,29 +675,22 @@ getAllTeams() {
     }
 
     endInnings() {
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
-        
+        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
         if (this.matchState.inning === 1) {
             this.matchState.target = battingTeam.runs + 1;
             this.matchState.inning = 2;
-            
             this.matchState.battingTeam = 2;
             this.matchState.bowlingTeam = 1;
-            
             this.matchState.currentOver = 1;
             this.matchState.currentBall = 0;
             this.matchState.overType = this.getOverType(1);
             this.matchState.lbwCount = 0;
             this.matchState.isFreeHit = false;
-            
             const newBattingTeam = this.matchState.team2;
             newBattingTeam.currentBatsman = newBattingTeam.battingOrder[0] || newBattingTeam.squad[0];
             this.matchState.currentBatsmanName = newBattingTeam.currentBatsman;
-            
             this.striker = newBattingTeam.currentBatsman;
             this.nonStriker = newBattingTeam.battingOrder[1] || 'Non-Striker';
-            
             return {
                 message: `🏏 Innings complete! Target: ${this.matchState.target}`,
                 target: this.matchState.target
@@ -791,38 +698,22 @@ getAllTeams() {
         } else {
             this.matchState.isComplete = true;
             this.matchState.isActive = false;
-            
             const team1Score = this.matchState.team1.runs;
             const team2Score = this.matchState.team2.runs;
-            
-            if (team2Score > team1Score) {
-                this.matchState.winner = this.matchState.team2.name;
-            } else if (team1Score > team2Score) {
-                this.matchState.winner = this.matchState.team1.name;
-            } else {
-                this.matchState.winner = 'TIE';
-            }
-            
+            if (team2Score > team1Score) this.matchState.winner = this.matchState.team2.name;
+            else if (team1Score > team2Score) this.matchState.winner = this.matchState.team1.name;
+            else this.matchState.winner = 'TIE';
             this.tournamentStats.matches += 1;
-            
             if (this.matchState.matchId && this.matchState.matchId.startsWith('FIX-')) {
                 const fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
                 if (fixture && fixture.status === 'ongoing') {
-                    this.completeFixture(
-                        fixture.id,
-                        this.matchState.winner,
-                        null,
-                        this.currentMatchStats.batsmen
-                    );
+                    this.completeFixture(fixture.id, this.matchState.winner, null, this.currentMatchStats.batsmen);
                 }
             }
-            
             this.saveAllData();
-            
             this.striker = null;
             this.nonStriker = null;
             this.strikeChanged = false;
-            
             return {
                 message: `🏆 Match Complete! Winner: ${this.matchState.winner}`,
                 winner: this.matchState.winner,
@@ -833,11 +724,8 @@ getAllTeams() {
     }
 
     getMatchState() {
-        const battingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team1 : this.matchState.team2;
-        const bowlingTeam = this.matchState.battingTeam === 1 ? 
-            this.matchState.team2 : this.matchState.team1;
-
+        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+        const bowlingTeam = this.matchState.battingTeam === 1 ? this.matchState.team2 : this.matchState.team1;
         return {
             matchId: this.matchState.matchId,
             isActive: this.matchState.isActive,
@@ -847,7 +735,6 @@ getAllTeams() {
             currentBall: this.matchState.currentBall,
             totalOvers: this.matchState.totalOvers,
             overType: this.matchState.overType,
-            
             battingTeam: {
                 name: battingTeam.name,
                 runs: battingTeam.runs,
@@ -861,7 +748,6 @@ getAllTeams() {
                 name: bowlingTeam.name,
                 currentBowler: bowlingTeam.currentBowler
             },
-            
             target: this.matchState.target,
             winner: this.matchState.winner,
             lbwCount: this.matchState.lbwCount,
@@ -885,20 +771,15 @@ getAllTeams() {
         return { message: 'Match reset successfully' };
     }
 
-    // ============================================
-    // EXPORT FUNCTIONS
-    // ============================================
-
     exportTournamentData(format = 'json') {
         const data = {
             tournament: {
-                name: 'Gem-Star Champions League 2026',
+                name: 'GEM-STAR Championship 2026',
                 exportedAt: new Date().toISOString(),
                 totalMatches: this.tournamentStats.matches || 0
             },
             teams: this.teams.map(t => ({
                 name: t.name,
-                manager: t.manager,
                 captain: t.captain,
                 viceCaptain: t.viceCaptain,
                 squad: t.squad,
@@ -914,6 +795,7 @@ getAllTeams() {
                 team2: f.team2,
                 date: f.date,
                 venue: f.venue,
+                host: f.host,
                 status: f.status,
                 result: f.result,
                 manOfMatch: f.manOfMatch
@@ -927,7 +809,6 @@ getAllTeams() {
             topBowlers: this.getTopBowlers(10),
             topManOfMatch: this.getTopManOfMatch(5)
         };
-
         if (format === 'json') return data;
         if (format === 'csv') return this.convertToCSV(data);
         if (format === 'html') return this.convertToHTML(data);
@@ -985,7 +866,7 @@ getAllTeams() {
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🏏 Gem-Star Champions League 2026</h1>
+                        <h1>🏏 GEM-STAR Championship 2026</h1>
                         <p>Tournament Report</p>
                         <p class="meta">Exported: ${new Date(data.tournament.exportedAt).toLocaleString()}</p>
                     </div>
@@ -1030,10 +911,6 @@ getAllTeams() {
         return html;
     }
 }
-
-// ============================================
-// INITIALIZE GAME ENGINE
-// ============================================
 
 const gameEngine = new GCLEngine();
 
@@ -1096,7 +973,7 @@ io.on('connection', (socket) => {
     socket.on('setupMatch', (data) => {
         try {
             const state = gameEngine.setupMatch(
-                data.team1Id, 
+                data.team1Id,
                 data.team2Id,
                 data.team1Order,
                 data.team2Order
@@ -1110,10 +987,11 @@ io.on('connection', (socket) => {
 
     socket.on('createTeam', (data) => {
         try {
-            const team = gameEngine.createTeam(data);
-            io.emit('teamCreated', team);
-            io.emit('notification', `✅ Team "${team.name}" created successfully!`);
-            io.emit('teamsList', gameEngine.getAllTeams());
+            gameEngine.createTeam(data).then(team => {
+                io.emit('teamCreated', team);
+                io.emit('notification', `✅ Team "${team.name}" created successfully!`);
+                io.emit('teamsList', gameEngine.getAllTeams());
+            });
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -1125,9 +1003,10 @@ io.on('connection', (socket) => {
 
     socket.on('createFixture', (data) => {
         try {
-            const fixture = gameEngine.createFixture(data);
-            io.emit('fixturesUpdate', gameEngine.getFixtures());
-            io.emit('notification', `📅 Fixture created: ${fixture.team1} vs ${fixture.team2}`);
+            gameEngine.createFixture(data).then(fixture => {
+                io.emit('fixturesUpdate', gameEngine.getFixtures());
+                io.emit('notification', `📅 Fixture created: ${fixture.team1} vs ${fixture.team2}`);
+            });
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -1135,9 +1014,10 @@ io.on('connection', (socket) => {
 
     socket.on('startFixture', (fixtureId) => {
         try {
-            const fixture = gameEngine.startFixture(fixtureId);
-            io.emit('fixturesUpdate', gameEngine.getFixtures());
-            io.emit('notification', `⚔️ Match started: ${fixture.team1} vs ${fixture.team2}`);
+            gameEngine.startFixture(fixtureId).then(fixture => {
+                io.emit('fixturesUpdate', gameEngine.getFixtures());
+                io.emit('notification', `⚔️ Match started: ${fixture.team1} vs ${fixture.team2}`);
+            });
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -1145,20 +1025,21 @@ io.on('connection', (socket) => {
 
     socket.on('completeFixture', (data) => {
         try {
-            const fixture = gameEngine.completeFixture(
+            gameEngine.completeFixture(
                 data.fixtureId,
                 data.winner,
                 data.manOfMatch,
                 data.playerStats
-            );
-            io.emit('fixturesUpdate', gameEngine.getFixtures());
-            io.emit('pointsTable', gameEngine.getPointsTable());
-            io.emit('topStats', {
-                batsmen: gameEngine.getTopBatsmen(),
-                bowlers: gameEngine.getTopBowlers(),
-                manOfMatch: gameEngine.getTopManOfMatch()
+            ).then(fixture => {
+                io.emit('fixturesUpdate', gameEngine.getFixtures());
+                io.emit('pointsTable', gameEngine.getPointsTable());
+                io.emit('topStats', {
+                    batsmen: gameEngine.getTopBatsmen(),
+                    bowlers: gameEngine.getTopBowlers(),
+                    manOfMatch: gameEngine.getTopManOfMatch()
+                });
+                io.emit('notification', `🏆 Match completed! Winner: ${data.winner}`);
             });
-            io.emit('notification', `🏆 Match completed! Winner: ${data.winner}`);
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -1177,14 +1058,17 @@ io.on('connection', (socket) => {
 // REST API ENDPOINTS
 // ============================================
 
+app.use(express.json());
+
 app.get('/api/teams', (req, res) => {
     res.json(gameEngine.getAllTeams());
 });
 
 app.post('/api/teams', (req, res) => {
     try {
-        const team = gameEngine.createTeam(req.body);
-        res.json(team);
+        gameEngine.createTeam(req.body).then(team => {
+            res.json(team);
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -1247,8 +1131,9 @@ app.get('/api/fixtures', (req, res) => {
 
 app.post('/api/fixtures', (req, res) => {
     try {
-        const fixture = gameEngine.createFixture(req.body);
-        res.json(fixture);
+        gameEngine.createFixture(req.body).then(fixture => {
+            res.json(fixture);
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -1256,8 +1141,9 @@ app.post('/api/fixtures', (req, res) => {
 
 app.post('/api/fixtures/start/:id', (req, res) => {
     try {
-        const fixture = gameEngine.startFixture(req.params.id);
-        res.json(fixture);
+        gameEngine.startFixture(req.params.id).then(fixture => {
+            res.json(fixture);
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -1265,13 +1151,14 @@ app.post('/api/fixtures/start/:id', (req, res) => {
 
 app.post('/api/fixtures/complete', (req, res) => {
     try {
-        const fixture = gameEngine.completeFixture(
+        gameEngine.completeFixture(
             req.body.fixtureId,
             req.body.winner,
             req.body.manOfMatch,
             req.body.playerStats
-        );
-        res.json(fixture);
+        ).then(fixture => {
+            res.json(fixture);
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -1306,7 +1193,6 @@ app.get('/api/export', (req, res) => {
     const format = req.query.format || 'json';
     try {
         const data = gameEngine.exportTournamentData(format);
-        
         if (format === 'json') {
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Content-Disposition', 'attachment; filename=gcl-tournament-data.json');
@@ -1331,7 +1217,6 @@ app.get('/api/export/points-table', (req, res) => {
     const format = req.query.format || 'json';
     try {
         const data = gameEngine.getPointsTable();
-        
         if (format === 'json') {
             res.json(data);
         } else if (format === 'csv') {
@@ -1358,7 +1243,6 @@ app.get('/api/export/player-stats', (req, res) => {
             bowlers: gameEngine.getTopBowlers(50),
             manOfMatch: gameEngine.getTopManOfMatch(20)
         };
-        
         if (format === 'json') {
             res.json(data);
         } else if (format === 'csv') {
@@ -1391,7 +1275,7 @@ app.get('/api/export/player-stats', (req, res) => {
 app.get('/api/tournament/stats', (req, res) => {
     res.json(gameEngine.tournamentStats);
 });
-// Update team
+
 app.post('/api/teams/update', (req, res) => {
     try {
         const updatedTeam = req.body;
@@ -1407,7 +1291,6 @@ app.post('/api/teams/update', (req, res) => {
     }
 });
 
-// Delete team
 app.post('/api/teams/delete', (req, res) => {
     try {
         const { id } = req.body;
@@ -1422,12 +1305,20 @@ app.post('/api/teams/delete', (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 });
+
 // ============================================
 // START SERVER
 // ============================================
 
-server.listen(PORT, () => {
-    console.log(`🏏 GCL Tournament Server running on port ${PORT}`);
-    console.log(`📡 Socket.IO ready for real-time updates`);
-    console.log(`📋 http://localhost:${PORT} for the interface`);
-});
+async function startServer() {
+    await connectMongoDB();
+    await gameEngine.loadAllData();
+    
+    server.listen(PORT, () => {
+        console.log(`🏏 GCL Tournament Server running on port ${PORT}`);
+        console.log(`📡 Socket.IO ready for real-time updates`);
+        console.log(`📋 http://localhost:${PORT} for the interface`);
+    });
+}
+
+startServer();
