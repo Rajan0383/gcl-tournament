@@ -54,6 +54,7 @@ socket.on('teamsList', (data) => {
     window.teams = data;
     updateTeamsList(data);
     updateTeamSelects(data);
+    updateAdminTeamsList(); // 👈 ADD THIS
     if (document.getElementById('assignTeam')) {
         updateTeamDropdowns();
     }
@@ -67,6 +68,8 @@ socket.on('teamCreated', (team) => {
 socket.on('fixturesUpdate', (fixtures) => {
     console.log('📅 Fixtures Update:', fixtures);
     updateFixtures(fixtures);
+    updateAdminFixturesList(); // 👈 ADD THIS
+    updateAdminResultsList(); // 👈 ADD THIS
 });
 
 socket.on('pointsTable', (data) => {
@@ -1422,3 +1425,265 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
     });
     console.log('✅ Tab listeners attached (fallback)!');
 }
+// ============================================
+// ADMIN PAGE FUNCTIONS
+// ============================================
+
+const ADMIN_PASSWORD = "gcl2026";
+
+function checkAdminPassword() {
+    const password = document.getElementById('adminPassword').value;
+    const error = document.getElementById('adminError');
+    const login = document.getElementById('adminLogin');
+    const content = document.getElementById('adminContent');
+    
+    if (password === ADMIN_PASSWORD) {
+        login.style.display = 'none';
+        content.style.display = 'block';
+        error.style.display = 'none';
+        showNotification('✅ Admin access granted!', 'success');
+        // Refresh data
+        socket.emit('getTeams');
+        socket.emit('getFixtures');
+        updateAdminTeamsList();
+        updateAdminFixturesList();
+        updateAdminResultsList();
+    } else {
+        error.style.display = 'block';
+        document.getElementById('adminPassword').value = '';
+        showNotification('❌ Incorrect password!', 'danger');
+    }
+}
+
+function logoutAdmin() {
+    document.getElementById('adminLogin').style.display = 'block';
+    document.getElementById('adminContent').style.display = 'none';
+    document.getElementById('adminPassword').value = '';
+    showNotification('🔒 Logged out from admin panel', 'warning');
+}
+
+function createTeamFromAdmin() {
+    const name = document.getElementById('adminTeamName').value.trim();
+    const captain = document.getElementById('adminCaptain').value.trim();
+    const viceCaptain = document.getElementById('adminViceCaptain').value.trim();
+    const squadRaw = document.getElementById('adminSquad').value.trim();
+    
+    if (!name || !captain || !viceCaptain) {
+        showNotification('⚠️ Please fill all required fields!', 'danger');
+        return;
+    }
+    
+    const squad = squadRaw ? squadRaw.split(',').map(p => p.trim()).filter(p => p) : [];
+    
+    if (!squad.includes(captain)) {
+        showNotification(`⚠️ Captain "${captain}" must be in squad!`, 'danger');
+        return;
+    }
+    if (!squad.includes(viceCaptain)) {
+        showNotification(`⚠️ Vice Captain "${viceCaptain}" must be in squad!`, 'danger');
+        return;
+    }
+    
+    socket.emit('createTeam', {
+        name: name,
+        captain: captain,
+        viceCaptain: viceCaptain,
+        squad: squad
+    });
+    
+    // Clear form
+    ['adminTeamName', 'adminCaptain', 'adminViceCaptain', 'adminSquad']
+        .forEach(id => document.getElementById(id).value = '');
+    
+    showNotification(`✅ Team "${name}" created!`, 'success');
+}
+
+function setupMatchFromAdmin() {
+    const team1Id = document.getElementById('adminTeam1').value;
+    const team2Id = document.getElementById('adminTeam2').value;
+    const team1Order = document.getElementById('adminTeam1Order').value.trim();
+    const team2Order = document.getElementById('adminTeam2Order').value.trim();
+    
+    if (!team1Id || !team2Id) {
+        showNotification('⚠️ Please select both teams!', 'danger');
+        return;
+    }
+    if (team1Id === team2Id) {
+        showNotification('⚠️ Teams must be different!', 'danger');
+        return;
+    }
+    
+    socket.emit('setupMatch', {
+        team1Id: team1Id,
+        team2Id: team2Id,
+        team1Order: team1Order ? team1Order.split(',').map(p => p.trim()) : undefined,
+        team2Order: team2Order ? team2Order.split(',').map(p => p.trim()) : undefined
+    });
+    
+    // Clear form
+    document.getElementById('adminTeam1Order').value = '';
+    document.getElementById('adminTeam2Order').value = '';
+    
+    showNotification('⚔️ Match setup initiated!', 'warning');
+}
+
+function resetMatchFromAdmin() {
+    if (confirm('⚠️ Are you sure you want to reset the match? All data will be lost!')) {
+        socket.emit('resetMatch');
+    }
+}
+
+function createFixtureFromAdmin() {
+    const team1 = document.getElementById('adminFixtureTeam1').value;
+    const team2 = document.getElementById('adminFixtureTeam2').value;
+    const date = document.getElementById('adminFixtureDate').value;
+    const time = document.getElementById('adminFixtureTime').value;
+    const venue = document.getElementById('adminFixtureVenue').value.trim() || 'PalTalk Room';
+    const host = document.getElementById('adminFixtureHost').value.trim() || '';
+    
+    if (!team1 || !team2) {
+        showNotification('⚠️ Please select both teams!', 'danger');
+        return;
+    }
+    if (team1 === team2) {
+        showNotification('⚠️ Teams must be different!', 'danger');
+        return;
+    }
+    if (!date) {
+        showNotification('⚠️ Please select a date!', 'danger');
+        return;
+    }
+    
+    const dateTime = date + (time ? 'T' + time : '');
+    
+    socket.emit('createFixture', {
+        team1: team1,
+        team2: team2,
+        date: dateTime,
+        venue: venue,
+        host: host
+    });
+    
+    // Clear form
+    ['adminFixtureDate', 'adminFixtureTime', 'adminFixtureVenue', 'adminFixtureHost']
+        .forEach(id => document.getElementById(id).value = '');
+    
+    showNotification(`📅 Fixture created: ${team1} vs ${team2}`, 'success');
+}
+
+function completeMatchFromAdmin() {
+    const fixtureId = document.getElementById('adminCompleteMatch').value;
+    const winner = document.getElementById('adminWinner').value;
+    const manOfMatch = document.getElementById('adminManOfMatch').value.trim();
+    
+    if (!fixtureId) {
+        showNotification('⚠️ Please select a match!', 'danger');
+        return;
+    }
+    if (!winner) {
+        showNotification('⚠️ Please select the winner!', 'danger');
+        return;
+    }
+    if (!manOfMatch) {
+        showNotification('⚠️ Please enter Man of the Match!', 'danger');
+        return;
+    }
+    
+    socket.emit('completeFixture', {
+        fixtureId: fixtureId,
+        winner: winner,
+        manOfMatch: manOfMatch,
+        playerStats: {}
+    });
+    
+    // Clear form
+    document.getElementById('adminManOfMatch').value = '';
+    
+    showNotification(`🏆 Match completed! Winner: ${winner}`, 'success');
+}
+
+// Update admin teams list
+function updateAdminTeamsList() {
+    const container = document.getElementById('adminTeamsList');
+    if (!container) return;
+    
+    if (!teams || teams.length === 0) {
+        container.innerHTML = '<p class="empty-message">No teams created yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = teams.map(team => `
+        <div class="team-card">
+            <div class="team-header">
+                <span class="team-name-card">🏏 ${team.name}</span>
+                <div class="team-actions">
+                    <button class="edit-btn" onclick="editTeam('${team.id}')">✏️ Edit</button>
+                    <button class="delete-btn" onclick="deleteTeam('${team.id}')">🗑️</button>
+                </div>
+            </div>
+            <div class="team-details">
+                <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
+                <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
+            </div>
+            <div class="team-squad">
+                ${(team.squad || []).map(p => `
+                    <span class="squad-tag">${p}</span>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update admin fixtures list
+function updateAdminFixturesList() {
+    const container = document.getElementById('adminFixturesList');
+    if (!container) return;
+    
+    const fixtures = window.fixtures || { matches: [] };
+    if (!fixtures.matches || fixtures.matches.length === 0) {
+        container.innerHTML = '<p class="empty-message">No fixtures created yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = fixtures.matches.map(f => `
+        <div class="fixture-card">
+            <div class="teams">🏏 ${f.team1} vs ${f.team2}</div>
+            <div class="meta">
+                📅 ${new Date(f.date).toLocaleDateString()} | 🕐 ${new Date(f.date).toLocaleTimeString()}
+                | 📍 ${f.venue || 'PalTalk Room'}
+                ${f.host ? `| 🎙️ Host: ${f.host}` : ''}
+                | Status: ${f.status.toUpperCase()}
+                ${f.result ? `| Winner: 🏆 ${f.result}` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update admin results list
+function updateAdminResultsList() {
+    const container = document.getElementById('adminResultsList');
+    if (!container) return;
+    
+    const fixtures = window.fixtures || { matches: [] };
+    const completed = fixtures.matches.filter(f => f.status === 'completed');
+    
+    if (completed.length === 0) {
+        container.innerHTML = '<p class="empty-message">No match results yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = completed.map(f => `
+        <div class="fixture-card" style="border-left-color: var(--success);">
+            <div class="teams">🏏 ${f.team1} vs ${f.team2}</div>
+            <div class="meta">
+                🏆 Winner: ${f.result}
+                ${f.manOfMatch ? `| ⭐ MOM: ${f.manOfMatch}` : ''}
+                | 📅 ${new Date(f.date).toLocaleDateString()}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Override socket events for admin updates
+// Add this to existing socket.on('teamsList') and socket.on('fixturesUpdate')
+// Already existing in code, just ensure admin lists update
