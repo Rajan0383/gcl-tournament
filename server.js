@@ -614,53 +614,35 @@ bowlerGuess(data) {
     }
     */
 
-    // CURRENT RULES - Normal Over
-    // else if (overType === 'normal') {
-    else {
-        // WIDE: 3 vs 6 OR 6 vs 3
-        if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
-            result.isWide = true;
-            result.runsScored = batsmanScore;
-            result.message = `📏 WIDE! ${batsmanScore} runs added. Ball repeated.`;
-            result.ballResult = 'WD';
-        }
-        // NO-BALL: Batsman 5 with any guess other than 5
-        else if (batsmanScore === 5 && bowlerGuess !== 5) {
-            result.isNoBall = true;
-            // result.isFreeHit = true; // FREE HIT REMOVED as per rules
-            result.runsScored = 5;
-            result.message = `❌ NO-BALL! 5 runs added. Ball repeated.`;
-            result.ballResult = 'NB';
-            // this.matchState.isFreeHit = true; // FREE HIT REMOVED
-        }
-        // FREE HIT - REMOVED as per rules (No Free Hit)
-        /*
-        else if (this.matchState.isFreeHit) {
-            if (batsmanScore === 4 || batsmanScore === 6) {
-                result.runsScored = batsmanScore;
-                result.message = `🚀 FREE HIT! ${batsmanScore} runs!`;
-                result.ballResult = batsmanScore.toString();
-            } else {
-                result.runsScored = 0;
-                result.message = `⚫ FREE HIT! Dot ball. No wicket.`;
-                result.ballResult = '0';
-            }
-            this.matchState.isFreeHit = false;
-        }
-        */
-        // OUT: Exact match
-        else if (batsmanScore === bowlerGuess) {
-            result.isOut = true;
-            result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-            result.ballResult = 'W';
-        }
-        // SAFE: Runs added
-        else {
-            result.runsScored = batsmanScore;
-            result.message = `✅ Safe! ${batsmanScore} runs`;
-            result.ballResult = batsmanScore.toString();
-        }
+   // CURRENT RULES - Normal Over
+else {
+    // WIDE: 3 vs 6 OR 6 vs 3
+    if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
+        result.isWide = true;
+        result.runsScored = batsmanScore;
+        result.message = `📏 WIDE! ${batsmanScore} runs added. Ball repeated.`;
+        result.ballResult = 'WD';
     }
+    // NO-BALL: Batsman 5 with any guess other than 5
+    else if (batsmanScore === 5 && bowlerGuess !== 5) {
+        result.isNoBall = true;
+        result.runsScored = 5;
+        result.message = `❌ NO-BALL! 5 runs added. Ball repeated.`;
+        result.ballResult = 'NB';
+    }
+    // OUT: Exact match
+    else if (batsmanScore === bowlerGuess) {
+        result.isOut = true;
+        result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
+        result.ballResult = 'W';
+    }
+    // SAFE: Runs added
+    else {
+        result.runsScored = batsmanScore;
+        result.message = `✅ Safe! ${batsmanScore} runs`;
+        result.ballResult = batsmanScore.toString();
+    }
+}
 
     // OLD RULES - POWERPLAY - Commented
     /*
