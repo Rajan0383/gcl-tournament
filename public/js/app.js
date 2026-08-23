@@ -67,6 +67,7 @@ socket.on('teamCreated', (team) => {
 
 socket.on('fixturesUpdate', (fixtures) => {
     console.log('📅 Fixtures Update:', fixtures);
+     window.fixtures = fixtures;
     updateFixtures(fixtures);
     updateAdminFixturesList(); // 👈 ADD THIS
     updateAdminResultsList(); // 👈 ADD THIS
