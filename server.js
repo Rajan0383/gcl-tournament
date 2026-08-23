@@ -446,7 +446,6 @@ class GCLEngine {
             battingTeam: 1,
             bowlingTeam: 2,
             overType: '',
-            lbwCount: 0,
             isFreeHit: false,
             isWide: false,
             isNoBall: false,
@@ -492,11 +491,9 @@ class GCLEngine {
         return this.matchState;
     }
 
-    getOverType(over) {
-        if (over === 1) return 'lbw';
-        if (over === 4) return 'powerplay';
-        return 'normal';
-    }
+   getOverType(over) {
+    return 'normal'; // All overs are normal
+}
 
     batsmanSetScore(data) {
         const { name, score } = data;
@@ -561,32 +558,7 @@ class GCLEngine {
             batsmanName: this.matchState.currentBatsmanName,
             bowlerName: this.matchState.currentBowlerName
         };
-        if (overType === 'lbw') {
-            const diff = Math.abs(batsmanScore - bowlerGuess);
-            if (batsmanScore === bowlerGuess) {
-                result.isOut = true;
-                result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-                result.ballResult = 'W';
-            } else if (diff === 1) {
-                this.matchState.lbwCount += 1;
-                if (this.matchState.lbwCount >= 3) {
-                    result.isOut = true;
-                    result.isLBW = true;
-                    result.message = `🏏 LBW OUT! 3 consecutive diff of 1!`;
-                    result.ballResult = 'LBW';
-                    this.matchState.lbwCount = 0;
-                } else {
-                    result.runsScored = batsmanScore;
-                    result.message = `✅ Safe! ${batsmanScore} runs (LBW count: ${this.matchState.lbwCount}/3)`;
-                    result.ballResult = batsmanScore.toString();
-                }
-            } else {
-                result.runsScored = batsmanScore;
-                result.message = `✅ Safe! ${batsmanScore} runs`;
-                result.ballResult = batsmanScore.toString();
-                this.matchState.lbwCount = 0;
-            }
-        } else if (overType === 'normal') {
+        else if (overType === 'normal') {
             if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
                 result.isWide = true;
                 result.runsScored = batsmanScore;
@@ -599,7 +571,7 @@ class GCLEngine {
                 result.message = `❌ NO-BALL! 5 runs added. FREE HIT next ball!`;
                 result.ballResult = 'NB';
                 this.matchState.isFreeHit = true;
-            } else if (this.matchState.isFreeHit) {
+            }\* else if (this.matchState.isFreeHit) {
                 if (batsmanScore === 4 || batsmanScore === 6) {
                     result.runsScored = batsmanScore;
                     result.message = `🚀 FREE HIT! ${batsmanScore} runs!`;
@@ -610,7 +582,7 @@ class GCLEngine {
                     result.ballResult = '0';
                 }
                 this.matchState.isFreeHit = false;
-            } else if (batsmanScore === bowlerGuess) {
+            }*/ else if (batsmanScore === bowlerGuess) {
                 result.isOut = true;
                 result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
                 result.ballResult = 'W';
@@ -619,7 +591,7 @@ class GCLEngine {
                 result.message = `✅ Safe! ${batsmanScore} runs`;
                 result.ballResult = batsmanScore.toString();
             }
-        } else if (overType === 'powerplay') {
+        } /*else if (overType === 'powerplay') {
             result.isPowerplay = true;
             if (batsmanScore === bowlerGuess) {
                 result.isOut = true;
@@ -631,7 +603,7 @@ class GCLEngine {
                 result.message = `⚡ POWERPLAY! ${batsmanScore} × 2 = ${batsmanScore * 2} runs!`;
                 result.ballResult = (batsmanScore * 2).toString();
             }
-        }
+        }*/
         battingTeam.runs += result.runsScored;
         if (!result.isWide && !result.isNoBall) {
             battingTeam.balls += 1;
