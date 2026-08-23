@@ -448,11 +448,9 @@ function createFixtureCard(fixture) {
         completed: 'completed'
     };
     
-    // Team names ko IDs se convert karein
     const team1Name = getTeamNameById(fixture.team1);
     const team2Name = getTeamNameById(fixture.team2);
     
-    // Date format
     let dateDisplay = 'Date not set';
     let timeDisplay = '';
     try {
@@ -473,25 +471,32 @@ function createFixtureCard(fixture) {
         dateDisplay = fixture.date || 'Date not set';
     }
     
-    const actions = fixture.status === 'scheduled' ? `
-        <div class="fixture-actions">
-            <button class="start-btn" onclick="startFixture('${fixture.id}')">▶ Start Match</button>
-        </div>
-    ` : fixture.status === 'ongoing' ? `
-        <div class="fixture-actions">
-            <button class="complete-btn" onclick="completeMatchFromFixture('${fixture.id}')">🏆 Complete Match</button>
+    // Admin actions (Edit + Delete)
+    const adminActions = fixtureAdminMode ? `
+        <div class="fixture-admin-actions">
+            <button class="edit-btn" onclick="editFixture('${fixture.id}')">✏️ Edit</button>
+            <button class="delete-btn" onclick="deleteFixture('${fixture.id}')">🗑️</button>
         </div>
     ` : '';
-
-    // Result display for completed matches
-    let resultDisplay = '';
-    if (fixture.status === 'completed' && fixture.result) {
-        resultDisplay = `<div class="fixture-result">🏆 Winner: ${fixture.result}</div>`;
+    
+    // Match actions (Start/Complete)
+    let matchActions = '';
+    if (fixture.status === 'scheduled') {
+        matchActions = `
+            <button class="start-btn" onclick="startFixture('${fixture.id}')">▶ Start Match</button>
+        `;
+    } else if (fixture.status === 'ongoing') {
+        matchActions = `
+            <button class="complete-btn" onclick="completeMatchFromFixture('${fixture.id}')">🏆 Complete Match</button>
+        `;
     }
-
+    
     return `
         <div class="fixture-card ${fixture.status === 'completed' ? 'completed-card' : ''}">
-            <div class="teams">🏏 ${team1Name} vs ${team2Name}</div>
+            <div class="fixture-header">
+                <div class="teams">🏏 ${team1Name} vs ${team2Name}</div>
+                ${adminActions}
+            </div>
             <div class="fixture-details">
                 <div class="fixture-detail-item date-time">
                     📅 ${dateDisplay} ${timeDisplay ? `| 🕐 ${timeDisplay}` : ''}
@@ -518,7 +523,9 @@ function createFixtureCard(fixture) {
             </div>
             <div class="fixture-bottom">
                 <span class="status ${statusColors[fixture.status] || 'scheduled'}">${fixture.status.toUpperCase()}</span>
-                ${actions}
+                <div class="fixture-actions">
+                    ${matchActions}
+                </div>
             </div>
         </div>
     `;
@@ -2061,6 +2068,160 @@ Example: Delhi Capitals, SRH, 2026-08-25, 21:30, PalTalk Room, Gemstar`;
     };
     
     // Send update to server
+    fetch('/api/fixtures/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedFixture)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Fixture updated: ${newTeam1} vs ${newTeam2}`, 'success');
+            socket.emit('getFixtures');
+        } else {
+            showNotification(`❌ Update failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error updating fixture', 'danger');
+        console.error(err);
+    });
+}
+
+function deleteFixture(fixtureId) {
+    if (!confirm('Are you sure you want to delete this fixture?')) return;
+    
+    fetch('/api/fixtures/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: fixtureId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`🗑️ Fixture deleted!`, 'warning');
+            socket.emit('getFixtures');
+        } else {
+            showNotification(`❌ Delete failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error deleting fixture', 'danger');
+        console.error(err);
+    });
+}
+// ============================================
+// FIXTURES - ADMIN CORNER
+// ============================================
+
+const FIXTURE_ADMIN_PASSWORD = "gcl2026";
+let fixtureAdminMode = false;
+
+function toggleFixtureAdmin() {
+    const login = document.getElementById('fixtureAdminLogin');
+    if (login.style.display === 'flex') {
+        login.style.display = 'none';
+    } else {
+        login.style.display = 'flex';
+        document.getElementById('fixtureAdminPassword').value = '';
+        document.getElementById('fixtureAdminError').style.display = 'none';
+    }
+}
+
+function checkFixtureAdminPassword() {
+    const password = document.getElementById('fixtureAdminPassword').value;
+    const error = document.getElementById('fixtureAdminError');
+    
+    if (password === FIXTURE_ADMIN_PASSWORD) {
+        fixtureAdminMode = true;
+        document.getElementById('fixtureAdminLogin').style.display = 'none';
+        document.getElementById('fixtureAdminBar').style.display = 'flex';
+        showNotification('✅ Fixtures admin access granted!', 'success');
+        socket.emit('getFixtures');
+    } else {
+        error.style.display = 'block';
+        document.getElementById('fixtureAdminPassword').value = '';
+        showNotification('❌ Incorrect password!', 'danger');
+    }
+}
+
+function logoutFixtureAdmin() {
+    fixtureAdminMode = false;
+    document.getElementById('fixtureAdminBar').style.display = 'none';
+    document.getElementById('fixtureAdminLogin').style.display = 'none';
+    showNotification('🔒 Logged out from fixtures admin', 'warning');
+    socket.emit('getFixtures');
+}
+
+// Enter key support
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('fixtureAdminPassword') === document.activeElement) {
+        checkFixtureAdminPassword();
+    }
+});
+// ============================================
+// FIXTURE EDIT/DELETE FUNCTIONS
+// ============================================
+
+function editFixture(fixtureId) {
+    const fixtures = window.fixtures || { matches: [] };
+    const fixture = fixtures.matches.find(f => f.id === fixtureId);
+    if (!fixture) {
+        showNotification('⚠️ Fixture not found!', 'danger');
+        return;
+    }
+    
+    const team1Name = getTeamNameById(fixture.team1);
+    const team2Name = getTeamNameById(fixture.team2);
+    
+    const message = `✏️ EDIT FIXTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Current Details:
+Team 1: ${team1Name}
+Team 2: ${team2Name}
+Date: ${new Date(fixture.date).toLocaleString()}
+Venue: ${fixture.venue || 'PalTalk Room'}
+Host: ${fixture.host || 'Not set'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Enter new details (comma separated):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Format: Team 1, Team 2, Date (YYYY-MM-DD), Time (HH:MM), Venue, Host
+
+Example: Delhi Capitals, SRH, 2026-08-25, 21:30, PalTalk Room, Gemstar`;
+
+    const input = prompt(message, 
+        `${team1Name}, ${team2Name}, ${new Date(fixture.date).toISOString().split('T')[0]}, 21:30, ${fixture.venue || 'PalTalk Room'}, ${fixture.host || ''}`
+    );
+    
+    if (input === null) return;
+    
+    const parts = input.split(',').map(p => p.trim()).filter(p => p);
+    if (parts.length < 4) {
+        showNotification('⚠️ Please enter at least: Team1, Team2, Date, Time', 'danger');
+        return;
+    }
+    
+    const newTeam1 = parts[0];
+    const newTeam2 = parts[1];
+    const newDate = parts[2];
+    const newTime = parts[3];
+    const newVenue = parts[4] || 'PalTalk Room';
+    const newHost = parts[5] || '';
+    
+    const dateTime = newDate + 'T' + newTime;
+    
+    const updatedFixture = {
+        ...fixture,
+        team1: newTeam1,
+        team2: newTeam2,
+        date: dateTime,
+        venue: newVenue,
+        host: newHost
+    };
+    
     fetch('/api/fixtures/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
