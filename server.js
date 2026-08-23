@@ -404,355 +404,432 @@ class GCLEngine {
     }
 
     // ============================================
-    // MATCH SETUP AND GAME LOGIC
-    // ============================================
+// MATCH SETUP AND GAME LOGIC
+// ============================================
 
-    resetMatch() {
-        this.matchState = {
-            isActive: false,
-            currentOver: 0,
-            currentBall: 0,
-            totalOvers: 4,
-            team1: {
-                name: '',
-                runs: 0,
-                wickets: 0,
-                balls: 0,
-                extras: 0,
-                currentBatsman: null,
-                currentBowler: null,
-                battingOrder: [],
-                bowlingOrder: [],
-                currentBattingIndex: 0,
-                currentBowlingIndex: 0,
-                partnership: 0,
-                lastBalls: []
-            },
-            team2: {
-                name: '',
-                runs: 0,
-                wickets: 0,
-                balls: 0,
-                extras: 0,
-                currentBatsman: null,
-                currentBowler: null,
-                battingOrder: [],
-                bowlingOrder: [],
-                currentBattingIndex: 0,
-                currentBowlingIndex: 0,
-                partnership: 0,
-                lastBalls: []
-            },
-            battingTeam: 1,
-            bowlingTeam: 2,
-            overType: '',
-            isFreeHit: false,
-            isWide: false,
-            isNoBall: false,
-            lastBallResult: null,
-            secretScore: null,
-            batsmanSet: false,
-            bowlerGuessed: false,
-            currentBatsmanName: '',
-            currentBowlerName: '',
-            matchId: null,
-            inning: 1,
-            target: null,
-            winner: null,
-            isComplete: false
-        };
-        this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
-    }
-
-    setupMatch(team1Id, team2Id, team1BattingOrder, team2BattingOrder) {
-        const team1 = this.getTeam(team1Id);
-        const team2 = this.getTeam(team2Id);
-        if (!team1 || !team2) throw new Error('Team not found');
-        this.resetMatch();
-        this.matchState.isActive = true;
-        this.matchState.matchId = `MATCH-${Date.now()}`;
-        this.matchState.team1.name = team1.name;
-        this.matchState.team2.name = team2.name;
-        this.matchState.team1.battingOrder = team1BattingOrder || team1.squad;
-        this.matchState.team2.battingOrder = team2BattingOrder || team2.squad;
-        this.matchState.team1.currentBatsman = this.matchState.team1.battingOrder[0];
-        this.matchState.team2.currentBatsman = this.matchState.team2.battingOrder[0];
-        this.matchState.battingTeam = 1;
-        this.matchState.bowlingTeam = 2;
-        this.matchState.currentOver = 1;
-        this.matchState.currentBall = 0;
-        this.matchState.overType = this.getOverType(1);
-        this.matchState.currentBatsmanName = this.matchState.team1.currentBatsman;
-        this.striker = this.matchState.team1.currentBatsman;
-        this.nonStriker = this.matchState.team1.battingOrder[1] || 'Non-Striker';
-        return this.matchState;
-    }
-
-   getOverType(over) {
-    return 'normal'; // All overs are normal
+resetMatch() {
+    this.matchState = {
+        isActive: false,
+        currentOver: 0,
+        currentBall: 0,
+        totalOvers: 4,
+        team1: {
+            name: '',
+            runs: 0,
+            wickets: 0,
+            balls: 0,
+            extras: 0,
+            currentBatsman: null,
+            currentBowler: null,
+            battingOrder: [],
+            bowlingOrder: [],
+            currentBattingIndex: 0,
+            currentBowlingIndex: 0,
+            partnership: 0,
+            lastBalls: []
+        },
+        team2: {
+            name: '',
+            runs: 0,
+            wickets: 0,
+            balls: 0,
+            extras: 0,
+            currentBatsman: null,
+            currentBowler: null,
+            battingOrder: [],
+            bowlingOrder: [],
+            currentBattingIndex: 0,
+            currentBowlingIndex: 0,
+            partnership: 0,
+            lastBalls: []
+        },
+        battingTeam: 1,
+        bowlingTeam: 2,
+        overType: 'normal', // Always normal
+        // lbwCount: 0, // REMOVED
+        isFreeHit: false,
+        isWide: false,
+        isNoBall: false,
+        lastBallResult: null,
+        secretScore: null,
+        batsmanSet: false,
+        bowlerGuessed: false,
+        currentBatsmanName: '',
+        currentBowlerName: '',
+        matchId: null,
+        inning: 1,
+        target: null,
+        winner: null,
+        isComplete: false
+    };
+    this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
+    this.striker = null;
+    this.nonStriker = null;
+    this.strikeChanged = false;
 }
 
-    batsmanSetScore(data) {
-        const { name, score } = data;
-        if (!this.matchState.isActive) return { error: 'Match not active' };
-        if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
-        const overType = this.getOverType(this.matchState.currentOver);
-        let validScores = [];
-        if (overType === 'lbw') validScores = [2, 3, 4, 5, 6];
-        else if (overType === 'powerplay') validScores = [1, 2, 3, 4, 5, 6];
-        else validScores = [3, 4, 5, 6];
-        if (!validScores.includes(parseInt(score))) {
-            return { error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` };
-        }
-        this.matchState.secretScore = parseInt(score);
-        this.matchState.batsmanSet = true;
-        this.matchState.bowlerGuessed = false;
-        this.matchState.currentBatsmanName = name || 'Batsman';
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        battingTeam.currentBatsman = name || battingTeam.currentBatsman;
-        if (!this.striker) {
-            this.striker = name || battingTeam.currentBatsman;
-            this.nonStriker = battingTeam.battingOrder[1] || 'Non-Striker';
-        }
-        return {
-            success: true,
-            message: `${name || 'Batsman'} set score ${score}`,
-            batsman: name || 'Batsman',
-            score: score
-        };
-    }
+setupMatch(team1Id, team2Id, team1BattingOrder, team2BattingOrder) {
+    const team1 = this.getTeam(team1Id);
+    const team2 = this.getTeam(team2Id);
+    if (!team1 || !team2) throw new Error('Team not found');
+    this.resetMatch();
+    this.matchState.isActive = true;
+    this.matchState.matchId = `MATCH-${Date.now()}`;
+    this.matchState.team1.name = team1.name;
+    this.matchState.team2.name = team2.name;
+    this.matchState.team1.battingOrder = team1BattingOrder || team1.squad;
+    this.matchState.team2.battingOrder = team2BattingOrder || team2.squad;
+    this.matchState.team1.currentBatsman = this.matchState.team1.battingOrder[0];
+    this.matchState.team2.currentBatsman = this.matchState.team2.battingOrder[0];
+    this.matchState.battingTeam = 1;
+    this.matchState.bowlingTeam = 2;
+    this.matchState.currentOver = 1;
+    this.matchState.currentBall = 0;
+    this.matchState.overType = 'normal';
+    this.matchState.currentBatsmanName = this.matchState.team1.currentBatsman;
+    this.striker = this.matchState.team1.currentBatsman;
+    this.nonStriker = this.matchState.team1.battingOrder[1] || 'Non-Striker';
+    return this.matchState;
+}
 
-    bowlerGuess(data) {
-        const { name, guess } = data;
-        if (!this.matchState.isActive) return { error: 'Match not active' };
-        if (!this.matchState.batsmanSet) return { error: 'Batsman has not set score yet!' };
-        if (this.matchState.bowlerGuessed) return { error: 'Bowler already guessed for this ball' };
-        const batsmanScore = this.matchState.secretScore;
-        const bowlerGuess = parseInt(guess);
-        const overType = this.getOverType(this.matchState.currentOver);
-        let validGuesses = [];
-        if (overType === 'lbw') validGuesses = [2, 3, 4, 5, 6];
-        else if (overType === 'powerplay') validGuesses = [1, 2, 3, 4, 5, 6];
-        else validGuesses = [3, 4, 5, 6];
-        if (!validGuesses.includes(bowlerGuess)) {
-            return { error: `Invalid guess! Allowed numbers: ${validGuesses.join(', ')}` };
-        }
-        this.matchState.bowlerGuessed = true;
-        this.matchState.currentBowlerName = name || 'Bowler';
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        let result = {
-            batsmanScore: batsmanScore,
-            bowlerGuess: bowlerGuess,
-            isOut: false,
-            runsScored: 0,
-            isWide: false,
-            isNoBall: false,
-            isFreeHit: false,
-            isLBW: false,
-            isPowerplay: false,
-            message: '',
-            ballResult: '',
-            batsmanName: this.matchState.currentBatsmanName,
-            bowlerName: this.matchState.currentBowlerName
-        };
-        else if (overType === 'normal') {
-            if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
-                result.isWide = true;
-                result.runsScored = batsmanScore;
-                result.message = `📏 WIDE! ${batsmanScore} runs added. Ball repeated.`;
-                result.ballResult = 'WD';
-            } else if (batsmanScore === 5 && bowlerGuess !== 5) {
-                result.isNoBall = true;
-                result.isFreeHit = true;
-                result.runsScored = 5;
-                result.message = `❌ NO-BALL! 5 runs added. FREE HIT next ball!`;
-                result.ballResult = 'NB';
-                this.matchState.isFreeHit = true;
-            }\* else if (this.matchState.isFreeHit) {
-                if (batsmanScore === 4 || batsmanScore === 6) {
-                    result.runsScored = batsmanScore;
-                    result.message = `🚀 FREE HIT! ${batsmanScore} runs!`;
-                    result.ballResult = batsmanScore.toString();
-                } else {
-                    result.runsScored = 0;
-                    result.message = `⚫ FREE HIT! Dot ball. No wicket.`;
-                    result.ballResult = '0';
-                }
-                this.matchState.isFreeHit = false;
-            }*/ else if (batsmanScore === bowlerGuess) {
+// OLD RULES - Commented
+/*
+getOverType(over) {
+    if (over === 1) return 'lbw';
+    if (over === 4) return 'powerplay';
+    return 'normal';
+}
+*/
+
+// NEW RULES - All overs normal
+getOverType(over) {
+    return 'normal';
+}
+
+batsmanSetScore(data) {
+    const { name, score } = data;
+    if (!this.matchState.isActive) return { error: 'Match not active' };
+    if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
+    
+    // NEW RULES: Always 3,4,5,6
+    const validScores = [3, 4, 5, 6];
+    /*
+    // OLD RULES - Commented
+    const overType = this.getOverType(this.matchState.currentOver);
+    let validScores = [];
+    if (overType === 'lbw') validScores = [2, 3, 4, 5, 6];
+    else if (overType === 'powerplay') validScores = [1, 2, 3, 4, 5, 6];
+    else validScores = [3, 4, 5, 6];
+    */
+    
+    if (!validScores.includes(parseInt(score))) {
+        return { error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` };
+    }
+    this.matchState.secretScore = parseInt(score);
+    this.matchState.batsmanSet = true;
+    this.matchState.bowlerGuessed = false;
+    this.matchState.currentBatsmanName = name || 'Batsman';
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    battingTeam.currentBatsman = name || battingTeam.currentBatsman;
+    if (!this.striker) {
+        this.striker = name || battingTeam.currentBatsman;
+        this.nonStriker = battingTeam.battingOrder[1] || 'Non-Striker';
+    }
+    return {
+        success: true,
+        message: `${name || 'Batsman'} set score ${score}`,
+        batsman: name || 'Batsman',
+        score: score
+    };
+}
+
+bowlerGuess(data) {
+    const { name, guess } = data;
+    if (!this.matchState.isActive) return { error: 'Match not active' };
+    if (!this.matchState.batsmanSet) return { error: 'Batsman has not set score yet!' };
+    if (this.matchState.bowlerGuessed) return { error: 'Bowler already guessed for this ball' };
+    const batsmanScore = this.matchState.secretScore;
+    const bowlerGuess = parseInt(guess);
+    
+    // NEW RULES: Always 3,4,5,6
+    const validGuesses = [3, 4, 5, 6];
+    /*
+    // OLD RULES - Commented
+    const overType = this.getOverType(this.matchState.currentOver);
+    let validGuesses = [];
+    if (overType === 'lbw') validGuesses = [2, 3, 4, 5, 6];
+    else if (overType === 'powerplay') validGuesses = [1, 2, 3, 4, 5, 6];
+    else validGuesses = [3, 4, 5, 6];
+    */
+    
+    if (!validGuesses.includes(bowlerGuess)) {
+        return { error: `Invalid guess! Allowed numbers: ${validGuesses.join(', ')}` };
+    }
+    this.matchState.bowlerGuessed = true;
+    this.matchState.currentBowlerName = name || 'Bowler';
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    let result = {
+        batsmanScore: batsmanScore,
+        bowlerGuess: bowlerGuess,
+        isOut: false,
+        runsScored: 0,
+        isWide: false,
+        isNoBall: false,
+        isFreeHit: false,
+        isLBW: false,
+        isPowerplay: false,
+        message: '',
+        ballResult: '',
+        batsmanName: this.matchState.currentBatsmanName,
+        bowlerName: this.matchState.currentBowlerName
+    };
+
+    // OLD RULES - LBW OVER - Commented
+    /*
+    if (overType === 'lbw') {
+        const diff = Math.abs(batsmanScore - bowlerGuess);
+        if (batsmanScore === bowlerGuess) {
+            result.isOut = true;
+            result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
+            result.ballResult = 'W';
+        } else if (diff === 1) {
+            this.matchState.lbwCount += 1;
+            if (this.matchState.lbwCount >= 3) {
                 result.isOut = true;
-                result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-                result.ballResult = 'W';
+                result.isLBW = true;
+                result.message = `🏏 LBW OUT! 3 consecutive diff of 1!`;
+                result.ballResult = 'LBW';
+                this.matchState.lbwCount = 0;
             } else {
                 result.runsScored = batsmanScore;
-                result.message = `✅ Safe! ${batsmanScore} runs`;
+                result.message = `✅ Safe! ${batsmanScore} runs (LBW count: ${this.matchState.lbwCount}/3)`;
                 result.ballResult = batsmanScore.toString();
             }
-        } /*else if (overType === 'powerplay') {
-            result.isPowerplay = true;
-            if (batsmanScore === bowlerGuess) {
-                result.isOut = true;
-                result.runsScored = -batsmanScore;
-                result.message = `💥 POWERPLAY! OUT! ${batsmanScore} runs DEDUCTED!`;
-                result.ballResult = 'W*';
-            } else {
-                result.runsScored = batsmanScore * 2;
-                result.message = `⚡ POWERPLAY! ${batsmanScore} × 2 = ${batsmanScore * 2} runs!`;
-                result.ballResult = (batsmanScore * 2).toString();
-            }
-        }*/
-        battingTeam.runs += result.runsScored;
-        if (!result.isWide && !result.isNoBall) {
-            battingTeam.balls += 1;
-            this.matchState.currentBall += 1;
-        }
-        if (result.isWide) battingTeam.extras += 1;
-        if (result.isNoBall) battingTeam.extras += 1;
-        if (result.isOut) {
-            battingTeam.wickets += 1;
-            battingTeam.currentBattingIndex += 1;
-            if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
-                battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
-                this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-            } else {
-                result.message += ' 🏏 All out!';
-                this.endInnings();
-            }
         } else {
-            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-            if (result.runsScored > 0) {
-                this.updateStrike(this.matchState.currentBatsmanName, result.runsScored);
-            }
-        }
-        this.matchState.lastBallResult = result;
-        if (this.matchState.currentBall >= 6) {
-            this.matchState.currentBall = 0;
-            this.matchState.currentOver += 1;
-            if (this.matchState.currentOver <= this.matchState.totalOvers) {
-                this.matchState.overType = this.getOverType(this.matchState.currentOver);
-            } else {
-                this.endInnings();
-            }
-        }
-        this.matchState.batsmanSet = false;
-        this.matchState.bowlerGuessed = false;
-        this.matchState.secretScore = null;
-        return {
-            ...result,
-            matchState: this.getMatchState()
-        };
-    }
-
-    updateStrike(batsmanName, runsScored) {
-        if (runsScored % 2 !== 0 && this.striker && this.nonStriker) {
-            const temp = this.striker;
-            this.striker = this.nonStriker;
-            this.nonStriker = temp;
-            this.strikeChanged = true;
-        } else {
-            this.strikeChanged = false;
-        }
-    }
-
-    endInnings() {
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        if (this.matchState.inning === 1) {
-            this.matchState.target = battingTeam.runs + 1;
-            this.matchState.inning = 2;
-            this.matchState.battingTeam = 2;
-            this.matchState.bowlingTeam = 1;
-            this.matchState.currentOver = 1;
-            this.matchState.currentBall = 0;
-            this.matchState.overType = this.getOverType(1);
+            result.runsScored = batsmanScore;
+            result.message = `✅ Safe! ${batsmanScore} runs`;
+            result.ballResult = batsmanScore.toString();
             this.matchState.lbwCount = 0;
-            this.matchState.isFreeHit = false;
-            const newBattingTeam = this.matchState.team2;
-            newBattingTeam.currentBatsman = newBattingTeam.battingOrder[0] || newBattingTeam.squad[0];
-            this.matchState.currentBatsmanName = newBattingTeam.currentBatsman;
-            this.striker = newBattingTeam.currentBatsman;
-            this.nonStriker = newBattingTeam.battingOrder[1] || 'Non-Striker';
-            return {
-                message: `🏏 Innings complete! Target: ${this.matchState.target}`,
-                target: this.matchState.target
-            };
-        } else {
-            this.matchState.isComplete = true;
-            this.matchState.isActive = false;
-            const team1Score = this.matchState.team1.runs;
-            const team2Score = this.matchState.team2.runs;
-            if (team2Score > team1Score) this.matchState.winner = this.matchState.team2.name;
-            else if (team1Score > team2Score) this.matchState.winner = this.matchState.team1.name;
-            else this.matchState.winner = 'TIE';
-            this.tournamentStats.matches += 1;
-            if (this.matchState.matchId && this.matchState.matchId.startsWith('FIX-')) {
-                const fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
-                if (fixture && fixture.status === 'ongoing') {
-                    this.completeFixture(fixture.id, this.matchState.winner, null, this.currentMatchStats.batsmen);
-                }
+        }
+    }
+    */
+
+    // CURRENT RULES - Normal Over
+    // else if (overType === 'normal') {
+    else {
+        // WIDE: 3 vs 6 OR 6 vs 3
+        if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
+            result.isWide = true;
+            result.runsScored = batsmanScore;
+            result.message = `📏 WIDE! ${batsmanScore} runs added. Ball repeated.`;
+            result.ballResult = 'WD';
+        }
+        // NO-BALL: Batsman 5 with any guess other than 5
+        else if (batsmanScore === 5 && bowlerGuess !== 5) {
+            result.isNoBall = true;
+            // result.isFreeHit = true; // FREE HIT REMOVED as per rules
+            result.runsScored = 5;
+            result.message = `❌ NO-BALL! 5 runs added. Ball repeated.`;
+            result.ballResult = 'NB';
+            // this.matchState.isFreeHit = true; // FREE HIT REMOVED
+        }
+        // FREE HIT - REMOVED as per rules (No Free Hit)
+        /*
+        else if (this.matchState.isFreeHit) {
+            if (batsmanScore === 4 || batsmanScore === 6) {
+                result.runsScored = batsmanScore;
+                result.message = `🚀 FREE HIT! ${batsmanScore} runs!`;
+                result.ballResult = batsmanScore.toString();
+            } else {
+                result.runsScored = 0;
+                result.message = `⚫ FREE HIT! Dot ball. No wicket.`;
+                result.ballResult = '0';
             }
-            this.saveAllData();
-            this.striker = null;
-            this.nonStriker = null;
-            this.strikeChanged = false;
-            return {
-                message: `🏆 Match Complete! Winner: ${this.matchState.winner}`,
-                winner: this.matchState.winner,
-                team1Score: team1Score,
-                team2Score: team2Score
-            };
+            this.matchState.isFreeHit = false;
+        }
+        */
+        // OUT: Exact match
+        else if (batsmanScore === bowlerGuess) {
+            result.isOut = true;
+            result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
+            result.ballResult = 'W';
+        }
+        // SAFE: Runs added
+        else {
+            result.runsScored = batsmanScore;
+            result.message = `✅ Safe! ${batsmanScore} runs`;
+            result.ballResult = batsmanScore.toString();
         }
     }
 
-    getMatchState() {
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        const bowlingTeam = this.matchState.battingTeam === 1 ? this.matchState.team2 : this.matchState.team1;
-        return {
-            matchId: this.matchState.matchId,
-            isActive: this.matchState.isActive,
-            isComplete: this.matchState.isComplete,
-            inning: this.matchState.inning,
-            currentOver: this.matchState.currentOver,
-            currentBall: this.matchState.currentBall,
-            totalOvers: this.matchState.totalOvers,
-            overType: this.matchState.overType,
-            battingTeam: {
-                name: battingTeam.name,
-                runs: battingTeam.runs,
-                wickets: battingTeam.wickets,
-                balls: battingTeam.balls,
-                extras: battingTeam.extras,
-                currentBatsman: battingTeam.currentBatsman,
-                battingOrder: battingTeam.battingOrder
-            },
-            bowlingTeam: {
-                name: bowlingTeam.name,
-                currentBowler: bowlingTeam.currentBowler
-            },
-            target: this.matchState.target,
-            winner: this.matchState.winner,
-            lbwCount: this.matchState.lbwCount,
-            isFreeHit: this.matchState.isFreeHit,
-            lastBallResult: this.matchState.lastBallResult,
-            batsmanSet: this.matchState.batsmanSet,
-            bowlerGuessed: this.matchState.bowlerGuessed,
-            currentBatsmanName: this.matchState.currentBatsmanName,
-            currentBowlerName: this.matchState.currentBowlerName,
-            striker: this.striker,
-            nonStriker: this.nonStriker,
-            strikeChanged: this.strikeChanged
-        };
+    // OLD RULES - POWERPLAY - Commented
+    /*
+    else if (overType === 'powerplay') {
+        result.isPowerplay = true;
+        if (batsmanScore === bowlerGuess) {
+            result.isOut = true;
+            result.runsScored = -batsmanScore;
+            result.message = `💥 POWERPLAY! OUT! ${batsmanScore} runs DEDUCTED!`;
+            result.ballResult = 'W*';
+        } else {
+            result.runsScored = batsmanScore * 2;
+            result.message = `⚡ POWERPLAY! ${batsmanScore} × 2 = ${batsmanScore * 2} runs!`;
+            result.ballResult = (batsmanScore * 2).toString();
+        }
     }
+    */
 
-    resetMatchAdmin() {
-        this.resetMatch();
+    battingTeam.runs += result.runsScored;
+    if (!result.isWide && !result.isNoBall) {
+        battingTeam.balls += 1;
+        this.matchState.currentBall += 1;
+    }
+    if (result.isWide) battingTeam.extras += 1;
+    if (result.isNoBall) battingTeam.extras += 1;
+    if (result.isOut) {
+        battingTeam.wickets += 1;
+        battingTeam.currentBattingIndex += 1;
+        if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
+            battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
+            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
+        } else {
+            result.message += ' 🏏 All out!';
+            this.endInnings();
+        }
+    } else {
+        this.matchState.currentBatsmanName = battingTeam.currentBatsman;
+        if (result.runsScored > 0) {
+            this.updateStrike(this.matchState.currentBatsmanName, result.runsScored);
+        }
+    }
+    this.matchState.lastBallResult = result;
+    if (this.matchState.currentBall >= 6) {
+        this.matchState.currentBall = 0;
+        this.matchState.currentOver += 1;
+        if (this.matchState.currentOver <= this.matchState.totalOvers) {
+            this.matchState.overType = 'normal';
+            // this.matchState.overType = this.getOverType(this.matchState.currentOver);
+        } else {
+            this.endInnings();
+        }
+    }
+    this.matchState.batsmanSet = false;
+    this.matchState.bowlerGuessed = false;
+    this.matchState.secretScore = null;
+    return {
+        ...result,
+        matchState: this.getMatchState()
+    };
+}
+
+updateStrike(batsmanName, runsScored) {
+    // Strike change on ODD runs (3,5)
+    if (runsScored % 2 !== 0 && this.striker && this.nonStriker) {
+        const temp = this.striker;
+        this.striker = this.nonStriker;
+        this.nonStriker = temp;
+        this.strikeChanged = true;
+    } else {
+        this.strikeChanged = false;
+    }
+}
+
+endInnings() {
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    if (this.matchState.inning === 1) {
+        this.matchState.target = battingTeam.runs + 1;
+        this.matchState.inning = 2;
+        this.matchState.battingTeam = 2;
+        this.matchState.bowlingTeam = 1;
+        this.matchState.currentOver = 1;
+        this.matchState.currentBall = 0;
+        this.matchState.overType = 'normal';
+        // this.matchState.lbwCount = 0; // REMOVED
+        this.matchState.isFreeHit = false;
+        const newBattingTeam = this.matchState.team2;
+        newBattingTeam.currentBatsman = newBattingTeam.battingOrder[0] || newBattingTeam.squad[0];
+        this.matchState.currentBatsmanName = newBattingTeam.currentBatsman;
+        this.striker = newBattingTeam.currentBatsman;
+        this.nonStriker = newBattingTeam.battingOrder[1] || 'Non-Striker';
+        return {
+            message: `🏏 Innings complete! Target: ${this.matchState.target}`,
+            target: this.matchState.target
+        };
+    } else {
+        this.matchState.isComplete = true;
+        this.matchState.isActive = false;
+        const team1Score = this.matchState.team1.runs;
+        const team2Score = this.matchState.team2.runs;
+        if (team2Score > team1Score) this.matchState.winner = this.matchState.team2.name;
+        else if (team1Score > team2Score) this.matchState.winner = this.matchState.team1.name;
+        else this.matchState.winner = 'TIE';
+        this.tournamentStats.matches += 1;
+        if (this.matchState.matchId && this.matchState.matchId.startsWith('FIX-')) {
+            const fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
+            if (fixture && fixture.status === 'ongoing') {
+                this.completeFixture(fixture.id, this.matchState.winner, null, this.currentMatchStats.batsmen);
+            }
+        }
+        this.saveAllData();
         this.striker = null;
         this.nonStriker = null;
         this.strikeChanged = false;
-        return { message: 'Match reset successfully' };
+        return {
+            message: `🏆 Match Complete! Winner: ${this.matchState.winner}`,
+            winner: this.matchState.winner,
+            team1Score: team1Score,
+            team2Score: team2Score
+        };
     }
+}
+
+getMatchState() {
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    const bowlingTeam = this.matchState.battingTeam === 1 ? this.matchState.team2 : this.matchState.team1;
+    return {
+        matchId: this.matchState.matchId,
+        isActive: this.matchState.isActive,
+        isComplete: this.matchState.isComplete,
+        inning: this.matchState.inning,
+        currentOver: this.matchState.currentOver,
+        currentBall: this.matchState.currentBall,
+        totalOvers: this.matchState.totalOvers,
+        overType: this.matchState.overType,
+        battingTeam: {
+            name: battingTeam.name,
+            runs: battingTeam.runs,
+            wickets: battingTeam.wickets,
+            balls: battingTeam.balls,
+            extras: battingTeam.extras,
+            currentBatsman: battingTeam.currentBatsman,
+            battingOrder: battingTeam.battingOrder
+        },
+        bowlingTeam: {
+            name: bowlingTeam.name,
+            currentBowler: bowlingTeam.currentBowler
+        },
+        target: this.matchState.target,
+        winner: this.matchState.winner,
+        // lbwCount: this.matchState.lbwCount, // REMOVED
+        isFreeHit: this.matchState.isFreeHit,
+        lastBallResult: this.matchState.lastBallResult,
+        batsmanSet: this.matchState.batsmanSet,
+        bowlerGuessed: this.matchState.bowlerGuessed,
+        currentBatsmanName: this.matchState.currentBatsmanName,
+        currentBowlerName: this.matchState.currentBowlerName,
+        striker: this.striker,
+        nonStriker: this.nonStriker,
+        strikeChanged: this.strikeChanged
+    };
+}
+
+resetMatchAdmin() {
+    this.resetMatch();
+    this.striker = null;
+    this.nonStriker = null;
+    this.strikeChanged = false;
+    return { message: 'Match reset successfully' };
+}
 
     exportTournamentData(format = 'json') {
         const data = {
