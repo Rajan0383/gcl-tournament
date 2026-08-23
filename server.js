@@ -1258,7 +1258,41 @@ app.get('/api/export/player-stats', (req, res) => {
 app.get('/api/tournament/stats', (req, res) => {
     res.json(gameEngine.tournamentStats);
 });
+// ============================================
+// FIXTURE UPDATE/DELETE API
+// ============================================
 
+// Update fixture
+app.post('/api/fixtures/update', (req, res) => {
+    try {
+        const updatedFixture = req.body;
+        const index = gameEngine.fixtures.matches.findIndex(f => f.id === updatedFixture.id);
+        if (index === -1) {
+            return res.status(404).json({ success: false, error: 'Fixture not found' });
+        }
+        gameEngine.fixtures.matches[index] = updatedFixture;
+        gameEngine.saveAllData();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Delete fixture
+app.post('/api/fixtures/delete', (req, res) => {
+    try {
+        const { id } = req.body;
+        const index = gameEngine.fixtures.matches.findIndex(f => f.id === id);
+        if (index === -1) {
+            return res.status(404).json({ success: false, error: 'Fixture not found' });
+        }
+        gameEngine.fixtures.matches.splice(index, 1);
+        gameEngine.saveAllData();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
 app.post('/api/teams/update', (req, res) => {
     try {
         const updatedTeam = req.body;
