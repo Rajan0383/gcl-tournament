@@ -402,22 +402,61 @@
 
     </div>
 </div>
-            <!-- FIXTURES TAB -->
-            <div class="tab-content" id="tab-fixtures">
-                <div class="fixtures-container">
-                    <h2>📅 Fixtures & Schedule</h2>
-                    <div class="fixtures-grid">
-                        <div class="fixture-list">
-                            <h3>⬆️ Upcoming Matches</h3>
-                            <div id="upcomingFixtures"><p class="empty-message">No upcoming fixtures</p></div>
-                        </div>
-                        <div class="fixture-list">
-                            <h3>✅ Completed Matches</h3>
-                            <div id="completedFixtures"><p class="empty-message">No completed matches</p></div>
-                        </div>
-                    </div>
+          <!-- ========================================== -->
+<!-- FIXTURES TAB -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-fixtures">
+    <div class="fixtures-container">
+        
+        <div class="fixtures-header">
+            <div>
+                <h2>📅 Fixtures & Schedule</h2>
+                <p class="fixtures-subtitle">GEM-STAR Championship 2026</p>
+            </div>
+            <!-- Admin Corner Button -->
+            <button onclick="toggleFixtureAdmin()" class="admin-corner-btn">🔐 Admin</button>
+        </div>
+
+        <!-- Admin Login Popup -->
+        <div id="fixtureAdminLogin" class="fixture-admin-login" style="display: none;">
+            <div class="fixture-login-box">
+                <div class="fixture-login-header">
+                    <span>🔐 Admin Access</span>
+                    <button onclick="toggleFixtureAdmin()" class="fixture-login-close">✕</button>
+                </div>
+                <p>Enter password to manage fixtures</p>
+                <div class="fixture-login-input">
+                    <input type="password" id="fixtureAdminPassword" placeholder="Enter Password">
+                    <button onclick="checkFixtureAdminPassword()">Unlock</button>
+                </div>
+                <div id="fixtureAdminError" class="fixture-login-error">❌ Incorrect password!</div>
+            </div>
+        </div>
+
+        <!-- Admin Mode Bar -->
+        <div id="fixtureAdminBar" class="fixture-admin-bar" style="display: none;">
+            <span class="admin-badge">👑 Admin Mode</span>
+            <button onclick="logoutFixtureAdmin()" class="logout-btn">🔒 Logout</button>
+        </div>
+
+        <!-- Fixtures Grid -->
+        <div class="fixtures-grid">
+            <div class="fixture-list">
+                <h3>⬆️ Upcoming Matches</h3>
+                <div id="upcomingFixtures">
+                    <p class="empty-message">No upcoming fixtures</p>
                 </div>
             </div>
+            <div class="fixture-list">
+                <h3>✅ Completed Matches</h3>
+                <div id="completedFixtures">
+                    <p class="empty-message">No completed matches</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
 
            <!-- ========================================== -->
 <!-- POINTS TABLE TAB -->
