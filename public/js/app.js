@@ -2007,7 +2007,7 @@ socket.on('stateUpdate', (state) => {
 // ADMIN - FIXTURE EDIT/DELETE
 // ============================================
 
-function editFixture(fixtureId) {
+window.editFixture = function(fixtureId) {
     const fixtures = window.fixtures || { matches: [] };
     const fixture = fixtures.matches.find(f => f.id === fixtureId);
     if (!fixture) {
