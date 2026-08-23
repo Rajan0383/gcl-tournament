@@ -1708,20 +1708,29 @@ function updateAdminFixturesList() {
         return;
     }
     
-    container.innerHTML = fixtures.matches.map(f => `
-        <div class="fixture-card">
-            <div class="teams">🏏 ${f.team1} vs ${f.team2}</div>
-            <div class="meta">
-                📅 ${new Date(f.date).toLocaleDateString()} | 🕐 ${new Date(f.date).toLocaleTimeString()}
-                | 📍 ${f.venue || 'PalTalk Room'}
-                ${f.host ? `| 🎙️ Host: ${f.host}` : ''}
-                | Status: ${f.status.toUpperCase()}
-                ${f.result ? `| Winner: 🏆 ${f.result}` : ''}
+    container.innerHTML = fixtures.matches.map(f => {
+        const team1Name = getTeamNameById(f.team1);
+        const team2Name = getTeamNameById(f.team2);
+        
+        return `
+            <div class="fixture-card">
+                <div class="fixture-header">
+                    <div class="teams">🏏 ${team1Name} vs ${team2Name}</div>
+                    <div class="fixture-actions">
+                        <button class="edit-btn" onclick="editFixture('${f.id}')">✏️ Edit</button>
+                        <button class="delete-btn" onclick="deleteFixture('${f.id}')">🗑️</button>
+                    </div>
+                </div>
+                <div class="meta">
+                    📅 ${new Date(f.date).toLocaleString()} | 📍 ${f.venue || 'PalTalk Room'}
+                    ${f.host ? `| 🎙️ Host: ${f.host}` : ''}
+                    | Status: ${f.status.toUpperCase()}
+                    ${f.result ? `| Winner: 🏆 ${f.result}` : ''}
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
-
 // Update admin results list
 function updateAdminResultsList() {
     const container = document.getElementById('adminResultsList');
@@ -1987,3 +1996,110 @@ socket.on('stateUpdate', (state) => {
         document.getElementById('ballByBall').innerHTML = '<p class="empty-message">No balls bowled yet</p>';
     }
 });
+// ============================================
+// ADMIN - FIXTURE EDIT/DELETE
+// ============================================
+
+function editFixture(fixtureId) {
+    const fixtures = window.fixtures || { matches: [] };
+    const fixture = fixtures.matches.find(f => f.id === fixtureId);
+    if (!fixture) {
+        showNotification('⚠️ Fixture not found!', 'danger');
+        return;
+    }
+    
+    const team1Name = getTeamNameById(fixture.team1);
+    const team2Name = getTeamNameById(fixture.team2);
+    
+    // Show edit prompt
+    const message = `✏️ EDIT FIXTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Current Details:
+Team 1: ${team1Name}
+Team 2: ${team2Name}
+Date: ${new Date(fixture.date).toLocaleString()}
+Venue: ${fixture.venue || 'PalTalk Room'}
+Host: ${fixture.host || 'Not set'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Enter new details (comma separated):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Format: Team 1, Team 2, Date (YYYY-MM-DD), Time (HH:MM), Venue, Host
+
+Example: Delhi Capitals, SRH, 2026-08-25, 21:30, PalTalk Room, Gemstar`;
+
+    const input = prompt(message, 
+        `${team1Name}, ${team2Name}, ${new Date(fixture.date).toISOString().split('T')[0]}, 21:30, ${fixture.venue || 'PalTalk Room'}, ${fixture.host || ''}`
+    );
+    
+    if (input === null) return;
+    
+    const parts = input.split(',').map(p => p.trim()).filter(p => p);
+    if (parts.length < 4) {
+        showNotification('⚠️ Please enter at least: Team1, Team2, Date, Time', 'danger');
+        return;
+    }
+    
+    const newTeam1 = parts[0];
+    const newTeam2 = parts[1];
+    const newDate = parts[2];
+    const newTime = parts[3];
+    const newVenue = parts[4] || 'PalTalk Room';
+    const newHost = parts[5] || '';
+    
+    const dateTime = newDate + 'T' + newTime;
+    
+    const updatedFixture = {
+        ...fixture,
+        team1: newTeam1,
+        team2: newTeam2,
+        date: dateTime,
+        venue: newVenue,
+        host: newHost
+    };
+    
+    // Send update to server
+    fetch('/api/fixtures/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedFixture)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Fixture updated: ${newTeam1} vs ${newTeam2}`, 'success');
+            socket.emit('getFixtures');
+        } else {
+            showNotification(`❌ Update failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error updating fixture', 'danger');
+        console.error(err);
+    });
+}
+
+function deleteFixture(fixtureId) {
+    if (!confirm('Are you sure you want to delete this fixture?')) return;
+    
+    fetch('/api/fixtures/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: fixtureId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`🗑️ Fixture deleted!`, 'warning');
+            socket.emit('getFixtures');
+        } else {
+            showNotification(`❌ Delete failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error deleting fixture', 'danger');
+        console.error(err);
+    });
+}
