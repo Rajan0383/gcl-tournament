@@ -1379,7 +1379,73 @@ app.post('/api/teams/delete', (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 });
+// ============================================
+// GOOGLE SHEETS API - TOP 10
+// ============================================
 
+const { GoogleSpreadsheet } = require('google-spreadsheet');
+
+// Your Sheet ID
+const SHEET_ID = '1p35HY4tjArypj2fPp6JXtIIkHXLoV_kk5kZxZrjixeA';
+
+// Fetch Top 10 data from Google Sheets
+async function fetchTop10FromSheet() {
+    try {
+        const doc = new GoogleSpreadsheet(SHEET_ID);
+        await doc.loadInfo();
+
+        const batsmenSheet = doc.sheetsByTitle['Top Batsmen'];
+        const bowlersSheet = doc.sheetsByTitle['Top Bowlers'];
+        const momSheet = doc.sheetsByTitle['MOM'];
+
+        const batsmenRows = await batsmenSheet.getRows();
+        const bowlersRows = await bowlersSheet.getRows();
+        const momRows = await momSheet.getRows();
+
+        const batsmen = batsmenRows.map(row => ({
+            name: row.get('Player') || row.Player || '',
+            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
+            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
+            fours: parseInt(row.get('Fours')) || parseInt(row.Fours) || 0,
+            sixes: parseInt(row.get('Sixes')) || parseInt(row.Sixes) || 0,
+            average: parseFloat(row.get('Avg')) || parseFloat(row.Avg) || 0,
+            strikeRate: parseFloat(row.get('SR')) || parseFloat(row.SR) || 0
+        }));
+
+        const bowlers = bowlersRows.map(row => ({
+            name: row.get('Player') || row.Player || '',
+            wickets: parseInt(row.get('Wickets')) || parseInt(row.Wickets) || 0,
+            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
+            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
+            economy: parseFloat(row.get('Economy')) || parseFloat(row.Economy) || 0,
+            best: row.get('Best') || row.Best || ''
+        }));
+
+        const mom = momRows.map(row => ({
+            name: row.get('Player') || row.Player || '',
+            count: parseInt(row.get('Count')) || parseInt(row.Count) || 0
+        }));
+
+        return { batsmen, bowlers, mom };
+    } catch (error) {
+        console.error('❌ Error fetching from Google Sheet:', error.message);
+        return { batsmen: [], bowlers: [], mom: [] };
+    }
+}
+
+// API endpoint for Top 10
+app.get('/api/top10/sheet', async (req, res) => {
+    try {
+        const data = await fetchTop10FromSheet();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================
+// GOOGLE SHEETS CODE ENDS HERE
+// ============================================
 // ============================================
 // START SERVER
 // ============================================
