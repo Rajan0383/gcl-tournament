@@ -1380,15 +1380,13 @@ app.post('/api/teams/delete', (req, res) => {
     }
 });
 // ============================================
-// GOOGLE SHEETS API - TOP 10
+// GOOGLE SHEETS API - TOP 10 (CASE FIXED)
 // ============================================
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 
-// Your Sheet ID
 const SHEET_ID = '1p35HY4tjArypj2fPp6JXtIIkHXLoV_kk5kZxZrjixeA';
 
-// Fetch Top 10 data from Google Sheets
 async function fetchTop10FromSheet() {
     try {
         const doc = new GoogleSpreadsheet(SHEET_ID);
@@ -1403,37 +1401,40 @@ async function fetchTop10FromSheet() {
         const momRows = await momSheet.getRows();
 
         const batsmen = batsmenRows.map(row => ({
-            name: row.get('Player') || row.Player || '',
-            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
-            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
-            fours: parseInt(row.get('Fours')) || parseInt(row.Fours) || 0,
-            sixes: parseInt(row.get('Sixes')) || parseInt(row.Sixes) || 0,
-            average: parseFloat(row.get('Avg')) || parseFloat(row.Avg) || 0,
-            strikeRate: parseFloat(row.get('SR')) || parseFloat(row.SR) || 0
+            name: row.get('PLAYER') || row.get('Player') || '',
+            runs: parseInt(row.get('RUNS')) || parseInt(row.get('Runs')) || 0,
+            balls: parseInt(row.get('BALLS')) || parseInt(row.get('Balls')) || 0,
+            fours: parseInt(row.get('FOURS')) || parseInt(row.get('Fours')) || 0,
+            sixes: parseInt(row.get('SIXES')) || parseInt(row.get('Sixes')) || 0,
+            average: parseFloat(row.get('AVG')) || parseFloat(row.get('Avg')) || 0,
+            strikeRate: parseFloat(row.get('SR')) || parseFloat(row.get('Sr')) || 0
         }));
 
         const bowlers = bowlersRows.map(row => ({
-            name: row.get('Player') || row.Player || '',
-            wickets: parseInt(row.get('Wickets')) || parseInt(row.Wickets) || 0,
-            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
-            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
-            economy: parseFloat(row.get('Economy')) || parseFloat(row.Economy) || 0,
-            best: row.get('Best') || row.Best || ''
+            name: row.get('PLAYER') || row.get('Player') || '',
+            wickets: parseInt(row.get('WICKETS')) || parseInt(row.get('Wickets')) || 0,
+            balls: parseInt(row.get('BALLS')) || parseInt(row.get('Balls')) || 0,
+            runs: parseInt(row.get('RUNS')) || parseInt(row.get('Runs')) || 0,
+            economy: parseFloat(row.get('ECONOMY')) || parseFloat(row.get('Economy')) || 0,
+            best: row.get('BEST') || row.get('Best') || ''
         }));
 
         const mom = momRows.map(row => ({
-            name: row.get('Player') || row.Player || '',
-            count: parseInt(row.get('Count')) || parseInt(row.Count) || 0
+            name: row.get('PLAYER') || row.get('Player') || '',
+            count: parseInt(row.get('COUNT')) || parseInt(row.get('Count')) || 0
         }));
+
+        console.log('✅ Batsmen:', batsmen);
+        console.log('✅ Bowlers:', bowlers);
+        console.log('✅ MOM:', mom);
 
         return { batsmen, bowlers, mom };
     } catch (error) {
-        console.error('❌ Error fetching from Google Sheet:', error.message);
+        console.error('❌ Error:', error.message);
         return { batsmen: [], bowlers: [], mom: [] };
     }
 }
 
-// API endpoint for Top 10
 app.get('/api/top10/sheet', async (req, res) => {
     try {
         const data = await fetchTop10FromSheet();
