@@ -1394,7 +1394,7 @@ async function fetchTop10FromSheet() {
         // Render Secret File se credentials read karein
         let creds;
         try {
-            const credsPath = '/etc/secrets/google-creds.json';
+            const credsPath = '/etc/secrets/credentials.json';
             const credsContent = fs.readFileSync(credsPath, 'utf8');
             creds = JSON.parse(credsContent);
             console.log('✅ Credentials loaded from Secret File');
