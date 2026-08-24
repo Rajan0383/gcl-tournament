@@ -20,6 +20,14 @@ socket.on('connect', () => {
     socket.emit('getFixtures');
     socket.emit('getTopStats');
     socket.emit('getPointsTable');
+    fetch('/api/top10/sheet')
+        .then(res => res.json())
+        .then(data => {
+            if (data.batsmen && data.bowlers) {
+                updateTop10Players(data);
+            }
+        })
+        .catch(err => console.error('Error fetching sheet data:', err));
 });
 
 socket.on('disconnect', () => {
