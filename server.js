@@ -1384,7 +1384,6 @@ app.post('/api/teams/delete', (req, res) => {
 // ============================================
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
-const fs = require('fs');
 
 const SHEET_ID = '1p35HY4tjArypj2fPp6JXtIIkHXLoV_kk5kZxZrjixeA';
 
