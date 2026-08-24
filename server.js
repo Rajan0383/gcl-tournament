@@ -1380,7 +1380,7 @@ app.post('/api/teams/delete', (req, res) => {
     }
 });
 // ============================================
-// GOOGLE SHEETS API - TOP 10 (STABLE VERSION)
+// GOOGLE SHEETS API - SERVICE ACCOUNT
 // ============================================
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
@@ -1391,58 +1391,54 @@ async function fetchTop10FromSheet() {
     try {
         console.log('🔍 Fetching from Google Sheet...');
         
-        // Public sheet ke liye - service account ki zaroorat nahi
-        const doc = new GoogleSpreadsheet(SHEET_ID);
-        await doc.useApiKey('AIzaSyDEMO_KEY'); // Optional: public sheet ke liye
+        const creds = {
+            client_email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
+            private_key: process.env.GOOGLE_SHEETS_PRIVATE_KEY.replace(/\\n/g, '\n')
+        };
         
-        await doc.loadInfo(); // Public sheet, no auth needed
+        if (!creds.client_email || !creds.private_key) {
+            console.error('❌ Google Sheets credentials missing!');
+            return { batsmen: [], bowlers: [], mom: [] };
+        }
+        
+        const doc = new GoogleSpreadsheet(SHEET_ID);
+        await doc.useServiceAccountAuth(creds);
+        await doc.loadInfo();
         
         console.log('✅ Sheet loaded. Titles:', doc.sheetsByIndex.map(s => s.title));
 
-        // Tab ko index se access karein
         const batsmenSheet = doc.sheetsByIndex[0];
         const bowlersSheet = doc.sheetsByIndex[1];
         const momSheet = doc.sheetsByIndex[2];
 
-        if (!batsmenSheet || !bowlersSheet || !momSheet) {
-            console.error('❌ Sheets not found!');
-            return { batsmen: [], bowlers: [], mom: [] };
-        }
-
-        // Rows fetch karein
         const batsmenRows = await batsmenSheet.getRows();
         const bowlersRows = await bowlersSheet.getRows();
         const momRows = await momSheet.getRows();
 
         console.log('📊 Batsmen rows:', batsmenRows.length);
-        console.log('📊 Bowlers rows:', bowlersRows.length);
-        console.log('📊 MOM rows:', momRows.length);
 
-        // Batsmen data parse
         const batsmen = batsmenRows.map(row => ({
-            name: row.Player || row.get('Player') || '',
-            runs: parseInt(row.Runs) || parseInt(row.get('Runs')) || 0,
-            balls: parseInt(row.Balls) || parseInt(row.get('Balls')) || 0,
-            fours: parseInt(row.Fours) || parseInt(row.get('Fours')) || 0,
-            sixes: parseInt(row.Sixes) || parseInt(row.get('Sixes')) || 0,
-            average: parseFloat(row.Avg) || parseFloat(row.get('Avg')) || 0,
-            strikeRate: parseFloat(row.SR) || parseFloat(row.get('SR')) || 0
+            name: row.get('Player') || row.Player || '',
+            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
+            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
+            fours: parseInt(row.get('Fours')) || parseInt(row.Fours) || 0,
+            sixes: parseInt(row.get('Sixes')) || parseInt(row.Sixes) || 0,
+            average: parseFloat(row.get('Avg')) || parseFloat(row.Avg) || 0,
+            strikeRate: parseFloat(row.get('SR')) || parseFloat(row.SR) || 0
         }));
 
-        // Bowlers data parse
         const bowlers = bowlersRows.map(row => ({
-            name: row.Player || row.get('Player') || '',
-            wickets: parseInt(row.Wickets) || parseInt(row.get('Wickets')) || 0,
-            balls: parseInt(row.Balls) || parseInt(row.get('Balls')) || 0,
-            runs: parseInt(row.Runs) || parseInt(row.get('Runs')) || 0,
-            economy: parseFloat(row.Economy) || parseFloat(row.get('Economy')) || 0,
-            best: row.Best || row.get('Best') || ''
+            name: row.get('Player') || row.Player || '',
+            wickets: parseInt(row.get('Wickets')) || parseInt(row.Wickets) || 0,
+            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
+            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
+            economy: parseFloat(row.get('Economy')) || parseFloat(row.Economy) || 0,
+            best: row.get('Best') || row.Best || ''
         }));
 
-        // MOM data parse
         const mom = momRows.map(row => ({
-            name: row.Player || row.get('Player') || '',
-            count: parseInt(row.Count) || parseInt(row.get('Count')) || 0
+            name: row.get('Player') || row.Player || '',
+            count: parseInt(row.get('Count')) || parseInt(row.Count) || 0
         }));
 
         console.log('✅ Batsmen:', batsmen);
@@ -1456,7 +1452,6 @@ async function fetchTop10FromSheet() {
     }
 }
 
-// API endpoint
 app.get('/api/top10/sheet', async (req, res) => {
     try {
         const data = await fetchTop10FromSheet();
