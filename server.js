@@ -1380,7 +1380,7 @@ app.post('/api/teams/delete', (req, res) => {
     }
 });
 // ============================================
-// GOOGLE SHEETS API - TOP 10 (FIXED)
+// GOOGLE SHEETS API - TOP 10 (STABLE VERSION)
 // ============================================
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
@@ -1393,14 +1393,16 @@ async function fetchTop10FromSheet() {
         
         // Public sheet ke liye - service account ki zaroorat nahi
         const doc = new GoogleSpreadsheet(SHEET_ID);
+        await doc.useApiKey('AIzaSyDEMO_KEY'); // Optional: public sheet ke liye
+        
         await doc.loadInfo(); // Public sheet, no auth needed
         
-        console.log('✅ Sheet loaded. Available sheets:', doc.sheetsByIndex.map(s => s.title));
+        console.log('✅ Sheet loaded. Titles:', doc.sheetsByIndex.map(s => s.title));
 
-        // Tab ko access karein
-        const batsmenSheet = doc.sheetsByIndex[0]; // First tab
-        const bowlersSheet = doc.sheetsByIndex[1]; // Second tab
-        const momSheet = doc.sheetsByIndex[2]; // Third tab
+        // Tab ko index se access karein
+        const batsmenSheet = doc.sheetsByIndex[0];
+        const bowlersSheet = doc.sheetsByIndex[1];
+        const momSheet = doc.sheetsByIndex[2];
 
         if (!batsmenSheet || !bowlersSheet || !momSheet) {
             console.error('❌ Sheets not found!');
@@ -1417,43 +1419,31 @@ async function fetchTop10FromSheet() {
         console.log('📊 MOM rows:', momRows.length);
 
         // Batsmen data parse
-        const batsmen = batsmenRows.map(row => {
-            const data = row._rawData || {};
-            const keys = Object.keys(data);
-            return {
-                name: data[keys[0]] || '',
-                runs: parseInt(data[keys[1]]) || 0,
-                balls: parseInt(data[keys[2]]) || 0,
-                fours: parseInt(data[keys[3]]) || 0,
-                sixes: parseInt(data[keys[4]]) || 0,
-                average: parseFloat(data[keys[5]]) || 0,
-                strikeRate: parseFloat(data[keys[6]]) || 0
-            };
-        });
+        const batsmen = batsmenRows.map(row => ({
+            name: row.Player || row.get('Player') || '',
+            runs: parseInt(row.Runs) || parseInt(row.get('Runs')) || 0,
+            balls: parseInt(row.Balls) || parseInt(row.get('Balls')) || 0,
+            fours: parseInt(row.Fours) || parseInt(row.get('Fours')) || 0,
+            sixes: parseInt(row.Sixes) || parseInt(row.get('Sixes')) || 0,
+            average: parseFloat(row.Avg) || parseFloat(row.get('Avg')) || 0,
+            strikeRate: parseFloat(row.SR) || parseFloat(row.get('SR')) || 0
+        }));
 
         // Bowlers data parse
-        const bowlers = bowlersRows.map(row => {
-            const data = row._rawData || {};
-            const keys = Object.keys(data);
-            return {
-                name: data[keys[0]] || '',
-                wickets: parseInt(data[keys[1]]) || 0,
-                balls: parseInt(data[keys[2]]) || 0,
-                runs: parseInt(data[keys[3]]) || 0,
-                economy: parseFloat(data[keys[4]]) || 0,
-                best: data[keys[5]] || ''
-            };
-        });
+        const bowlers = bowlersRows.map(row => ({
+            name: row.Player || row.get('Player') || '',
+            wickets: parseInt(row.Wickets) || parseInt(row.get('Wickets')) || 0,
+            balls: parseInt(row.Balls) || parseInt(row.get('Balls')) || 0,
+            runs: parseInt(row.Runs) || parseInt(row.get('Runs')) || 0,
+            economy: parseFloat(row.Economy) || parseFloat(row.get('Economy')) || 0,
+            best: row.Best || row.get('Best') || ''
+        }));
 
         // MOM data parse
-        const mom = momRows.map(row => {
-            const data = row._rawData || {};
-            const keys = Object.keys(data);
-            return {
-                name: data[keys[0]] || '',
-                count: parseInt(data[keys[1]]) || 0
-            };
-        });
+        const mom = momRows.map(row => ({
+            name: row.Player || row.get('Player') || '',
+            count: parseInt(row.Count) || parseInt(row.get('Count')) || 0
+        }));
 
         console.log('✅ Batsmen:', batsmen);
         console.log('✅ Bowlers:', bowlers);
@@ -1476,7 +1466,6 @@ app.get('/api/top10/sheet', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 // ============================================
 // GOOGLE SHEETS CODE ENDS HERE
 // ============================================
