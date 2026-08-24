@@ -1380,10 +1380,11 @@ app.post('/api/teams/delete', (req, res) => {
     }
 });
 // ============================================
-// GOOGLE SHEETS API - SERVICE ACCOUNT
+// GOOGLE SHEETS API - SERVICE ACCOUNT (FIXED)
 // ============================================
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
+const fs = require('fs');
 
 const SHEET_ID = '1p35HY4tjArypj2fPp6JXtIIkHXLoV_kk5kZxZrjixeA';
 
@@ -1391,55 +1392,81 @@ async function fetchTop10FromSheet() {
     try {
         console.log('🔍 Fetching from Google Sheet...');
         
-        const creds = {
-            client_email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
-            private_key: process.env.GOOGLE_SHEETS_PRIVATE_KEY.replace(/\\n/g, '\n')
-        };
+        // Render Secret File se credentials read karein
+        let creds;
+        try {
+            const credsPath = '/etc/secrets/google-creds.json';
+            const credsContent = fs.readFileSync(credsPath, 'utf8');
+            creds = JSON.parse(credsContent);
+            console.log('✅ Credentials loaded from Secret File');
+        } catch (fileError) {
+            console.log('📁 Trying local credentials.json...');
+            const localCreds = fs.readFileSync('./credentials.json', 'utf8');
+            creds = JSON.parse(localCreds);
+        }
         
         if (!creds.client_email || !creds.private_key) {
-            console.error('❌ Google Sheets credentials missing!');
+            console.error('❌ Credentials missing!');
             return { batsmen: [], bowlers: [], mom: [] };
         }
         
         const doc = new GoogleSpreadsheet(SHEET_ID);
-        await doc.useServiceAccountAuth(creds);
+        await doc.useServiceAccountAuth({
+            client_email: creds.client_email,
+            private_key: creds.private_key
+        });
         await doc.loadInfo();
         
         console.log('✅ Sheet loaded. Titles:', doc.sheetsByIndex.map(s => s.title));
 
         const batsmenSheet = doc.sheetsByIndex[0];
-        const bowlersSheet = doc.sheetsByIndex[1];
-        const momSheet = doc.sheetsByIndex[2];
+        const bowlersSheet = doc.sheetsByIndex[2]; // 👈 Index 2 hai (Top Bowlers)
+        const momSheet = doc.sheetsByIndex[1]; // 👈 Index 1 hai (MOM)
 
         const batsmenRows = await batsmenSheet.getRows();
         const bowlersRows = await bowlersSheet.getRows();
         const momRows = await momSheet.getRows();
 
         console.log('📊 Batsmen rows:', batsmenRows.length);
+        console.log('📊 Bowlers rows:', bowlersRows.length);
+        console.log('📊 MOM rows:', momRows.length);
 
-        const batsmen = batsmenRows.map(row => ({
-            name: row.get('Player') || row.Player || '',
-            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
-            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
-            fours: parseInt(row.get('Fours')) || parseInt(row.Fours) || 0,
-            sixes: parseInt(row.get('Sixes')) || parseInt(row.Sixes) || 0,
-            average: parseFloat(row.get('Avg')) || parseFloat(row.Avg) || 0,
-            strikeRate: parseFloat(row.get('SR')) || parseFloat(row.SR) || 0
-        }));
+        // ✅ Version 4.x ke hisaab se data access karein
+        const batsmen = batsmenRows.map(row => {
+            const data = row._rawData || {};
+            const keys = Object.keys(data);
+            return {
+                name: data[keys[0]] || '',
+                runs: parseInt(data[keys[1]]) || 0,
+                balls: parseInt(data[keys[2]]) || 0,
+                fours: parseInt(data[keys[3]]) || 0,
+                sixes: parseInt(data[keys[4]]) || 0,
+                average: parseFloat(data[keys[5]]) || 0,
+                strikeRate: parseFloat(data[keys[6]]) || 0
+            };
+        });
 
-        const bowlers = bowlersRows.map(row => ({
-            name: row.get('Player') || row.Player || '',
-            wickets: parseInt(row.get('Wickets')) || parseInt(row.Wickets) || 0,
-            balls: parseInt(row.get('Balls')) || parseInt(row.Balls) || 0,
-            runs: parseInt(row.get('Runs')) || parseInt(row.Runs) || 0,
-            economy: parseFloat(row.get('Economy')) || parseFloat(row.Economy) || 0,
-            best: row.get('Best') || row.Best || ''
-        }));
+        const bowlers = bowlersRows.map(row => {
+            const data = row._rawData || {};
+            const keys = Object.keys(data);
+            return {
+                name: data[keys[0]] || '',
+                wickets: parseInt(data[keys[1]]) || 0,
+                balls: parseInt(data[keys[2]]) || 0,
+                runs: parseInt(data[keys[3]]) || 0,
+                economy: parseFloat(data[keys[4]]) || 0,
+                best: data[keys[5]] || ''
+            };
+        });
 
-        const mom = momRows.map(row => ({
-            name: row.get('Player') || row.Player || '',
-            count: parseInt(row.get('Count')) || parseInt(row.Count) || 0
-        }));
+        const mom = momRows.map(row => {
+            const data = row._rawData || {};
+            const keys = Object.keys(data);
+            return {
+                name: data[keys[0]] || '',
+                count: parseInt(data[keys[1]]) || 0
+            };
+        });
 
         console.log('✅ Batsmen:', batsmen);
         console.log('✅ Bowlers:', bowlers);
