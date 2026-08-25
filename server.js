@@ -148,7 +148,136 @@ class GCLEngine {
             console.error('Error saving data:', error);
         }
     }
+// ============================================
+// GAME ENGINE - MATCH COMPLETE WITH SCORE
+// ============================================
 
+async completeFixtureWithScore(fixtureId, winner, team1Runs, team1Overs, team2Runs, team2Overs, manOfMatch) {
+    const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
+    if (!fixture) throw new Error('Fixture not found');
+    
+    fixture.status = 'completed';
+    fixture.result = winner;
+    fixture.manOfMatch = manOfMatch || 'Not Applicable';
+    fixture.completedAt = new Date().toISOString();
+    fixture.team1Runs = team1Runs;
+    fixture.team1Overs = team1Overs;
+    fixture.team2Runs = team2Runs;
+    fixture.team2Overs = team2Overs;
+    
+    if (!this.fixtures.completed.includes(fixtureId)) {
+        this.fixtures.completed.push(fixtureId);
+    }
+    
+    // Points table update
+    const matchResult = {
+        team1: fixture.team1,
+        team2: fixture.team2,
+        winner: winner,
+        runs1: team1Runs,
+        runs2: team2Runs,
+        overs1: team1Overs,
+        overs2: team2Overs
+    };
+    this.updateTeamStats(matchResult);
+    
+    await this.saveAllData();
+    return fixture;
+}
+
+updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner) {
+    const fixture = this.fixtures.matches.find(m => m.id === id);
+    if (!fixture) return { success: false, error: 'Match not found' };
+    
+    // Purana data remove karein (stats recalculate)
+    // Note: Stats recalculation ke liye purane data ko reverse karna hoga
+    // Simplest approach: Match ko dobara complete karein
+    
+    fixture.team1Runs = team1Runs;
+    fixture.team1Overs = team1Overs;
+    fixture.team2Runs = team2Runs;
+    fixture.team2Overs = team2Overs;
+    fixture.result = winner;
+    
+    // Points table recalculate
+    const matchResult = {
+        team1: fixture.team1,
+        team2: fixture.team2,
+        winner: winner,
+        runs1: team1Runs,
+        runs2: team2Runs,
+        overs1: team1Overs,
+        overs2: team2Overs
+    };
+    this.updateTeamStats(matchResult);
+    
+    this.saveAllData();
+    return { success: true };
+}
+
+deleteMatchResult(id) {
+    const index = this.fixtures.matches.findIndex(m => m.id === id);
+    if (index === -1) return { success: false, error: 'Match not found' };
+    
+    this.fixtures.matches.splice(index, 1);
+    this.fixtures.completed = this.fixtures.completed.filter(fid => fid !== id);
+    
+    // Team stats recalculation: Completed matches se dobara calculate karein
+    this.recalculateAllTeamStats();
+    
+    this.saveAllData();
+    return { success: true };
+}
+
+getMatchResult(id) {
+    const fixture = this.fixtures.matches.find(m => m.id === id);
+    if (!fixture) return null;
+    
+    return {
+        id: fixture.id,
+        team1: fixture.team1,
+        team2: fixture.team2,
+        team1Runs: fixture.team1Runs || 0,
+        team1Overs: fixture.team1Overs || 4,
+        team2Runs: fixture.team2Runs || 0,
+        team2Overs: fixture.team2Overs || 4,
+        winner: fixture.result || fixture.winner,
+        manOfMatch: fixture.manOfMatch || 'Not Applicable',
+        date: fixture.date
+    };
+}
+
+recalculateAllTeamStats() {
+    // Sab teams ke stats reset karein
+    this.teams.forEach(team => {
+        team.matchesPlayed = 0;
+        team.wins = 0;
+        team.losses = 0;
+        team.points = 0;
+        team.runsScored = 0;
+        team.runsConceded = 0;
+        team.oversPlayed = 0;
+        team.oversBowled = 0;
+        team.netRunRate = 0;
+    });
+    
+    // Sab completed matches se stats recalculate karein
+    const completedMatches = this.fixtures.matches.filter(f => f.status === 'completed');
+    completedMatches.forEach(f => {
+        if (f.team1Runs !== undefined && f.team2Runs !== undefined) {
+            const matchResult = {
+                team1: f.team1,
+                team2: f.team2,
+                winner: f.result || f.winner,
+                runs1: f.team1Runs || 0,
+                runs2: f.team2Runs || 0,
+                overs1: f.team1Overs || 4,
+                overs2: f.team2Overs || 4
+            };
+            this.updateTeamStats(matchResult);
+        }
+    });
+}
     // ============================================
     // TEAM MANAGEMENT
     // ============================================
@@ -1063,28 +1192,29 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('completeFixture', (data) => {
-        try {
-            gameEngine.completeFixture(
-                data.fixtureId,
-                data.winner,
-                data.manOfMatch,
-                data.playerStats
-            ).then(fixture => {
-                io.emit('fixturesUpdate', gameEngine.getFixtures());
-                io.emit('pointsTable', gameEngine.getPointsTable());
-                io.emit('topStats', {
-                    batsmen: gameEngine.getTopBatsmen(),
-                    bowlers: gameEngine.getTopBowlers(),
-                    manOfMatch: gameEngine.getTopManOfMatch()
-                });
-                io.emit('notification', `🏆 Match completed! Winner: ${data.winner}`);
-            });
-        } catch (error) {
-            socket.emit('error', { message: error.message });
-        }
-    });
-
+    socket.on('completeFixtureWithScore', (data) => {
+    try {
+        const { fixtureId, team1Runs, team1Overs, team2Runs, team2Overs, winner, manOfMatch } = data;
+        
+        gameEngine.completeFixtureWithScore(
+            fixtureId,
+            winner,
+            team1Runs,
+            team1Overs,
+            team2Runs,
+            team2Overs,
+            manOfMatch || 'Not Applicable'
+        ).then(fixture => {
+            io.emit('fixturesUpdate', gameEngine.getFixtures());
+            io.emit('pointsTable', gameEngine.getPointsTable());
+            io.emit('notification', `🏆 Match completed! Winner: ${winner}`);
+        }).catch(err => {
+            socket.emit('error', { message: err.message });
+        });
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
     socket.on('getFixtures', () => {
         socket.emit('fixturesUpdate', gameEngine.getFixtures());
     });
@@ -1314,6 +1444,86 @@ app.get('/api/export/player-stats', (req, res) => {
 
 app.get('/api/tournament/stats', (req, res) => {
     res.json(gameEngine.tournamentStats);
+});
+// ============================================
+// ADMIN - MATCH COMPLETE WITH SCORE (API)
+// ============================================
+
+// Complete fixture with score (from admin)
+app.post('/api/fixtures/complete-with-score', (req, res) => {
+    try {
+        const { fixtureId, team1Runs, team1Overs, team2Runs, team2Overs, winner, manOfMatch } = req.body;
+        
+        gameEngine.completeFixtureWithScore(
+            fixtureId,
+            winner,
+            team1Runs,
+            team1Overs,
+            team2Runs,
+            team2Overs,
+            manOfMatch || 'Not Applicable'
+        ).then(fixture => {
+            res.json({ success: true, fixture });
+        }).catch(err => {
+            res.status(400).json({ success: false, error: err.message });
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Update match result
+app.post('/api/matches/update', (req, res) => {
+    try {
+        const { id, team1Runs, team1Overs, team2Runs, team2Overs, winner } = req.body;
+        
+        const result = gameEngine.updateMatchResult(
+            id,
+            team1Runs,
+            team1Overs,
+            team2Runs,
+            team2Overs,
+            winner
+        );
+        
+        if (result.success) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Delete match result
+app.post('/api/matches/delete', (req, res) => {
+    try {
+        const { id } = req.body;
+        const result = gameEngine.deleteMatchResult(id);
+        
+        if (result.success) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ success: false, error: result.error });
+        }
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+// Get match result by ID
+app.get('/api/matches/:id', (req, res) => {
+    try {
+        const match = gameEngine.getMatchResult(req.params.id);
+        if (match) {
+            res.json(match);
+        } else {
+            res.status(404).json({ error: 'Match not found' });
+        }
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
 // ============================================
 // FIXTURE UPDATE/DELETE API
