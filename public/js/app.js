@@ -260,9 +260,9 @@ function updateTeamSelects(teams) {
     const options = teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     
     const selects = [
-        'team1Select', 'team2Select', 'fixtureTeam1', 'fixtureTeam2', 'winnerSelect',
+       'team1Select', 'team2Select', 'fixtureTeam1', 'fixtureTeam2', 'winnerSelect',
         'adminTeam1', 'adminTeam2', 'adminFixtureTeam1', 'adminFixtureTeam2',
-        'adminWinner', 'adminCompleteMatch'
+        'adminWinnerSelect', 'adminCompleteMatchSelect'   // ✅ Yeh sahi hain
     ];
     
     selects.forEach(id => {
