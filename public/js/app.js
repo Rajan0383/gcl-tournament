@@ -81,13 +81,23 @@ socket.on('fixturesUpdate', (fixtures) => {
     updateAdminResultsList(); // 👈 ADD THIS
     updateCompleteFixtureSelect(fixtures);
 });
+// ✅ ADD THIS
 socket.on('startFixture', (fixtureId) => {
+    console.log('⚔️ Match started event received:', fixtureId);
+    socket.emit('getFixtures');
+    setTimeout(() => {
+        console.log('🔄 Updating dropdown...');
+        updateCompleteFixtureSelect(window.fixtures);
+    }, 1000);
+});
+
+/*socket.on('startFixture', (fixtureId) => {
     console.log('⚔️ Match started:', fixtureId);
     socket.emit('getFixtures');
     setTimeout(() => {
         updateCompleteFixtureSelect(window.fixtures);
     }, 500);
-});
+});*/
 socket.on('pointsTable', (data) => {
     console.log('🏆 Points Table:', data);
     updatePointsTable(data);
