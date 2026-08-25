@@ -260,18 +260,20 @@ function updateTeamSelects(teams) {
     const options = teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     
     const selects = [
-       'team1Select', 'team2Select', 'fixtureTeam1', 'fixtureTeam2', 'winnerSelect',
+        'team1Select', 'team2Select', 'fixtureTeam1', 'fixtureTeam2', 'winnerSelect',
         'adminTeam1', 'adminTeam2', 'adminFixtureTeam1', 'adminFixtureTeam2',
-        'adminWinnerSelect', 'adminCompleteMatchSelect'   // ✅ Yeh sahi hain
+        'adminWinnerSelect', 'adminCompleteMatchSelect'
     ];
     
     selects.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             const currentValue = el.value;
-            const label = el.id.includes('winner') ? 'Winner' : 
-                         el.id.includes('complete') ? 'Ongoing Match' :
-                         'Team';
+            // ✅ Yeh line change karein
+            let label = 'Team';
+            if (id === 'adminWinnerSelect' || id === 'winnerSelect') label = 'Winner';
+            else if (id === 'adminCompleteMatchSelect' || id.includes('complete')) label = 'Ongoing Match';
+            
             el.innerHTML = `<option value="">Select ${label}</option>${options}`;
             if (currentValue) el.value = currentValue;
         }
