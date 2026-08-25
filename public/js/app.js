@@ -1650,35 +1650,170 @@ function createFixtureFromAdmin() {
     
     showNotification(`📅 Fixture created: ${team1Name} vs ${team2Name}`, 'success');
 }
+// ============================================
+// ADMIN - MATCH COMPLETE WITH SCORE
+// ============================================
+
+// Complete Match from Admin
 function completeMatchFromAdmin() {
-    const fixtureId = document.getElementById('adminCompleteMatch').value;
-    const winner = document.getElementById('adminWinner').value;
-    const manOfMatch = document.getElementById('adminManOfMatch').value.trim();
+    const fixtureId = document.getElementById('adminCompleteMatchSelect').value;
+    const team1Runs = parseInt(document.getElementById('adminTeam1Runs').value);
+    const team1Overs = parseFloat(document.getElementById('adminTeam1Overs').value);
+    const team2Runs = parseInt(document.getElementById('adminTeam2Runs').value);
+    const team2Overs = parseFloat(document.getElementById('adminTeam2Overs').value);
+    const winner = document.getElementById('adminWinnerSelect').value;
     
+    // ✅ MOM auto set
+    const manOfMatch = 'Not Applicable';
+
     if (!fixtureId) {
         showNotification('⚠️ Please select a match!', 'danger');
+        return;
+    }
+    if (isNaN(team1Runs) || isNaN(team2Runs)) {
+        showNotification('⚠️ Please enter valid runs for both teams!', 'danger');
+        return;
+    }
+    if (isNaN(team1Overs) || isNaN(team2Overs) || team1Overs <= 0 || team2Overs <= 0) {
+        showNotification('⚠️ Please enter valid overs for both teams!', 'danger');
         return;
     }
     if (!winner) {
         showNotification('⚠️ Please select the winner!', 'danger');
         return;
     }
-    if (!manOfMatch) {
-        showNotification('⚠️ Please enter Man of the Match!', 'danger');
+
+    socket.emit('completeFixtureWithScore', {
+        fixtureId: fixtureId,
+        team1Runs: team1Runs,
+        team1Overs: team1Overs,
+        team2Runs: team2Runs,
+        team2Overs: team2Overs,
+        winner: winner,
+        manOfMatch: manOfMatch
+    });
+
+    // Form clear karein
+    document.getElementById('adminCompleteMatchSelect').value = '';
+    document.getElementById('adminTeam1Runs').value = '';
+    document.getElementById('adminTeam1Overs').value = '4';
+    document.getElementById('adminTeam2Runs').value = '';
+    document.getElementById('adminTeam2Overs').value = '4';
+    document.getElementById('adminWinnerSelect').value = '';
+
+    showNotification(`✅ Match completed! Winner: ${winner}`, 'success');
+}
+
+// ============================================
+// ADMIN - MATCH RESULT EDIT/DELETE
+// ============================================
+
+// Edit Match Result
+function editMatchResult(resultId) {
+    fetch(`/api/matches/${resultId}`)
+        .then(res => res.json())
+        .then(match => {
+            const team1Runs = prompt(`Team 1 (${match.team1}) Runs:`, match.team1Runs);
+            if (team1Runs === null) return;
+            const team1Overs = prompt(`Team 1 Overs:`, match.team1Overs);
+            if (team1Overs === null) return;
+            const team2Runs = prompt(`Team 2 (${match.team2}) Runs:`, match.team2Runs);
+            if (team2Runs === null) return;
+            const team2Overs = prompt(`Team 2 Overs:`, match.team2Overs);
+            if (team2Overs === null) return;
+            const winner = prompt(`Winner (${match.team1}/${match.team2}):`, match.winner);
+            if (winner === null) return;
+
+            fetch('/api/matches/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: resultId,
+                    team1Runs: parseInt(team1Runs),
+                    team1Overs: parseFloat(team1Overs),
+                    team2Runs: parseInt(team2Runs),
+                    team2Overs: parseFloat(team2Overs),
+                    winner: winner
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('✅ Match result updated!', 'success');
+                    socket.emit('getFixtures');
+                    socket.emit('getPointsTable');
+                    updateAdminResultsList();
+                } else {
+                    showNotification(`❌ Update failed: ${data.error}`, 'danger');
+                }
+            })
+            .catch(err => {
+                showNotification('❌ Error updating match', 'danger');
+                console.error(err);
+            });
+        })
+        .catch(err => {
+            showNotification('❌ Error fetching match data', 'danger');
+            console.error(err);
+        });
+}
+
+// Delete Match Result
+function deleteMatchResult(resultId) {
+    if (!confirm('Are you sure you want to delete this match result?')) return;
+
+    fetch('/api/matches/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: resultId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('🗑️ Match result deleted!', 'warning');
+            socket.emit('getFixtures');
+            socket.emit('getPointsTable');
+            updateAdminResultsList();
+        } else {
+            showNotification(`❌ Delete failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error deleting match', 'danger');
+        console.error(err);
+    });
+}
+
+// Update Admin Results List
+function updateAdminResultsList() {
+    const container = document.getElementById('adminResultsList');
+    if (!container) return;
+
+    const fixtures = window.fixtures || { matches: [] };
+    const completed = fixtures.matches.filter(f => f.status === 'completed');
+
+    if (completed.length === 0) {
+        container.innerHTML = '<p class="empty-message">No match results yet.</p>';
         return;
     }
-    
-    socket.emit('completeFixture', {
-        fixtureId: fixtureId,
-        winner: winner,
-        manOfMatch: manOfMatch,
-        playerStats: {}
-    });
-    
-    // Clear form
-    document.getElementById('adminManOfMatch').value = '';
-    
-    showNotification(`🏆 Match completed! Winner: ${winner}`, 'success');
+
+    container.innerHTML = completed.map(f => `
+        <div class="fixture-card" style="border-left-color: var(--success);">
+            <div class="fixture-header">
+                <div class="teams">🏏 ${f.team1} vs ${f.team2}</div>
+                <div class="fixture-actions">
+                    <button class="edit-btn" onclick="editMatchResult('${f.id}')">✏️ Edit</button>
+                    <button class="delete-btn" onclick="deleteMatchResult('${f.id}')">🗑️</button>
+                </div>
+            </div>
+            <div class="meta">
+                🏆 Winner: ${f.result || f.winner}
+                ${f.team1Runs ? `| ${f.team1}: ${f.team1Runs}/${f.team1Wickets || 0} (${f.team1Overs || 4} ov)` : ''}
+                ${f.team2Runs ? `| ${f.team2}: ${f.team2Runs}/${f.team2Wickets || 0} (${f.team2Overs || 4} ov)` : ''}
+                | 📅 ${new Date(f.date).toLocaleDateString()}
+            </div>
+        </div>
+    `).join('');
 }
 
 // Update admin teams list
