@@ -431,7 +431,7 @@ function createFixture() {
     document.getElementById('fixtureVenue').value = '';
 }
 
-/*function updateFixtures(fixtures) {
+function updateFixtures(fixtures) {
     const upcomingContainer = document.getElementById('upcomingFixtures');
     const completedContainer = document.getElementById('completedFixtures');
 
@@ -454,7 +454,7 @@ function createFixture() {
     }
 
     updateCompleteFixtureSelect(fixtures);
-}*/
+}
 
 function createFixtureCard(fixture) {
     const statusColors = {
@@ -1916,7 +1916,7 @@ function updateAdminResultsList() {
 // Override socket events for admin updates
 // Add this to existing socket.on('teamsList') and socket.on('fixturesUpdate')
 // Already existing in code, just ensure admin lists update
-function updateCompleteFixtureSelect(fixtures) {
+/*function updateCompleteFixtureSelect(fixtures) {
     const select = document.getElementById('adminCompleteMatch');
     if (!select) return;
     
@@ -1931,7 +1931,7 @@ function updateCompleteFixtureSelect(fixtures) {
         <option value="">Select Ongoing Match</option>
         ${ongoing.map(f => `<option value="${f.id}">${f.team1} vs ${f.team2}</option>`).join('')}
     `;
-}
+}*/
 // ============================================
 // HELPER FUNCTION: Get Team Name by ID
 // ============================================
