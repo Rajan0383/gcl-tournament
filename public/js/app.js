@@ -81,7 +81,13 @@ socket.on('fixturesUpdate', (fixtures) => {
     updateAdminResultsList(); // 👈 ADD THIS
     updateCompleteFixtureSelect(fixtures);
 });
-
+socket.on('startFixture', (fixtureId) => {
+    console.log('⚔️ Match started:', fixtureId);
+    socket.emit('getFixtures');
+    setTimeout(() => {
+        updateCompleteFixtureSelect(window.fixtures);
+    }, 500);
+});
 socket.on('pointsTable', (data) => {
     console.log('🏆 Points Table:', data);
     updatePointsTable(data);
