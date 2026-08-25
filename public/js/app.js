@@ -431,7 +431,7 @@ function createFixture() {
     document.getElementById('fixtureVenue').value = '';
 }
 
-function updateFixtures(fixtures) {
+/*function updateFixtures(fixtures) {
     const upcomingContainer = document.getElementById('upcomingFixtures');
     const completedContainer = document.getElementById('completedFixtures');
 
@@ -454,7 +454,7 @@ function updateFixtures(fixtures) {
     }
 
     updateCompleteFixtureSelect(fixtures);
-}
+}*/
 
 function createFixtureCard(fixture) {
     const statusColors = {
