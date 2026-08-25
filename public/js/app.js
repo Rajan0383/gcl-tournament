@@ -569,10 +569,10 @@ function completeMatchFromFixture(fixtureId) {
 }
 
 function updateCompleteFixtureSelect(fixtures) {
-    const select = document.getElementById('completeFixtureSelect');
+    const select = document.getElementById('adminCompleteMatchSelect'); // ✅ Sahi ID?
     if (!select) return;
     
-    const ongoing = fixtures.matches.filter(m => m.status === 'ongoing');
+    const ongoing = fixtures.matches.filter(m => m.status === 'ongoing'); // ✅ Sahi?
     
     if (ongoing.length === 0) {
         select.innerHTML = '<option value="">No ongoing matches</option>';
