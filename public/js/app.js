@@ -2648,9 +2648,7 @@ function closeTeamReveal() {
 
 function confirmTeamAssign(teamId, group) {
     closeTeamReveal();
-    }
-    
-    assignTeamToGroup(team.id, group);
+  assignTeamToGroup(team.id, group);
     
     const message = document.getElementById('groupingMessage');
     if (message) {
