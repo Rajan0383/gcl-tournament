@@ -156,6 +156,10 @@ class GCLEngine {
 // GAME ENGINE - MATCH COMPLETE WITH SCORE
 // ============================================
 
+// ============================================
+// GAME ENGINE - MATCH COMPLETE WITH SCORE
+// ============================================
+
 async completeFixtureWithScore(fixtureId, winner, team1Runs, team1Overs, team2Runs, team2Overs, manOfMatch, round) {
     const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
     if (!fixture) throw new Error('Fixture not found');
@@ -207,20 +211,36 @@ async completeFixtureWithScore(fixtureId, winner, team1Runs, team1Overs, team2Ru
     return fixture;
 }
 
+// ============================================
+// UPDATE MATCH RESULT
+// ============================================
+
 updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner) {
     const fixture = this.fixtures.matches.find(m => m.id === id);
     if (!fixture) return { success: false, error: 'Match not found' };
-    
-    // Purana data remove karein (stats recalculate)
-    // Note: Stats recalculation ke liye purane data ko reverse karna hoga
-    // Simplest approach: Match ko dobara complete karein
     
     fixture.team1Runs = team1Runs;
     fixture.team1Overs = team1Overs;
     fixture.team2Runs = team2Runs;
     fixture.team2Overs = team2Overs;
     fixture.result = winner;
-    // ============================================
+    
+    const matchResult = {
+        team1: fixture.team1,
+        team2: fixture.team2,
+        winner: winner,
+        runs1: team1Runs,
+        runs2: team2Runs,
+        overs1: team1Overs,
+        overs2: team2Overs
+    };
+    this.updateTeamStats(matchResult);
+    
+    this.saveAllData();
+    return { success: true };
+}
+
+// ============================================
 // EDIT/DELETE - RECALCULATE
 // ============================================
 
@@ -299,35 +319,6 @@ async deleteMatchResult(fixtureId) {
     await this.saveAllData();
     return { success: true };
 }
-    // Points table recalculate
-    const matchResult = {
-        team1: fixture.team1,
-        team2: fixture.team2,
-        winner: winner,
-        runs1: team1Runs,
-        runs2: team2Runs,
-        overs1: team1Overs,
-        overs2: team2Overs
-    };
-    this.updateTeamStats(matchResult);
-    
-    this.saveAllData();
-    return { success: true };
-}
-
-deleteMatchResult(id) {
-    const index = this.fixtures.matches.findIndex(m => m.id === id);
-    if (index === -1) return { success: false, error: 'Match not found' };
-    
-    this.fixtures.matches.splice(index, 1);
-    this.fixtures.completed = this.fixtures.completed.filter(fid => fid !== id);
-    
-    // Team stats recalculation: Completed matches se dobara calculate karein
-    this.recalculateAllTeamStats();
-    
-    this.saveAllData();
-    return { success: true };
-}
 
 getMatchResult(id) {
     const fixture = this.fixtures.matches.find(m => m.id === id);
@@ -348,7 +339,6 @@ getMatchResult(id) {
 }
 
 recalculateAllTeamStats() {
-    // Sab teams ke stats reset karein
     this.teams.forEach(team => {
         team.matchesPlayed = 0;
         team.wins = 0;
@@ -361,7 +351,6 @@ recalculateAllTeamStats() {
         team.netRunRate = 0;
     });
     
-    // Sab completed matches se stats recalculate karein
     const completedMatches = this.fixtures.matches.filter(f => f.status === 'completed');
     completedMatches.forEach(f => {
         if (f.team1Runs !== undefined && f.team2Runs !== undefined) {
