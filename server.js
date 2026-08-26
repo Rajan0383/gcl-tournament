@@ -152,32 +152,54 @@ class GCLEngine {
 // GAME ENGINE - MATCH COMPLETE WITH SCORE
 // ============================================
 
-async completeFixtureWithScore(fixtureId, winner, team1Runs, team1Overs, team2Runs, team2Overs, manOfMatch) {
+// ============================================
+// GAME ENGINE - MATCH COMPLETE WITH SCORE
+// ============================================
+
+async completeFixtureWithScore(fixtureId, winner, team1Runs, team1Overs, team2Runs, team2Overs, manOfMatch, round) {
     const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
     if (!fixture) throw new Error('Fixture not found');
+    
+    const team1Name = fixture.team1;
+    const team2Name = fixture.team2;
+    
+    let runs1, runs2, overs1, overs2;
+    if (winner === team1Name) {
+        runs1 = team1Runs;
+        runs2 = team2Runs;
+        overs1 = team1Overs;
+        overs2 = team2Overs;
+    } else if (winner === team2Name) {
+        runs1 = team2Runs;
+        runs2 = team1Runs;
+        overs1 = team2Overs;
+        overs2 = team1Overs;
+    } else {
+        throw new Error('Winner must be one of the teams');
+    }
     
     fixture.status = 'completed';
     fixture.result = winner;
     fixture.manOfMatch = manOfMatch || 'Not Applicable';
     fixture.completedAt = new Date().toISOString();
-    fixture.team1Runs = team1Runs;
-    fixture.team1Overs = team1Overs;
-    fixture.team2Runs = team2Runs;
-    fixture.team2Overs = team2Overs;
+    fixture.team1Runs = runs1;
+    fixture.team1Overs = overs1;
+    fixture.team2Runs = runs2;
+    fixture.team2Overs = overs2;
+    fixture.round = round || 1;
     
     if (!this.fixtures.completed.includes(fixtureId)) {
         this.fixtures.completed.push(fixtureId);
     }
     
-    // Points table update
     const matchResult = {
-        team1: fixture.team1,
-        team2: fixture.team2,
+        team1: team1Name,
+        team2: team2Name,
         winner: winner,
-        runs1: team1Runs,
-        runs2: team2Runs,
-        overs1: team1Overs,
-        overs2: team2Overs
+        runs1: runs1,
+        runs2: runs2,
+        overs1: overs1,
+        overs2: overs2
     };
     this.updateTeamStats(matchResult);
     
@@ -198,7 +220,85 @@ updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner) {
     fixture.team2Runs = team2Runs;
     fixture.team2Overs = team2Overs;
     fixture.result = winner;
+    // ============================================
+// EDIT/DELETE - RECALCULATE
+// ============================================
+
+async editMatchResult(fixtureId, newTeam1Runs, newTeam1Overs, newTeam2Runs, newTeam2Overs, newWinner) {
+    const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
+    if (!fixture) throw new Error('Fixture not found');
     
+    this.removeMatchStats(fixture);
+    
+    fixture.team1Runs = newTeam1Runs;
+    fixture.team1Overs = newTeam1Overs;
+    fixture.team2Runs = newTeam2Runs;
+    fixture.team2Overs = newTeam2Overs;
+    fixture.result = newWinner;
+    
+    const matchResult = {
+        team1: fixture.team1,
+        team2: fixture.team2,
+        winner: newWinner,
+        runs1: newTeam1Runs,
+        runs2: newTeam2Runs,
+        overs1: newTeam1Overs,
+        overs2: newTeam2Overs
+    };
+    this.updateTeamStats(matchResult);
+    
+    await this.saveAllData();
+    return fixture;
+}
+
+removeMatchStats(fixture) {
+    const team1 = this.teams.find(t => t.name === fixture.team1);
+    const team2 = this.teams.find(t => t.name === fixture.team2);
+    
+    if (team1) {
+        team1.matchesPlayed = Math.max(0, (team1.matchesPlayed || 0) - 1);
+        team1.runsScored = Math.max(0, (team1.runsScored || 0) - (fixture.team1Runs || 0));
+        team1.runsConceded = Math.max(0, (team1.runsConceded || 0) - (fixture.team2Runs || 0));
+        team1.oversPlayed = Math.max(0, (team1.oversPlayed || 0) - (fixture.team1Overs || 4));
+        team1.oversBowled = Math.max(0, (team1.oversBowled || 0) - (fixture.team2Overs || 4));
+        if (fixture.result === team1.name) {
+            team1.wins = Math.max(0, (team1.wins || 0) - 1);
+            team1.points = Math.max(0, (team1.points || 0) - 2);
+        } else {
+            team1.losses = Math.max(0, (team1.losses || 0) - 1);
+        }
+    }
+    
+    if (team2) {
+        team2.matchesPlayed = Math.max(0, (team2.matchesPlayed || 0) - 1);
+        team2.runsScored = Math.max(0, (team2.runsScored || 0) - (fixture.team2Runs || 0));
+        team2.runsConceded = Math.max(0, (team2.runsConceded || 0) - (fixture.team1Runs || 0));
+        team2.oversPlayed = Math.max(0, (team2.oversPlayed || 0) - (fixture.team2Overs || 4));
+        team2.oversBowled = Math.max(0, (team2.oversBowled || 0) - (fixture.team1Overs || 4));
+        if (fixture.result === team2.name) {
+            team2.wins = Math.max(0, (team2.wins || 0) - 1);
+            team2.points = Math.max(0, (team2.points || 0) - 2);
+        } else {
+            team2.losses = Math.max(0, (team2.losses || 0) - 1);
+        }
+    }
+}
+
+async deleteMatchResult(fixtureId) {
+    const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
+    if (!fixture) throw new Error('Fixture not found');
+    
+    this.removeMatchStats(fixture);
+    
+    const index = this.fixtures.matches.findIndex(m => m.id === fixtureId);
+    if (index !== -1) {
+        this.fixtures.matches.splice(index, 1);
+    }
+    this.fixtures.completed = this.fixtures.completed.filter(id => id !== fixtureId);
+    
+    await this.saveAllData();
+    return { success: true };
+}
     // Points table recalculate
     const matchResult = {
         team1: fixture.team1,
@@ -402,66 +502,95 @@ recalculateAllTeamStats() {
     // POINTS TABLE
     // ============================================
 
-    getPointsTable() {
-        const table = this.teams.map(team => ({
-            rank: 0,
-            name: team.name,
-            matches: team.matchesPlayed || 0,
-            wins: team.wins || 0,
-            losses: team.losses || 0,
-            points: team.points || 0,
-            netRunRate: team.netRunRate || 0,
-            runsScored: team.runsScored || 0,
-            runsConceded: team.runsConceded || 0,
-            oversPlayed: team.oversPlayed || 4,
-            oversBowled: team.oversBowled || 4
-        }));
-        table.sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
-            return b.netRunRate - a.netRunRate;
-        });
-        table.forEach((team, index) => { team.rank = index + 1; });
-        table.forEach(team => {
-            if (team.oversPlayed > 0 && team.oversBowled > 0) {
-                const runRate = team.runsScored / team.oversPlayed;
-                const concededRate = team.runsConceded / team.oversBowled;
-                team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
-            }
-        });
-        return table;
+   getPointsTable(group) {
+    let teams = this.teams;
+    if (group) {
+        teams = teams.filter(t => t.group === group);
     }
+    
+    const table = teams.map(team => ({
+        rank: 0,
+        name: team.name,
+        group: team.group || 'Unassigned',
+        matches: team.matchesPlayed || 0,
+        wins: team.wins || 0,
+        losses: team.losses || 0,
+        points: team.points || 0,
+        netRunRate: team.netRunRate || 0,
+        runsScored: team.runsScored || 0,
+        runsConceded: team.runsConceded || 0,
+        oversPlayed: team.oversPlayed || 4,
+        oversBowled: team.oversBowled || 4
+    }));
+    
+    table.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        return b.netRunRate - a.netRunRate;
+    });
+    
+    table.forEach((team, index) => { team.rank = index + 1; });
+    
+    table.forEach(team => {
+        if (team.oversPlayed > 0 && team.oversBowled > 0) {
+            const runRate = team.runsScored / team.oversPlayed;
+            const concededRate = team.runsConceded / team.oversBowled;
+            team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
+        }
+    });
+    
+    return table;
+}
 
-    updateTeamStats(matchResult) {
-        const team1 = this.teams.find(t => t.name === matchResult.team1);
-        const team2 = this.teams.find(t => t.name === matchResult.team2);
-        if (team1) {
-            team1.matchesPlayed = (team1.matchesPlayed || 0) + 1;
-            team1.runsScored = (team1.runsScored || 0) + (matchResult.runs1 || 0);
-            team1.runsConceded = (team1.runsConceded || 0) + (matchResult.runs2 || 0);
-            team1.oversPlayed = (team1.oversPlayed || 0) + (matchResult.overs1 || 4);
-            team1.oversBowled = (team1.oversBowled || 0) + (matchResult.overs2 || 4);
-            if (matchResult.winner === team1.name) {
-                team1.wins = (team1.wins || 0) + 1;
-                team1.points = (team1.points || 0) + 2;
-            } else {
-                team1.losses = (team1.losses || 0) + 1;
-            }
-        }
-        if (team2) {
-            team2.matchesPlayed = (team2.matchesPlayed || 0) + 1;
-            team2.runsScored = (team2.runsScored || 0) + (matchResult.runs2 || 0);
-            team2.runsConceded = (team2.runsConceded || 0) + (matchResult.runs1 || 0);
-            team2.oversPlayed = (team2.oversPlayed || 0) + (matchResult.overs2 || 4);
-            team2.oversBowled = (team2.oversBowled || 0) + (matchResult.overs1 || 4);
-            if (matchResult.winner === team2.name) {
-                team2.wins = (team2.wins || 0) + 1;
-                team2.points = (team2.points || 0) + 2;
-            } else {
-                team2.losses = (team2.losses || 0) + 1;
-            }
-        }
-        this.saveAllData();
+  updateTeamStats(matchResult) {
+    const team1 = this.teams.find(t => t.name === matchResult.team1);
+    const team2 = this.teams.find(t => t.name === matchResult.team2);
+    
+    if (!team1 || !team2) {
+        console.error('❌ Team not found:', matchResult.team1, matchResult.team2);
+        return;
     }
+    
+    const parseOvers = (overs) => {
+        if (typeof overs === 'string' && overs.includes('.')) {
+            const parts = overs.split('.');
+            return parseInt(parts[0]) + (parseInt(parts[1]) || 0) / 6;
+        }
+        return parseFloat(overs) || 0;
+    };
+    
+    const overs1 = parseOvers(matchResult.overs1);
+    const overs2 = parseOvers(matchResult.overs2);
+    
+    if (team1) {
+        team1.matchesPlayed = (team1.matchesPlayed || 0) + 1;
+        team1.runsScored = (team1.runsScored || 0) + (matchResult.runs1 || 0);
+        team1.runsConceded = (team1.runsConceded || 0) + (matchResult.runs2 || 0);
+        team1.oversPlayed = (team1.oversPlayed || 0) + overs1;
+        team1.oversBowled = (team1.oversBowled || 0) + overs2;
+        if (matchResult.winner === team1.name) {
+            team1.wins = (team1.wins || 0) + 1;
+            team1.points = (team1.points || 0) + 2;
+        } else {
+            team1.losses = (team1.losses || 0) + 1;
+        }
+    }
+    
+    if (team2) {
+        team2.matchesPlayed = (team2.matchesPlayed || 0) + 1;
+        team2.runsScored = (team2.runsScored || 0) + (matchResult.runs2 || 0);
+        team2.runsConceded = (team2.runsConceded || 0) + (matchResult.runs1 || 0);
+        team2.oversPlayed = (team2.oversPlayed || 0) + overs2;
+        team2.oversBowled = (team2.oversBowled || 0) + overs1;
+        if (matchResult.winner === team2.name) {
+            team2.wins = (team2.wins || 0) + 1;
+            team2.points = (team2.points || 0) + 2;
+        } else {
+            team2.losses = (team2.losses || 0) + 1;
+        }
+    }
+    
+    this.saveAllData();
+}
 
     // ============================================
     // PLAYER STATISTICS
@@ -1192,9 +1321,9 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('completeFixtureWithScore', (data) => {
+   socket.on('completeFixtureWithScore', (data) => {
     try {
-        const { fixtureId, team1Runs, team1Overs, team2Runs, team2Overs, winner, manOfMatch } = data;
+        const { fixtureId, team1Runs, team1Overs, team2Runs, team2Overs, winner, manOfMatch, round } = data;
         
         gameEngine.completeFixtureWithScore(
             fixtureId,
@@ -1203,7 +1332,8 @@ io.on('connection', (socket) => {
             team1Overs,
             team2Runs,
             team2Overs,
-            manOfMatch || 'Not Applicable'
+            manOfMatch || 'Not Applicable',
+            round || 1
         ).then(fixture => {
             io.emit('fixturesUpdate', gameEngine.getFixtures());
             io.emit('pointsTable', gameEngine.getPointsTable());
@@ -1441,10 +1571,72 @@ app.get('/api/export/player-stats', (req, res) => {
         res.status(400).json({ error: error.message });
     }
 });
+// ============================================
+// DATA EXPORT - BACKUP
+// ============================================
 
+app.get('/api/export/points-table', (req, res) => {
+    try {
+        const table = gameEngine.getPointsTable();
+        res.json(table);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.get('/api/export/top10', (req, res) => {
+    try {
+        const data = {
+            batsmen: gameEngine.getTopBatsmen(10),
+            bowlers: gameEngine.getTopBowlers(10),
+            manOfMatch: gameEngine.getTopManOfMatch(5)
+        };
+        res.json(data);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.get('/api/export/all', (req, res) => {
+    try {
+        const data = {
+            pointsTable: gameEngine.getPointsTable(),
+            topBatsmen: gameEngine.getTopBatsmen(10),
+            topBowlers: gameEngine.getTopBowlers(10),
+            manOfMatch: gameEngine.getTopManOfMatch(5),
+            teams: gameEngine.getAllTeams(),
+            fixtures: gameEngine.getFixtures()
+        };
+        res.json(data);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.get('/api/fixtures/round/:round', (req, res) => {
+    try {
+        const round = parseInt(req.params.round);
+        const fixtures = gameEngine.getFixtures();
+        const roundMatches = fixtures.matches.filter(f => f.round === round);
+        res.json(roundMatches);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.get('/api/points-table/:group?', (req, res) => {
+    try {
+        const group = req.params.group;
+        const table = gameEngine.getPointsTable(group);
+        res.json(table);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
 app.get('/api/tournament/stats', (req, res) => {
     res.json(gameEngine.tournamentStats);
 });
+
 // ============================================
 // ADMIN - MATCH COMPLETE WITH SCORE (API)
 // ============================================
