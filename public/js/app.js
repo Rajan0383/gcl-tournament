@@ -1076,7 +1076,7 @@ function saveAuctionData() {
         picks: myTeamPicks,
         wallet: auctionWallet
     }));
-}
+}*/
 
 const AUCTION_PASSWORD = "gcl2026";
 
@@ -1100,7 +1100,7 @@ function checkAuctionPassword() {
     }
 }
 
-function logoutAuction() {
+/*function logoutAuction() {
     document.getElementById('auctionLogin').style.display = 'block';
     document.getElementById('auctionContent').style.display = 'none';
     document.getElementById('auctionPassword').value = '';
