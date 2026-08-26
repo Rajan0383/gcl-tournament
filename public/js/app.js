@@ -1499,11 +1499,21 @@ function updateFinalResult(champion, runnerUp) {
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔄 DOM loaded, attaching tab listeners...');
+    
     document.querySelectorAll('.nav-tab').forEach(tab => {
         tab.addEventListener('click', function() {
-            switchTab(this.dataset.tab);
+            const tabName = this.dataset.tab;
+            
+            // ✅ Tab switch karein
+            switchTab(tabName);
+            
+            // ✅ Agar Teams Grouping tab hai toh data fetch karein
+            if (tabName === 'teams-grouping') {
+                updateTeamsGrouping();
+            }
         });
     });
+    
     console.log('✅ Tab listeners attached!');
 });
 
@@ -1958,6 +1968,62 @@ function updateAdminResultsList() {
             </div>
         </div>
     `).join('');
+}
+// ============================================
+// DATA BACKUP - DOWNLOAD
+// ============================================
+
+function downloadData(type) {
+    let url = '/api/export/points-table';
+    if (type === 'top10') url = '/api/export/top10';
+    else if (type === 'all') url = '/api/export/all';
+    
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            let csv = '';
+            if (type === 'points-table' || type === 'all') {
+                csv += '=== POINTS TABLE ===\n';
+                csv += 'Rank,Team,Group,Matches,Wins,Losses,Points,NRR\n';
+                const table = type === 'all' ? data.pointsTable : data;
+                table.forEach(t => {
+                    csv += `${t.rank},${t.name},${t.group || '-'},${t.matches},${t.wins},${t.losses},${t.points},${t.netRunRate}\n`;
+                });
+            }
+            
+            if (type === 'top10' || type === 'all') {
+                const batsmen = type === 'all' ? data.topBatsmen : data.batsmen;
+                csv += '\n=== TOP BATSMEN ===\n';
+                csv += 'Player,Runs,Balls,Fours,Sixes,Avg,SR\n';
+                batsmen.forEach(p => {
+                    csv += `${p.name},${p.runs},${p.balls},${p.fours},${p.sixes},${p.average},${p.strikeRate}\n`;
+                });
+                
+                const bowlers = type === 'all' ? data.topBowlers : data.bowlers;
+                csv += '\n=== TOP BOWLERS ===\n';
+                csv += 'Player,Wickets,Balls,Runs,Economy,Best\n';
+                bowlers.forEach(p => {
+                    csv += `${p.name},${p.wickets},${p.balls},${p.runsConceded},${p.economy},${p.best}\n`;
+                });
+            }
+            
+            downloadCSV(csv);
+        })
+        .catch(err => {
+            showNotification('❌ Error downloading data', 'danger');
+            console.error(err);
+        });
+}
+
+function downloadCSV(csv) {
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gcl-data-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification('✅ Data downloaded!', 'success');
 }
 
 // Override socket events for admin updates
@@ -2458,6 +2524,198 @@ function deleteFixture(fixtureId) {
     })
     .catch(err => {
         showNotification('❌ Error deleting fixture', 'danger');
+        console.error(err);
+    });
+}
+// ============================================
+// TEAMS GROUPING / AUCTION
+// ============================================
+
+let teamsGroupingData = {
+    available: [],
+    groupA: [],
+    groupB: []
+};
+let lastAssignedGroup = 'B';
+
+function updateTeamsGrouping() {
+    fetch('/api/teams')
+        .then(res => res.json())
+        .then(teams => {
+            teamsGroupingData.available = teams.filter(t => !t.group || t.group === null);
+            teamsGroupingData.groupA = teams.filter(t => t.group === 'A');
+            teamsGroupingData.groupB = teams.filter(t => t.group === 'B');
+            renderTeamsGrouping();
+        })
+        .catch(err => console.error('Error fetching teams for grouping:', err));
+}
+
+function renderTeamsGrouping() {
+    // Available Teams
+    const availableContainer = document.getElementById('availableTeamsList');
+    if (availableContainer) {
+        if (teamsGroupingData.available.length === 0) {
+            availableContainer.innerHTML = '<p class="empty-message">No teams available</p>';
+        } else {
+            availableContainer.innerHTML = teamsGroupingData.available.map((team, index) => `
+                <div class="team-item">
+                    <span class="team-name">${index + 1}. ${team.name}</span>
+                </div>
+            `).join('');
+        }
+    }
+    
+    // Group A
+    const groupAContainer = document.getElementById('groupAList');
+    if (groupAContainer) {
+        if (teamsGroupingData.groupA.length === 0) {
+            groupAContainer.innerHTML = '<p class="empty-message">No teams</p>';
+        } else {
+            groupAContainer.innerHTML = teamsGroupingData.groupA.map(team => `
+                <div class="team-item group-team">
+                    <span class="team-name">🏏 ${team.name}</span>
+                    <div class="team-actions">
+                        <button class="edit-btn" onclick="editGroupTeam('${team.id}')">✏️</button>
+                        <button class="delete-btn" onclick="removeTeamFromGroup('${team.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+    
+    // Group B
+    const groupBContainer = document.getElementById('groupBList');
+    if (groupBContainer) {
+        if (teamsGroupingData.groupB.length === 0) {
+            groupBContainer.innerHTML = '<p class="empty-message">No teams</p>';
+        } else {
+            groupBContainer.innerHTML = teamsGroupingData.groupB.map(team => `
+                <div class="team-item group-team">
+                    <span class="team-name">🏏 ${team.name}</span>
+                    <div class="team-actions">
+                        <button class="edit-btn" onclick="editGroupTeam('${team.id}')">✏️</button>
+                        <button class="delete-btn" onclick="removeTeamFromGroup('${team.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+}
+
+function pickRandomTeam() {
+    if (teamsGroupingData.available.length === 0) {
+        showNotification('⚠️ No teams available to pick!', 'danger');
+        return;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * teamsGroupingData.available.length);
+    const team = teamsGroupingData.available[randomIndex];
+    
+    const group = lastAssignedGroup === 'B' ? 'A' : 'B';
+    lastAssignedGroup = group;
+    
+    assignTeamToGroup(team.id, group);
+    
+    const message = document.getElementById('groupingMessage');
+    if (message) {
+        message.innerHTML = `🏏 ${team.name} → Assigned to <strong>Group ${group}</strong> ✅`;
+        message.className = 'grouping-message success';
+        setTimeout(() => {
+            message.className = 'grouping-message';
+            message.innerHTML = '';
+        }, 3000);
+    }
+}
+
+function assignTeamToGroup(teamId, group) {
+    fetch('/api/teams/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: teamId,
+            group: group
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Team assigned to Group ${group}!`, 'success');
+            updateTeamsGrouping();
+            socket.emit('getPointsTable');
+        } else {
+            showNotification(`❌ Assignment failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error assigning team', 'danger');
+        console.error(err);
+    });
+}
+
+function removeTeamFromGroup(teamId) {
+    if (!confirm('Remove this team from group? It will become available again.')) return;
+    
+    fetch('/api/teams/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: teamId,
+            group: null
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('🗑️ Team removed from group', 'warning');
+            updateTeamsGrouping();
+            socket.emit('getPointsTable');
+        } else {
+            showNotification(`❌ Failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error removing team', 'danger');
+        console.error(err);
+    });
+}
+
+function editGroupTeam(teamId) {
+    const allTeams = [...teamsGroupingData.available, ...teamsGroupingData.groupA, ...teamsGroupingData.groupB];
+    const team = allTeams.find(t => t.id === teamId);
+    if (!team) {
+        showNotification('⚠️ Team not found!', 'danger');
+        return;
+    }
+    
+    const newName = prompt('Edit Team Name:', team.name);
+    if (newName === null) return;
+    
+    const newGroup = prompt(`Edit Group (A/B) for ${newName}:`, team.group || '');
+    if (newGroup === null) return;
+    
+    const updatedTeam = {
+        ...team,
+        name: newName.trim(),
+        group: newGroup.toUpperCase() === 'A' ? 'A' : newGroup.toUpperCase() === 'B' ? 'B' : null
+    };
+    
+    fetch('/api/teams/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedTeam)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Team updated!`, 'success');
+            updateTeamsGrouping();
+            socket.emit('getPointsTable');
+        } else {
+            showNotification(`❌ Update failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error updating team', 'danger');
         console.error(err);
     });
 }
