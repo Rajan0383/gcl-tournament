@@ -1100,14 +1100,14 @@ function checkAuctionPassword() {
     }
 }
 
-/*function logoutAuction() {
+function logoutAuction() {
     document.getElementById('auctionLogin').style.display = 'block';
     document.getElementById('auctionContent').style.display = 'none';
     document.getElementById('auctionPassword').value = '';
     showNotification('🔒 Logged out from auction', 'warning');
 }
 
-function renderAll() {
+/*function renderAll() {
     renderPlayers();
     renderTeamStatus();
     renderSummary();
@@ -1437,9 +1437,9 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && document.getElementById('auctionPassword') === document.activeElement) {
         checkAuctionPassword();
     }
-    if (e.key === 'Enter' && document.getElementById('newPlayerName') === document.activeElement) {
+    /*if (e.key === 'Enter' && document.getElementById('newPlayerName') === document.activeElement) {
         addPlayerToAuction();
-    }
+    }*/
     if (e.key === 'Enter' && document.getElementById('teamsPassword') === document.activeElement) {
         checkTeamsPassword();
     }
@@ -2561,7 +2561,7 @@ function renderTeamsGrouping() {
         } else {
             availableContainer.innerHTML = teamsGroupingData.available.map((team, index) => `
                 <div class="team-item">
-                    <span class="team-name">${index + 1}. ${team.name}</span>
+                    <span class="team-name">${index + 1}. ${team.name || 'Unnamed Team'}</span>
                 </div>
             `).join('');
         }
@@ -2575,7 +2575,7 @@ function renderTeamsGrouping() {
         } else {
             groupAContainer.innerHTML = teamsGroupingData.groupA.map(team => `
                 <div class="team-item group-team">
-                    <span class="team-name">🏏 ${team.name}</span>
+                    <span class="team-name">🏏 ${team.name || 'Unnamed Team'}</span>
                     <div class="team-actions">
                         <button class="edit-btn" onclick="editGroupTeam('${team.id}')">✏️</button>
                         <button class="delete-btn" onclick="removeTeamFromGroup('${team.id}')">🗑️</button>
@@ -2593,7 +2593,7 @@ function renderTeamsGrouping() {
         } else {
             groupBContainer.innerHTML = teamsGroupingData.groupB.map(team => `
                 <div class="team-item group-team">
-                    <span class="team-name">🏏 ${team.name}</span>
+                    <span class="team-name">🏏 ${team.name || 'Unnamed Team'}</span>
                     <div class="team-actions">
                         <button class="edit-btn" onclick="editGroupTeam('${team.id}')">✏️</button>
                         <button class="delete-btn" onclick="removeTeamFromGroup('${team.id}')">🗑️</button>
@@ -2603,7 +2603,6 @@ function renderTeamsGrouping() {
         }
     }
 }
-
 function pickRandomTeam() {
     if (teamsGroupingData.available.length === 0) {
         showNotification('⚠️ No teams available to pick!', 'danger');
@@ -2615,6 +2614,41 @@ function pickRandomTeam() {
     
     const group = lastAssignedGroup === 'B' ? 'A' : 'B';
     lastAssignedGroup = group;
+    
+    // ✅ Full screen flashy effect
+    showTeamReveal(team, group);
+}
+
+function showTeamReveal(team, group) {
+    const overlay = document.createElement('div');
+    overlay.className = 'player-reveal-overlay';
+    overlay.id = 'teamRevealOverlay';
+    overlay.innerHTML = `
+        <div class="player-reveal-content">
+            <div class="player-reveal-close" onclick="closeTeamReveal()">✕</div>
+            <div class="player-reveal-card">
+                <div class="player-reveal-icon">🏏</div>
+                <div class="player-reveal-name">${team.name.toUpperCase()}</div>
+                <div class="player-reveal-sub" style="font-size:1.5rem;color:#ffd700;margin:10px 0;">→ Assigned to <strong>Group ${group}</strong> ✅</div>
+                <div class="player-reveal-actions">
+                    <button onclick="confirmTeamAssign('${team.id}', '${group}')" class="assign-btn">✅ Confirm</button>
+                    <button onclick="closeTeamReveal()" class="again-btn">🔄 Re-pick</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    showNotification(`🏏 ${team.name} → Group ${group}`, 'warning');
+}
+
+function closeTeamReveal() {
+    const overlay = document.getElementById('teamRevealOverlay');
+    if (overlay) overlay.remove();
+}
+
+function confirmTeamAssign(teamId, group) {
+    closeTeamReveal();
+    }
     
     assignTeamToGroup(team.id, group);
     
@@ -2643,6 +2677,27 @@ function assignTeamToGroup(teamId, group) {
         if (data.success) {
             showNotification(`✅ Team assigned to Group ${group}!`, 'success');
             updateTeamsGrouping();
+            
+            // ✅ Points Table update — Group A/B filter ke saath
+            fetch(`/api/points-table/${group}`)
+                .then(res => res.json())
+                .then(tableData => {
+                    // Update Group A or B in Points Table
+                    if (group === 'A') {
+                        const groupAElement = document.getElementById('groupA');
+                        if (groupAElement) {
+                            updatePointsTableGroup(groupAElement, tableData);
+                        }
+                    } else if (group === 'B') {
+                        const groupBElement = document.getElementById('groupB');
+                        if (groupBElement) {
+                            updatePointsTableGroup(groupBElement, tableData);
+                        }
+                    }
+                })
+                .catch(err => console.error('Error fetching points table:', err));
+            
+            // ✅ Overall points table update
             socket.emit('getPointsTable');
         } else {
             showNotification(`❌ Assignment failed: ${data.error}`, 'danger');
@@ -2654,6 +2709,28 @@ function assignTeamToGroup(teamId, group) {
     });
 }
 
+// ✅ Points Table Group Update Helper
+function updatePointsTableGroup(element, data) {
+    if (!data || data.length === 0) {
+        element.innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
+        return;
+    }
+    
+    element.innerHTML = data.map(team => {
+        const rankClass = team.rank === 1 ? 'gold' : team.rank === 2 ? 'silver' : team.rank === 3 ? 'bronze' : '';
+        return `
+            <tr>
+                <td class="rank ${rankClass}">#${team.rank}</td>
+                <td><strong>${team.name}</strong></td>
+                <td>${team.matches || 0}</td>
+                <td class="wins">${team.wins || 0}</td>
+                <td class="losses">${team.losses || 0}</td>
+                <td class="points">${team.points || 0}</td>
+                <td>${(team.netRunRate || 0).toFixed(3)}</td>
+            </tr>
+        `;
+    }).join('');
+}
 function removeTeamFromGroup(teamId) {
     if (!confirm('Remove this team from group? It will become available again.')) return;
     
@@ -2670,6 +2747,8 @@ function removeTeamFromGroup(teamId) {
         if (data.success) {
             showNotification('🗑️ Team removed from group', 'warning');
             updateTeamsGrouping();
+            
+            // ✅ Points Table update
             socket.emit('getPointsTable');
         } else {
             showNotification(`❌ Failed: ${data.error}`, 'danger');
@@ -2680,7 +2759,6 @@ function removeTeamFromGroup(teamId) {
         console.error(err);
     });
 }
-
 function editGroupTeam(teamId) {
     const allTeams = [...teamsGroupingData.available, ...teamsGroupingData.groupA, ...teamsGroupingData.groupB];
     const team = allTeams.find(t => t.id === teamId);
