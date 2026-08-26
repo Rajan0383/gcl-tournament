@@ -1078,6 +1078,8 @@ function saveAuctionData() {
     }));
 }
 
+const AUCTION_PASSWORD = "gcl2026";
+
 function checkAuctionPassword() {
     const password = document.getElementById('auctionPassword').value;
     const error = document.getElementById('auctionError');
@@ -1088,9 +1090,9 @@ function checkAuctionPassword() {
         login.style.display = 'none';
         content.style.display = 'block';
         error.style.display = 'none';
-        initAuction();
+        showNotification('✅ Admin access granted!', 'success');
+        updateTeamsGrouping(); // ✅ Teams Grouping data fetch
         socket.emit('getTeams');
-        showNotification('✅ Auction admin access granted!', 'success');
     } else {
         error.style.display = 'block';
         document.getElementById('auctionPassword').value = '';
