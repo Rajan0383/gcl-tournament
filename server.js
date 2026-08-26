@@ -1731,6 +1731,7 @@ app.post('/api/fixtures/delete', (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 });
+// Update team (for group assignment)
 app.post('/api/teams/update', (req, res) => {
     try {
         const updatedTeam = req.body;
@@ -1738,7 +1739,9 @@ app.post('/api/teams/update', (req, res) => {
         if (index === -1) {
             return res.status(404).json({ success: false, error: 'Team not found' });
         }
-        gameEngine.teams[index] = updatedTeam;
+        // ✅ Group field update karein
+        gameEngine.teams[index].group = updatedTeam.group;
+        gameEngine.teams[index].name = updatedTeam.name || gameEngine.teams[index].name;
         gameEngine.saveAllData();
         res.json({ success: true });
     } catch (error) {
