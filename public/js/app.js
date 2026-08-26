@@ -2660,7 +2660,6 @@ function confirmTeamAssign(teamId, group) {
             message.innerHTML = '';
         }, 3000);
     }
-}
 
 function assignTeamToGroup(teamId, group) {
     fetch('/api/teams/update', {
