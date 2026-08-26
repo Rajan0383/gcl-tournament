@@ -269,7 +269,6 @@ function updateTeamSelects(teams) {
         const el = document.getElementById(id);
         if (el) {
             const currentValue = el.value;
-            // ✅ Yeh line change karein
             let label = 'Team';
             if (id === 'adminWinnerSelect' || id === 'winnerSelect') label = 'Winner';
             else if (id === 'adminCompleteMatchSelect' || id.includes('complete')) label = 'Ongoing Match';
@@ -279,7 +278,6 @@ function updateTeamSelects(teams) {
         }
     });
 }
-
 function updatePointsTable(pointsTable) {
     const tbody = document.getElementById('pointsTableBody');
     if (!tbody) return;
@@ -571,10 +569,10 @@ function completeMatchFromFixture(fixtureId) {
 }
 
 function updateCompleteFixtureSelect(fixtures) {
-    const select = document.getElementById('adminCompleteMatchSelect'); // ✅ Sahi ID?
+    const select = document.getElementById('adminCompleteMatchSelect');
     if (!select) return;
     
-    const ongoing = fixtures.matches.filter(m => m.status === 'ongoing'); // ✅ Sahi?
+    const ongoing = fixtures.matches.filter(m => m.status === 'ongoing');
     
     if (ongoing.length === 0) {
         select.innerHTML = '<option value="">No ongoing matches</option>';
@@ -1006,7 +1004,7 @@ function deleteTeam(teamId) {
     });
 }
 
-// ============================================
+/*// ============================================
 // AUCTION SYSTEM
 // ============================================
 
@@ -1427,7 +1425,7 @@ function resetAuction() {
     document.getElementById('assignSection').style.display = 'none';
     
     showNotification('🔄 Auction has been reset!', 'success');
-}
+}*/
 
 // ============================================
 // KEYBOARD SUPPORT
@@ -1671,7 +1669,35 @@ function createFixtureFromAdmin() {
 // ============================================
 // ADMIN - MATCH COMPLETE WITH SCORE
 // ============================================
+// ============================================
+// ADMIN - COMPLETE MATCH - WINNER DROPDOWN
+// ============================================
 
+function updateWinnerSelect(fixtures, fixtureId) {
+    const select = document.getElementById('adminWinnerSelect');
+    if (!select) return;
+    
+    const fixture = fixtures.matches.find(m => m.id === fixtureId);
+    if (!fixture) {
+        select.innerHTML = '<option value="">Select Winner</option>';
+        return;
+    }
+    
+    const teams = [fixture.team1, fixture.team2];
+    select.innerHTML = `
+        <option value="">Select Winner</option>
+        ${teams.map(t => `<option value="${t}">${t}</option>`).join('')}
+    `;
+}
+
+function updateCompleteMatchForm() {
+    const fixtureId = document.getElementById('adminCompleteMatchSelect').value;
+    if (!fixtureId) {
+        document.getElementById('adminWinnerSelect').innerHTML = '<option value="">Select Winner</option>';
+        return;
+    }
+    updateWinnerSelect(window.fixtures, fixtureId);
+}
 // Complete Match from Admin
 function completeMatchFromAdmin() {
     const fixtureId = document.getElementById('adminCompleteMatchSelect').value;
@@ -1680,26 +1706,35 @@ function completeMatchFromAdmin() {
     const team2Runs = parseInt(document.getElementById('adminTeam2Runs').value);
     const team2Overs = parseFloat(document.getElementById('adminTeam2Overs').value);
     const winner = document.getElementById('adminWinnerSelect').value;
-    
-    // ✅ MOM auto set
-    const manOfMatch = 'Not Applicable';
+    const round = parseInt(document.getElementById('adminRoundSelect')?.value || 1);
 
+    // ✅ Validation
     if (!fixtureId) {
         showNotification('⚠️ Please select a match!', 'danger');
         return;
     }
-    if (isNaN(team1Runs) || isNaN(team2Runs)) {
-        showNotification('⚠️ Please enter valid runs for both teams!', 'danger');
+    if (isNaN(team1Runs) || isNaN(team2Runs) || team1Runs < 0 || team2Runs < 0) {
+        showNotification('⚠️ Please enter valid runs for both teams (>= 0)!', 'danger');
         return;
     }
     if (isNaN(team1Overs) || isNaN(team2Overs) || team1Overs <= 0 || team2Overs <= 0) {
-        showNotification('⚠️ Please enter valid overs for both teams!', 'danger');
+        showNotification('⚠️ Please enter valid overs for both teams (> 0)!', 'danger');
         return;
     }
     if (!winner) {
         showNotification('⚠️ Please select the winner!', 'danger');
         return;
     }
+
+    // ✅ Duplicate check
+    const fixtures = window.fixtures || { matches: [] };
+    const fixture = fixtures.matches.find(m => m.id === fixtureId);
+    if (fixture && fixture.status === 'completed') {
+        showNotification('⚠️ This match is already completed!', 'danger');
+        return;
+    }
+
+    const manOfMatch = 'Not Applicable';
 
     socket.emit('completeFixtureWithScore', {
         fixtureId: fixtureId,
@@ -1708,20 +1743,20 @@ function completeMatchFromAdmin() {
         team2Runs: team2Runs,
         team2Overs: team2Overs,
         winner: winner,
-        manOfMatch: manOfMatch
+        manOfMatch: manOfMatch,
+        round: round
     });
 
-    // Form clear karein
+    // Form clear
     document.getElementById('adminCompleteMatchSelect').value = '';
     document.getElementById('adminTeam1Runs').value = '';
     document.getElementById('adminTeam1Overs').value = '4';
     document.getElementById('adminTeam2Runs').value = '';
     document.getElementById('adminTeam2Overs').value = '4';
-    document.getElementById('adminWinnerSelect').value = '';
+    document.getElementById('adminWinnerSelect').innerHTML = '<option value="">Select Winner</option>';
 
     showNotification(`✅ Match completed! Winner: ${winner}`, 'success');
 }
-
 // ============================================
 // ADMIN - MATCH RESULT EDIT/DELETE
 // ============================================
