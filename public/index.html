@@ -39,6 +39,7 @@
             <button class="nav-tab" data-tab="top10">🏅 Top 10 Players</button>
             <button class="nav-tab" data-tab="auction">💰 Auction</button>
             <button class="nav-tab" data-tab="admin">⚙️ Admin</button>
+            <button class="nav-tab" data-tab="teams-grouping">🎯 Teams Grouping</button>
         </nav>
 
         <!-- MAIN CONTENT -->
@@ -1042,12 +1043,19 @@
                     </div>
                 </div>
 
-               <!--4. Complete Match -->
+              <!-- Complete Match -->
 <div class="admin-card">
     <h3>🏆 Complete Match</h3>
     <div class="form-group">
-        <select id="adminCompleteMatchSelect">
+        <select id="adminCompleteMatchSelect" onchange="updateCompleteMatchForm()">
             <option value="">Select Match</option>
+        </select>
+        
+        <select id="adminRoundSelect">
+            <option value="1">Round 1 - Group Stage</option>
+            <option value="2">Round 2 - Super Six</option>
+            <option value="3">Round 3 - Playoffs</option>
+            <option value="4">Round 4 - Grand Final</option>
         </select>
         
         <div class="score-fields">
@@ -1067,7 +1075,6 @@
             <option value="">Select Winner</option>
         </select>
         
-        <!-- ✅ MOM Hidden Field -->
         <input type="hidden" id="adminManOfMatch" value="Not Applicable">
         
         <button onclick="completeMatchFromAdmin()">✅ Complete Match</button>
@@ -1089,6 +1096,15 @@
                     <p class="empty-message">No fixtures created yet.</p>
                 </div>
             </div>
+                <!-- Data Backup -->
+<div class="admin-card">
+    <h3>📥 Data Backup</h3>
+    <div class="form-group">
+        <button onclick="downloadData('points-table')">📊 Download Points Table</button>
+        <button onclick="downloadData('top10')">🏅 Download Top 10</button>
+        <button onclick="downloadData('all')">📦 Download All Data</button>
+    </div>
+</div>
 
             <!-- Match Results -->
             <div class="admin-results-section">
@@ -1099,6 +1115,55 @@
             </div>
 
         </div>
+
+    </div>
+</div>
+    <!-- ========================================== -->
+<!-- TEAMS GROUPING / AUCTION TAB -->
+<!-- ========================================== -->
+<div class="tab-content" id="tab-teams-grouping">
+    <div class="teams-grouping-container">
+        
+        <div class="grouping-header">
+            <h2>🎯 Teams Grouping / Auction</h2>
+            <p class="grouping-subtitle">Assign teams to Group A or Group B</p>
+        </div>
+
+        <div class="grouping-main-layout">
+            
+            <div class="grouping-left">
+                <div class="available-teams-section">
+                    <h3>📋 Available Teams</h3>
+                    <div class="available-teams-list" id="availableTeamsList">
+                        <p class="empty-message">No teams available</p>
+                    </div>
+                    <button onclick="pickRandomTeam()" class="pick-random-btn">🎲 PICK RANDOM TEAM</button>
+                </div>
+            </div>
+
+            <div class="grouping-right">
+                <div class="group-status-section">
+                    <h3>📊 Group Status</h3>
+                    <div class="group-status-grid">
+                        <div class="group-card group-a">
+                            <h4>🟡 Group A</h4>
+                            <div id="groupAList" class="group-teams-list">
+                                <p class="empty-message">No teams</p>
+                            </div>
+                        </div>
+                        <div class="group-card group-b">
+                            <h4>🟢 Group B</h4>
+                            <div id="groupBList" class="group-teams-list">
+                                <p class="empty-message">No teams</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="groupingMessage" class="grouping-message"></div>
 
     </div>
 </div>
