@@ -1574,16 +1574,6 @@ app.get('/api/export/player-stats', (req, res) => {
 // ============================================
 // DATA EXPORT - BACKUP
 // ============================================
-
-app.get('/api/export/points-table', (req, res) => {
-    try {
-        const table = gameEngine.getPointsTable();
-        res.json(table);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-});
-
 app.get('/api/export/top10', (req, res) => {
     try {
         const data = {
