@@ -1739,8 +1739,7 @@ app.post('/api/teams/update', (req, res) => {
         if (index === -1) {
             return res.status(404).json({ success: false, error: 'Team not found' });
         }
-        // ✅ Group field update karein
-        gameEngine.teams[index].group = updatedTeam.group;
+        gameEngine.teams[index].group = updatedTeam.group;  // ✅ Group update
         gameEngine.teams[index].name = updatedTeam.name || gameEngine.teams[index].name;
         gameEngine.saveAllData();
         res.json({ success: true });
