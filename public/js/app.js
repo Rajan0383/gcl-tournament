@@ -288,9 +288,10 @@ function updatePointsTable(pointsTable) {
     }
 
     // Group A teams
-    const groupATeams = pointsTable.filter(t => t.group === 'A' || t.group === 'Unassigned');
-    const groupBTeams = pointsTable.filter(t => t.group === 'B');
-
+    // ✅ Sirf 'A' group wali teams dikhein, 'Unassigned' ko ignore karein
+const groupATeams = pointsTable.filter(t => t.group === 'A');
+const groupBTeams = pointsTable.filter(t => t.group === 'B');
+    
     const groupAElement = document.getElementById('groupA');
     const groupBElement = document.getElementById('groupB');
 
@@ -2686,7 +2687,7 @@ function confirmTeamAssign(teamId, group) {
     assignTeamToGroup(teamId, group);
 }
    
-    const message = document.getElementById('groupingMessage');
+   /* const message = document.getElementById('groupingMessage');
     if (message) {
         message.innerHTML = `🏏 ${team.name} → Assigned to <strong>Group ${group}</strong> ✅`;
         message.className = 'grouping-message success';
@@ -2694,7 +2695,7 @@ function confirmTeamAssign(teamId, group) {
             message.className = 'grouping-message';
             message.innerHTML = '';
         }, 3000);
-    }
+    }*\
 
 function assignTeamToGroup(teamId, group) {
     fetch('/api/teams/update', {
