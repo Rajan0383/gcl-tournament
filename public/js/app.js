@@ -2548,6 +2548,7 @@ function updateTeamsGrouping() {
             teamsGroupingData.groupA = teams.filter(t => t.group === 'A');
             teamsGroupingData.groupB = teams.filter(t => t.group === 'B');
             renderTeamsGrouping();
+            socket.emit('getPointsTable');
         })
         .catch(err => console.error('Error fetching teams for grouping:', err));
 }
