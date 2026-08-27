@@ -1038,7 +1038,16 @@ function deleteTeam(teamId) {
         console.error(err);
     });
 }
-
+function toggleTeamsAdmin() {
+    const login = document.getElementById('teamsAdminLogin');
+    if (login.style.display === 'flex') {
+        login.style.display = 'none';
+    } else {
+        login.style.display = 'flex';
+        document.getElementById('teamsPassword').value = '';
+        document.getElementById('teamsError').style.display = 'none';
+    }
+}
 /*// ============================================
 // AUCTION SYSTEM
 // ============================================
