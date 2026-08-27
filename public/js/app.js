@@ -2779,10 +2779,18 @@ function removeTeamFromGroup(teamId) {
     .then(data => {
         if (data.success) {
             showNotification('🗑️ Team removed from group', 'warning');
-            updateTeamsGrouping();
+            updateTeamsGrouping();  // ✅ Group Status update
             
-            // ✅ Points Table update
+            // ✅ Points Table update — saari teams ka fresh data fetch karein
             socket.emit('getPointsTable');
+            
+            // ✅ Manual fetch bhi karein (surety ke liye)
+            fetch('/api/points-table')
+                .then(res => res.json())
+                .then(tableData => {
+                    updatePointsTable(tableData);
+                })
+                .catch(err => console.error('Error fetching points table:', err));
         } else {
             showNotification(`❌ Failed: ${data.error}`, 'danger');
         }
