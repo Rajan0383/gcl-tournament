@@ -1545,7 +1545,7 @@ document.addEventListener('DOMContentLoaded', function() {
             switchTab(tabName);
             
             // ✅ Agar Teams Grouping tab hai toh data fetch karein
-            if (tabName === 'teams-grouping') {
+           if (tabName === 'auction') {
                 updateTeamsGrouping();
             }
         });
