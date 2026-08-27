@@ -99,7 +99,7 @@ socket.on('startFixture', (fixtureId) => {
     }, 500);
 });*/
 socket.on('pointsTable', (data) => {
-    console.log('🏆 Points Table:', data);
+    console.log('🏆 Points Table received:', data);
     updatePointsTable(data);
 });
 
@@ -279,28 +279,62 @@ function updateTeamSelects(teams) {
     });
 }
 function updatePointsTable(pointsTable) {
-    const tbody = document.getElementById('pointsTableBody');
-    if (!tbody) return;
+    console.log('📊 Updating Points Table:', pointsTable);
     
     if (!pointsTable || pointsTable.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
+        document.getElementById('groupA').innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
+        document.getElementById('groupB').innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
         return;
     }
 
-    tbody.innerHTML = pointsTable.map(team => {
-        const rankClass = team.rank === 1 ? 'gold' : team.rank === 2 ? 'silver' : team.rank === 3 ? 'bronze' : '';
-        return `
-            <tr>
-                <td class="rank ${rankClass}">#${team.rank}</td>
-                <td><strong>${team.name}</strong></td>
-                <td>${team.matches || 0}</td>
-                <td class="wins">${team.wins || 0}</td>
-                <td class="losses">${team.losses || 0}</td>
-                <td class="points">${team.points || 0}</td>
-                <td>${(team.netRunRate || 0).toFixed(3)}</td>
-            </tr>
-        `;
-    }).join('');
+    // Group A teams
+    const groupATeams = pointsTable.filter(t => t.group === 'A' || t.group === 'Unassigned');
+    const groupBTeams = pointsTable.filter(t => t.group === 'B');
+
+    const groupAElement = document.getElementById('groupA');
+    const groupBElement = document.getElementById('groupB');
+
+    if (groupAElement) {
+        if (groupATeams.length === 0) {
+            groupAElement.innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
+        } else {
+            groupAElement.innerHTML = groupATeams.map(team => {
+                const rankClass = team.rank === 1 ? 'gold' : team.rank === 2 ? 'silver' : team.rank === 3 ? 'bronze' : '';
+                return `
+                    <tr>
+                        <td class="rank ${rankClass}">#${team.rank}</td>
+                        <td><strong>${team.name}</strong></td>
+                        <td>${team.matches || 0}</td>
+                        <td class="wins">${team.wins || 0}</td>
+                        <td class="losses">${team.losses || 0}</td>
+                        <td class="points">${team.points || 0}</td>
+                        <td>${(team.netRunRate || 0).toFixed(3)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    if (groupBElement) {
+        if (groupBTeams.length === 0) {
+            groupBElement.innerHTML = '<tr><td colspan="7" class="empty-message">No data available</td></tr>';
+        } else {
+            groupBElement.innerHTML = groupBTeams.map(team => {
+                const rankClass = team.rank === 1 ? 'gold' : team.rank === 2 ? 'silver' : team.rank === 3 ? 'bronze' : '';
+                return `
+                    <tr>
+                        <td class="rank ${rankClass}">#${team.rank}</td>
+                        <td><strong>${team.name}</strong></td>
+                        <td>${team.matches || 0}</td>
+                        <td class="wins">${team.wins || 0}</td>
+                        <td class="losses">${team.losses || 0}</td>
+                        <td class="points">${team.points || 0}</td>
+                        <td>${(team.netRunRate || 0).toFixed(3)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
 }
 
 function updateTop10Players(data) {
