@@ -4995,3 +4995,72 @@ select option:hover {
         grid-template-columns: 1fr;
     }
 }
+/* ============================================
+   TEAMS LIST - FULL WIDTH
+   ============================================ */
+
+.teams-list-section .teams-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.teams-list-section .team-card {
+    width: 100%;
+    padding: 14px 20px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    border-left: 4px solid var(--primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.teams-list-section .team-card .team-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.teams-list-section .team-card .team-name-card {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-light);
+}
+
+.teams-list-section .team-card .team-details {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.teams-list-section .team-card .team-squad {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.teams-list-section .team-card .team-squad .squad-tag {
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 12px;
+    border-radius: 14px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.teams-list-section .team-card .team-squad .squad-tag.captain-tag {
+    color: var(--primary);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.teams-list-section .team-card .team-squad .squad-tag.vc-tag {
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.teams-list-section .team-card .team-actions {
+    display: flex;
+    gap: 8px;
+}
