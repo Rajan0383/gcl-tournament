@@ -2695,7 +2695,7 @@ function confirmTeamAssign(teamId, group) {
             message.className = 'grouping-message';
             message.innerHTML = '';
         }, 3000);
-    }*\
+    }*/
 
 function assignTeamToGroup(teamId, group) {
     fetch('/api/teams/update', {
