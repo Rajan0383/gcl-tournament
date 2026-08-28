@@ -3462,7 +3462,7 @@ body {
     }
 }
 /* Team Details - Captain & Vice Captain */
-.team-details {
+/*.team-details {
     color: var(--text-muted);
     font-size: 1rem;
     line-height: 1.8;
@@ -3542,7 +3542,7 @@ body {
     font-weight: 800;
     background: rgba(96, 165, 250, 0.08);
     text-shadow: 0 0 25px rgba(96, 165, 250, 0.15);
-}
+}*/
 /* ============================================
    ADMIN TAB - COMPLETE STYLES
    ============================================ */
