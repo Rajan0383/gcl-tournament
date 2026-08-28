@@ -438,7 +438,6 @@ body {
 
 .team-card .team-name-card {
     font-weight: 700;
-    font-size: 1.1rem;
     color: var(--text-light);
 }
 
@@ -449,7 +448,6 @@ body {
 }
 
 .team-card .team-squad {
-    font-size: 0.8rem;
     color: var(--text-muted);
     margin-top: 2px;
 }
@@ -2716,7 +2714,6 @@ body {
     background: rgba(255, 255, 255, 0.06);
     padding: 2px 12px;
     border-radius: 14px;
-    font-size: 0.8rem;
     color: var(--text-muted);
 }
 
