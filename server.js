@@ -1739,15 +1739,19 @@ app.post('/api/teams/update', (req, res) => {
         if (index === -1) {
             return res.status(404).json({ success: false, error: 'Team not found' });
         }
-        gameEngine.teams[index].group = updatedTeam.group;  // ✅ Group update
-        gameEngine.teams[index].name = updatedTeam.name || gameEngine.teams[index].name;
+        
+        // ✅ Pure team object ko update karein
+        gameEngine.teams[index].name = updatedTeam.name;
+        gameEngine.teams[index].captain = updatedTeam.captain;
+        gameEngine.teams[index].viceCaptain = updatedTeam.viceCaptain;
+        gameEngine.teams[index].squad = updatedTeam.squad || [];
+        
         gameEngine.saveAllData();
         res.json({ success: true });
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
     }
 });
-
 app.post('/api/teams/delete', (req, res) => {
     try {
         const { id } = req.body;
