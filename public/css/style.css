@@ -4989,34 +4989,36 @@ select option:hover {
     gap: 8px;
 }
 
-.team-card .team-squad .squad-tag {
-    font-size: 1.1rem;
-    font-weight: 700;
-    padding: 6px 18px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 20px;
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all 0.3s;
-}
-
-.team-card .team-squad .squad-tag:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.08);
-}
-
-/* Captain in squad - Gold tag */
+/* ✅ Captain in squad - Green */
 .team-card .team-squad .squad-tag.captain-tag {
-    color: #ffd700;
-    border: 1px solid rgba(255, 215, 0, 0.3);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
     font-weight: 800;
-    background: rgba(255, 215, 0, 0.08);
+    background: rgba(74, 222, 128, 0.08);
 }
 
-/* Vice Captain in squad - Lavender tag */
+/* ✅ Vice Captain in squad - Lavender */
 .team-card .team-squad .squad-tag.vc-tag {
     color: #a78bfa;
     border: 1px solid rgba(167, 139, 250, 0.3);
     font-weight: 800;
     background: rgba(167, 139, 250, 0.08);
+}
+
+/* ✅ Other players - Glittering Silver */
+.team-card .team-squad .squad-tag {
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 5px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 20px;
+    color: #d4d4d8;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.15), 0 0 40px rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s;
+}
+
+.team-card .team-squad .squad-tag:hover {
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.25), 0 0 60px rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
 }
