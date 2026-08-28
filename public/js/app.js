@@ -874,16 +874,16 @@ function updateTeamsList(teams) {
             </div>
         ` : '';
         
-       const squad = team.squad || [];
-const captainTag = team.captain ? `${team.captain} (C)` : '';
-const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
-const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
+        const squad = team.squad || [];
+        const captainTag = team.captain ? `${team.captain} (C)` : '';
+        const vcTag = team.viceCaptain ? `${team.viceCaptain} (VC)` : '';
+        const otherPlayers = squad.filter(p => p !== team.captain && p !== team.viceCaptain);
 
-// Show all players with tags
-const allPlayers = [];
-if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
-if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
-otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
+        // ✅ Show all players with tags - Captain (Gold), Vice Captain (Blue)
+        const allPlayers = [];
+        if (captainTag) allPlayers.push({name: captainTag, cls: 'captain-tag'});
+        if (vcTag) allPlayers.push({name: vcTag, cls: 'vc-tag'});
+        otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
         
         html += `
             <div class="team-card ${!isAdmin ? 'read-only' : ''}">
@@ -892,8 +892,11 @@ otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
                     ${actions}
                 </div>
                 <div class="team-details">
-                    <span class="captain">🧢 Captain: ${team.captain || 'N/A'}</span>
-                    <span class="vice-captain"> | 🧢 Vice Captain: ${team.viceCaptain || 'N/A'}</span>
+                    <span class="captain-label">🧢 Captain: </span>
+                    <span class="captain-name">${team.captain || 'N/A'}</span>
+                    <span style="color: var(--text-muted); margin: 0 8px;">|</span>
+                    <span class="vc-label">🧢 Vice Captain: </span>
+                    <span class="vc-name">${team.viceCaptain || 'N/A'}</span>
                 </div>
                 <div class="team-squad">
                     ${allPlayers.map(p => `
@@ -906,7 +909,6 @@ otherPlayers.forEach(p => allPlayers.push({name: p, cls: ''}));
     
     container.innerHTML = html;
 }
-
 function editTeam(teamId) {
     const team = teams.find(t => t.id === teamId);
     if (!team) {
