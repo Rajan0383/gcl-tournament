@@ -914,18 +914,15 @@ function editTeam(teamId) {
         return;
     }
     
-    // Show current squad
     const currentSquadText = team.squad ? team.squad.join(', ') : '';
-    const currentPlayerCount = team.squad ? team.squad.length : 0;
     
-    // Create edit prompt
     const message = `✏️ EDIT TEAM: ${team.name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📝 Team Name: ${team.name}
 🧢 Captain: ${team.captain}
 🧢 Vice Captain: ${team.viceCaptain}
-🏏 Squad (${currentPlayerCount} players):
+🏏 Squad (${team.squad ? team.squad.length : 0} players):
 ${currentSquadText}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -938,9 +935,8 @@ Format: Team Name, Captain, Vice Captain, Player1, Player2, Player3...
 
     const input = prompt(message, `${team.name}, ${team.captain}, ${team.viceCaptain}, ${currentSquadText}`);
     
-    if (input === null) return; // Cancel
+    if (input === null) return;
     
-    // Parse input
     const parts = input.split(',').map(p => p.trim()).filter(p => p);
     
     if (parts.length < 3) {
@@ -951,32 +947,23 @@ Format: Team Name, Captain, Vice Captain, Player1, Player2, Player3...
     const newName = parts[0];
     const newCaptain = parts[1];
     const newVC = parts[2];
-    const newSquad = parts.slice(3);
+    let newSquad = parts.slice(3);
     
-    // ✅ Auto-add captain and VC to squad if not present
-    let finalSquad = [...newSquad];
-    if (!finalSquad.includes(newCaptain)) {
-        finalSquad.push(newCaptain);
-        showNotification(`✅ Captain "${newCaptain}" auto-added to squad`, 'warning');
+    // ✅ Captain and VC ko squad mein add karein (agar nahi hain toh)
+    if (!newSquad.includes(newCaptain)) {
+        newSquad.push(newCaptain);
     }
-    if (!finalSquad.includes(newVC)) {
-        finalSquad.push(newVC);
-        showNotification(`✅ Vice Captain "${newVC}" auto-added to squad`, 'warning');
+    if (!newSquad.includes(newVC)) {
+        newSquad.push(newVC);
     }
     
-    // ✅ Check if captain and VC are in squad
-    if (!finalSquad.includes(newCaptain)) {
+    // ✅ Captain/VC validation
+    if (!newSquad.includes(newCaptain)) {
         showNotification(`⚠️ Captain "${newCaptain}" must be in the squad!`, 'danger');
         return;
     }
-    if (!finalSquad.includes(newVC)) {
+    if (!newSquad.includes(newVC)) {
         showNotification(`⚠️ Vice Captain "${newVC}" must be in the squad!`, 'danger');
-        return;
-    }
-    
-    // ✅ If squad is empty, use existing squad
-    if (finalSquad.length === 0 && team.squad) {
-        showNotification('⚠️ Squad cannot be empty! Using existing squad.', 'warning');
         return;
     }
     
@@ -985,10 +972,9 @@ Format: Team Name, Captain, Vice Captain, Player1, Player2, Player3...
         name: newName.trim(),
         captain: newCaptain.trim(),
         viceCaptain: newVC.trim(),
-        squad: finalSquad
+        squad: newSquad
     };
     
-    // Send update to server
     fetch('/api/teams/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
