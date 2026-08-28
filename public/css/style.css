@@ -5066,62 +5066,59 @@ select option:hover {
 }
 
 /* ============================================
-   TEAMS PAGE - ENHANCED STYLES
+   TEAMS PAGE - FINAL FIX
    ============================================ */
 
-/* Team name - Bada aur Bold (Gold) */
+/* ✅ Team name - Bada aur Bold */
 .team-card .team-name-card {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #ffd700;
+    color: var(--primary);
     letter-spacing: 0.5px;
-    text-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
 }
 
-/* Team details - Normal size */
+/* ✅ Team details - Normal size (Captain/VC label + name) */
 .team-card .team-details {
     font-size: 0.95rem;
     line-height: 1.8;
     margin: 4px 0;
 }
 
-/* ✅ Captain Label - Bright Orange */
+/* Captain label - Orange (Normal size) */
 .team-card .team-details .captain-label {
     color: #fb923c;
-    font-weight: 700;
-    font-size: 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
 }
 
-/* ✅ Captain Name - Neon Green */
+/* Captain name - Green (Normal size) */
 .team-card .team-details .captain-name {
     color: #4ade80;
-    font-weight: 700;
-    font-size: 1.1rem;
-    text-shadow: 0 0 20px rgba(74, 222, 128, 0.15);
+    font-weight: 600;
+    font-size: 0.95rem;
 }
 
-/* ✅ Vice Captain Label - Neon Pink */
+/* VC label - Pink (Normal size) */
 .team-card .team-details .vc-label {
     color: #f472b6;
-    font-weight: 700;
-    font-size: 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
 }
 
-/* ✅ Vice Captain Name - Lavender */
+/* VC name - Lavender (Normal size) */
 .team-card .team-details .vc-name {
     color: #a78bfa;
-    font-weight: 700;
-    font-size: 1.1rem;
-    text-shadow: 0 0 20px rgba(167, 139, 250, 0.15);
+    font-weight: 600;
+    font-size: 0.95rem;
 }
 
-/* ✅ Separator between captain and VC */
+/* Separator between captain and VC */
 .team-card .team-details .detail-separator {
     color: #4a5568;
     margin: 0 8px;
 }
 
-/* Squad players - Bade aur Bold (White) */
+/* ✅ Squad players - Bade aur Bold */
 .team-card .team-squad {
     margin-top: 8px;
     display: flex;
@@ -5136,7 +5133,7 @@ select option:hover {
     background: rgba(255, 255, 255, 0.06);
     border-radius: 20px;
     color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     transition: all 0.3s;
 }
 
@@ -5151,7 +5148,6 @@ select option:hover {
     border: 1px solid rgba(255, 215, 0, 0.3);
     font-weight: 800;
     background: rgba(255, 215, 0, 0.08);
-    text-shadow: 0 0 25px rgba(255, 215, 0, 0.1);
 }
 
 /* Vice Captain in squad - Lavender tag */
@@ -5160,5 +5156,4 @@ select option:hover {
     border: 1px solid rgba(167, 139, 250, 0.3);
     font-weight: 800;
     background: rgba(167, 139, 250, 0.08);
-    text-shadow: 0 0 25px rgba(167, 139, 250, 0.1);
 }
