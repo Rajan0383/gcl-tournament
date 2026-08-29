@@ -554,23 +554,33 @@
 <!-- ========================================== -->
 <!-- ADMIN LOCK SECTION — ADD THIS -->
 <!-- ========================================== -->
-<div class="admin-lock-section">
-    <div class="admin-status-bar">
-        <span id="adminModeStatus" class="admin-status read-only">👤 Read-Only Mode</span>
-        <button id="adminLockBtn" onclick="toggleAdminLock()" class="admin-lock-btn">🔐 Admin</button>
-        <button id="adminLogoutBtn" onclick="logoutAdmin()" class="admin-logout-btn" style="display:none;">🔒 Logout</button>
+<!-- ========================================== -->
+<!-- LIVE SCORE HEADER + ADMIN TOP RIGHT -->
+<!-- ========================================== -->
+<div class="livescore-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+    <div>
+        <h2>🎯 Live Score</h2>
+        <p class="livescore-subtitle">GEM-STAR Championship 2026</p>
     </div>
-    <div id="adminLoginPopup" class="admin-login-popup" style="display:none;">
-        <div class="admin-login-box">
-            <h3>🔐 Admin Access</h3>
-            <p>Enter password to manage live score</p>
-            <div class="admin-login-input">
-                <input type="password" id="adminPasswordInput" placeholder="Enter Password">
-               <button onclick="checkLiveScorePassword()">Unlock</button>
-            </div>
-            <div id="adminLoginError" class="admin-login-error">❌ Incorrect password!</div>
-            <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
+    <!-- Admin Button — Top Right -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <span id="adminModeStatus" class="admin-status read-only" style="font-size: 0.85rem;">👤 Read-Only</span>
+        <button id="adminLockBtn" onclick="toggleAdminLock()" class="admin-lock-btn" style="padding: 6px 16px; font-size: 0.85rem;">🔐 Admin</button>
+        <button id="adminLogoutBtn" onclick="logoutAdmin()" class="admin-logout-btn" style="display: none; padding: 6px 16px; font-size: 0.85rem;">🔒 Logout</button>
+    </div>
+</div>
+
+<!-- Admin Login Popup (Popup ke andar ka code) -->
+<div id="adminLoginPopup" class="admin-login-popup" style="display:none;">
+    <div class="admin-login-box">
+        <h3>🔐 Admin Access</h3>
+        <p>Enter password to manage live score</p>
+        <div class="admin-login-input">
+            <input type="password" id="adminPasswordInput" placeholder="Enter Password">
+            <button onclick="checkLiveScorePassword()">Unlock</button>
         </div>
+        <div id="adminLoginError" class="admin-login-error">❌ Incorrect password!</div>
+        <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
     </div>
 </div>
                    <!-- No-Ball Indicator -->
