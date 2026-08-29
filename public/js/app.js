@@ -3029,56 +3029,83 @@ function updateMatchState(state) {
     
     // Update scoreboard
     if (state.battingTeam) {
-        document.getElementById('battingTeamName').textContent = state.battingTeam.name || 'Team 1';
-        document.getElementById('runsDisplay').textContent = state.battingTeam.runs || 0;
-        document.getElementById('wicketsDisplay').textContent = state.battingTeam.wickets || 0;
-        document.getElementById('ballsDisplay').textContent = state.battingTeam.balls || 0;
-        document.getElementById('extrasDisplay').textContent = state.battingTeam.extras || 0;
+        const battingName = document.getElementById('battingTeamName');
+        if (battingName) battingName.textContent = state.battingTeam.name || 'Team 1';
+        
+        const runs = document.getElementById('runsDisplay');
+        if (runs) runs.textContent = state.battingTeam.runs || 0;
+        
+        const wickets = document.getElementById('wicketsDisplay');
+        if (wickets) wickets.textContent = state.battingTeam.wickets || 0;
+        
+        const balls = document.getElementById('ballsDisplay');
+        if (balls) balls.textContent = state.battingTeam.balls || 0;
+        
+        const extras = document.getElementById('extrasDisplay');
+        if (extras) extras.textContent = state.battingTeam.extras || 0;
     }
     
     if (state.bowlingTeam) {
-        document.getElementById('bowlingTeamName').textContent = state.bowlingTeam.name || 'Team 2';
+        const bowlingName = document.getElementById('bowlingTeamName');
+        if (bowlingName) bowlingName.textContent = state.bowlingTeam.name || 'Team 2';
     }
     
     if (state.target) {
-        document.getElementById('targetDisplay').textContent = `Target: ${state.target}`;
+        const targetDisplay = document.getElementById('targetDisplay');
+        if (targetDisplay) targetDisplay.textContent = `Target: ${state.target}`;
     }
     
     // Update batsmen
     if (state.striker) {
-        document.getElementById('strikerName').textContent = state.striker;
+        const strikerName = document.getElementById('strikerName');
+        if (strikerName) strikerName.textContent = state.striker;
     }
     if (state.nonStriker) {
-        document.getElementById('nonStrikerName').textContent = state.nonStriker;
+        const nonStrikerName = document.getElementById('nonStrikerName');
+        if (nonStrikerName) nonStrikerName.textContent = state.nonStriker;
     }
     
     // Update bowler
     if (state.currentBowlerName) {
-        document.getElementById('currentBowler').textContent = state.currentBowlerName;
+        const currentBowler = document.getElementById('currentBowler');
+        if (currentBowler) {
+            currentBowler.textContent = state.currentBowlerName;
+        }
     }
     
     // Update over info
     if (state.currentOver !== undefined && state.currentBall !== undefined) {
-        document.getElementById('currentOverDisplay').textContent = `${state.currentOver}.${state.currentBall}`;
+        const overDisplay = document.getElementById('currentOverDisplay');
+        if (overDisplay) {
+            overDisplay.textContent = `${state.currentOver}.${state.currentBall}`;
+        }
     }
-    if (state.striker) {
-        document.getElementById('strikeDisplay').textContent = state.striker;
+    
+    // Update strike display
+    const strikeDisplay = document.getElementById('strikeDisplay');
+    if (strikeDisplay) {
+        strikeDisplay.textContent = state.striker || '-';
     }
     
     // Update last ball
     if (state.lastBallResult) {
-        document.getElementById('lastBallDisplay').textContent = `Last Ball: ${state.lastBallResult.message || '-'}`;
+        const lastBallDisplay = document.getElementById('lastBallDisplay');
+        if (lastBallDisplay) {
+            lastBallDisplay.textContent = `Last Ball: ${state.lastBallResult.message || '-'}`;
+        }
     }
     
     // Update no-ball status
     if (state.noBallUsed !== undefined) {
         const statusEl = document.getElementById('noBallStatus');
-        if (state.noBallUsed) {
-            statusEl.textContent = '✅ YES (1/1)';
-            statusEl.className = 'noball-status yes';
-        } else {
-            statusEl.textContent = '❌ No';
-            statusEl.className = 'noball-status no';
+        if (statusEl) {
+            if (state.noBallUsed) {
+                statusEl.textContent = '✅ YES (1/1)';
+                statusEl.className = 'noball-status yes';
+            } else {
+                statusEl.textContent = '❌ No';
+                statusEl.className = 'noball-status no';
+            }
         }
     }
     
