@@ -489,6 +489,28 @@
             <!-- ========================================== -->
             <!-- LIVE SCORE TAB -->
             <!-- ========================================== -->
+            <!-- ========================================== -->
+<!-- ADMIN LOCK SECTION — ADD THIS -->
+<!-- ========================================== -->
+<div class="admin-lock-section">
+    <div class="admin-status-bar">
+        <span id="adminModeStatus" class="admin-status read-only">👤 Read-Only Mode</span>
+        <button id="adminLockBtn" onclick="toggleAdminLock()" class="admin-lock-btn">🔐 Admin</button>
+        <button id="adminLogoutBtn" onclick="logoutAdmin()" class="admin-logout-btn" style="display:none;">🔒 Logout</button>
+    </div>
+    <div id="adminLoginPopup" class="admin-login-popup" style="display:none;">
+        <div class="admin-login-box">
+            <h3>🔐 Admin Access</h3>
+            <p>Enter password to manage live score</p>
+            <div class="admin-login-input">
+                <input type="password" id="adminPasswordInput" placeholder="Enter Password">
+                <button onclick="checkAdminPassword()">Unlock</button>
+            </div>
+            <div id="adminLoginError" class="admin-login-error">❌ Incorrect password!</div>
+            <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
+        </div>
+    </div>
+</div>
             <div class="tab-content" id="tab-livescore">
                 <div class="livescore-container">
                     <div class="livescore-header">
@@ -550,6 +572,11 @@
                         </div>
                         <div class="last-ball" id="lastBallDisplay">Last Ball: -</div>
                     </div>
+                   <!-- No-Ball Indicator -->
+<div class="noball-indicator">
+    <span class="noball-label">⚠️ No-Ball used this over:</span>
+    <span id="noBallStatus" class="noball-status no">❌ No</span>
+</div>
                     <div class="strike-rules">
                         <div class="strike-rule-item odd"><span class="strike-rule-icon">🔄</span><span><strong>ODD</strong> (3,5) → <span class="strike-change">Strike CHANGES</span></span></div>
                         <div class="strike-rule-item even"><span class="strike-rule-icon">✅</span><span><strong>EVEN</strong> (4,6) → <span class="strike-remain">Strike REMAINS</span></span></div>
@@ -557,28 +584,76 @@
                         <div class="strike-rule-item wide-6"><span class="strike-rule-icon">📏</span><span><strong>WIDE 6</strong> → <span class="strike-remain">Strike REMAINS</span></span></div>
                         <div class="strike-rule-item noball"><span class="strike-rule-icon">❌</span><span><strong>NO-BALL 5</strong> → <span class="strike-change">Strike CHANGES</span></span></div>
                     </div>
-                    <div class="game-controls">
-                        <div class="control-section batsman-section">
-                            <h3>🏏 Batsman</h3>
-                            <p class="hint">Enter name and PM your score</p>
-                            <input type="text" id="batsmanName" placeholder="Batsman Name" class="player-input">
-                            <div class="input-group">
-                                <input type="number" id="batsmanScore" placeholder="Score" min="3" max="6">
-                                <button onclick="submitBatScore()">Submit</button>
-                            </div>
-                            <div class="allowed-scores" id="allowedBatScores">Allowed: 3, 4, 5, 6</div>
-                        </div>
-                        <div class="control-section bowler-section">
-                            <h3>⚾ Bowler</h3>
-                            <p class="hint">Enter name and guess the number</p>
-                            <input type="text" id="bowlerName" placeholder="Bowler Name" class="player-input">
-                            <div class="input-group">
-                                <input type="number" id="bowlerGuess" placeholder="Guess" min="3" max="6">
-                                <button onclick="submitBowlGuess()">Guess!</button>
-                            </div>
-                            <div class="allowed-scores" id="allowedBowlScores">Allowed: 3, 4, 5, 6</div>
-                        </div>
-                    </div>
+                    <!-- Edit Ball Popup -->
+<div id="editBallPopup" class="edit-ball-popup" style="display:none;">
+    <div class="edit-ball-box">
+        <div class="edit-ball-header">
+            <span>✏️ Edit Ball — <span id="editBallOver">Over 2.4</span></span>
+            <button onclick="closeEditBall()" class="edit-ball-close">✕</button>
+        </div>
+        <div id="editBallCurrent" class="edit-ball-current">
+            <p><strong>Current:</strong> <span id="editCurrentData">Kohli 5 | Bumrah 3 → NO-BALL</span></p>
+        </div>
+        <div class="edit-ball-form">
+            <div class="edit-form-row">
+                <label>🏏 Batsman:</label>
+                <select id="editBatsmanSelect"></select>
+            </div>
+            <div class="edit-form-row">
+                <label>Batsman Score:</label>
+                <input type="number" id="editBatsmanScore" min="3" max="6">
+            </div>
+            <div class="edit-form-row">
+                <label>⚾ Bowler:</label>
+                <select id="editBowlerSelect"></select>
+            </div>
+            <div class="edit-form-row">
+                <label>Bowler Guess:</label>
+                <input type="number" id="editBowlerGuess" min="3" max="6">
+            </div>
+            <div class="edit-form-row" style="flex-direction: row; gap: 10px;">
+                <button onclick="updateBall()" class="edit-confirm-btn">✅ Update</button>
+                <button onclick="closeEditBall()" class="edit-cancel-btn">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+                    <!-- ========================================== -->
+<!-- GAME CONTROLS — Admin Only -->
+<!-- ========================================== -->
+<div class="game-controls" style="display: none;">
+    
+    <!-- Batsman Section -->
+    <div class="control-section batsman-section">
+        <h3>🏏 Batsman</h3>
+        <p class="hint">Select batsman and enter score</p>
+        <select id="batsmanSelect" class="player-input">
+            <option value="">Select Batsman...</option>
+        </select>
+        <div class="input-group">
+            <input type="number" id="batsmanScoreInput" placeholder="Score (3-6)" min="3" max="6">
+            <button onclick="submitBatScore()">✅ SUBMIT</button>
+        </div>
+        <div class="allowed-scores">Allowed: 3, 4, 5, 6</div>
+        <div id="batsmanStatus" class="status-msg waiting">⏳ Waiting...</div>
+    </div>
+
+    <!-- Bowler Section -->
+    <div class="control-section bowler-section">
+        <h3>⚾ Bowler</h3>
+        <p class="hint">Select bowler and enter guess</p>
+        <select id="bowlerSelect" class="player-input">
+            <option value="">Select Bowler...</option>
+        </select>
+        <div class="input-group">
+            <input type="number" id="bowlerGuessInput" placeholder="Guess (3-6)" min="3" max="6">
+            <button onclick="submitBowlGuess()">✅ GUESS!</button>
+        </div>
+        <div class="allowed-scores">Allowed: 3, 4, 5, 6</div>
+        <div id="bowlerStatus" class="status-msg waiting">⏳ Waiting...</div>
+    </div>
+
+</div>
                     <div class="scorecard-section">
                         <h3>📋 Scorecard</h3>
                         <div class="scorecard-grid">
