@@ -2864,7 +2864,7 @@ function closeAdminLogin() {
     document.getElementById('adminLoginPopup').style.display = 'none';
 }
 
-function checkAdminPassword() {
+function checkLiveScorePassword() {
     const input = document.getElementById('adminPasswordInput').value;
     if (input === ADMIN_PASSWORD) {
         isAdminMode = true;
