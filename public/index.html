@@ -489,28 +489,7 @@
             <!-- ========================================== -->
             <!-- LIVE SCORE TAB -->
             <!-- ========================================== -->
-            <!-- ========================================== -->
-<!-- ADMIN LOCK SECTION — ADD THIS -->
-<!-- ========================================== -->
-<div class="admin-lock-section">
-    <div class="admin-status-bar">
-        <span id="adminModeStatus" class="admin-status read-only">👤 Read-Only Mode</span>
-        <button id="adminLockBtn" onclick="toggleAdminLock()" class="admin-lock-btn">🔐 Admin</button>
-        <button id="adminLogoutBtn" onclick="logoutAdmin()" class="admin-logout-btn" style="display:none;">🔒 Logout</button>
-    </div>
-    <div id="adminLoginPopup" class="admin-login-popup" style="display:none;">
-        <div class="admin-login-box">
-            <h3>🔐 Admin Access</h3>
-            <p>Enter password to manage live score</p>
-            <div class="admin-login-input">
-                <input type="password" id="adminPasswordInput" placeholder="Enter Password">
-                <button onclick="checkAdminPassword()">Unlock</button>
-            </div>
-            <div id="adminLoginError" class="admin-login-error">❌ Incorrect password!</div>
-            <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
-        </div>
-    </div>
-</div>
+         
             <div class="tab-content" id="tab-livescore">
                 <div class="livescore-container">
                     <div class="livescore-header">
@@ -572,6 +551,28 @@
                         </div>
                         <div class="last-ball" id="lastBallDisplay">Last Ball: -</div>
                     </div>
+<!-- ========================================== -->
+<!-- ADMIN LOCK SECTION — ADD THIS -->
+<!-- ========================================== -->
+<div class="admin-lock-section">
+    <div class="admin-status-bar">
+        <span id="adminModeStatus" class="admin-status read-only">👤 Read-Only Mode</span>
+        <button id="adminLockBtn" onclick="toggleAdminLock()" class="admin-lock-btn">🔐 Admin</button>
+        <button id="adminLogoutBtn" onclick="logoutAdmin()" class="admin-logout-btn" style="display:none;">🔒 Logout</button>
+    </div>
+    <div id="adminLoginPopup" class="admin-login-popup" style="display:none;">
+        <div class="admin-login-box">
+            <h3>🔐 Admin Access</h3>
+            <p>Enter password to manage live score</p>
+            <div class="admin-login-input">
+                <input type="password" id="adminPasswordInput" placeholder="Enter Password">
+                <button onclick="checkAdminPassword()">Unlock</button>
+            </div>
+            <div id="adminLoginError" class="admin-login-error">❌ Incorrect password!</div>
+            <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
+        </div>
+    </div>
+</div>
                    <!-- No-Ball Indicator -->
 <div class="noball-indicator">
     <span class="noball-label">⚠️ No-Ball used this over:</span>
