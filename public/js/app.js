@@ -2876,6 +2876,8 @@ function checkAdminPassword() {
         document.querySelector('.game-controls').style.display = 'grid';
         document.querySelectorAll('.ball-edit-btn').forEach(b => b.style.display = 'inline-block');
         document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'inline-block');
+        const resetBtn = document.getElementById('resetMatchBtn');
+        if (resetBtn) resetBtn.style.display = 'inline-block';
         showNotification('✅ Admin Mode Activated!', 'success');
     } else {
         document.getElementById('adminLoginError').style.display = 'block';
@@ -2893,6 +2895,8 @@ function logoutAdmin() {
     document.querySelector('.game-controls').style.display = 'none';
     document.querySelectorAll('.ball-edit-btn').forEach(b => b.style.display = 'none');
     document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'none');
+    const resetBtn = document.getElementById('resetMatchBtn');
+    if (resetBtn) resetBtn.style.display = 'none';
     showNotification('🔒 Logged out from Admin Mode', 'warning');
 }
 
