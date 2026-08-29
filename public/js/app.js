@@ -2849,7 +2849,7 @@ function editGroupTeam(teamId) {
 // ============================================
 
 let isAdminMode = false;
-const ADMIN_PASSWORD = 'gcl2026';
+
 let allPlayers = [];
 let batsmanScoreSet = false;
 let currentMatchState = null;
