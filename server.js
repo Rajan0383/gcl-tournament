@@ -147,24 +147,9 @@ class GCLEngine {
         } catch (error) {
             console.error('Error saving data:', error);
         }
-    class GCLEngine {
-    // ... saare existing functions ...
-
-    // ✅ STEP 6: YAHAN ADD KAREIN
-    async syncToGoogleSheet() {
-        // ... code ...
-    }
-
-}  // ← Class yahan end hoti hai
+   
     }
     
-// ============================================
-// GAME ENGINE - MATCH COMPLETE WITH SCORE
-// ============================================
-
-// ============================================
-// GAME ENGINE - MATCH COMPLETE WITH SCORE
-// ============================================
 
 // ============================================
 // GAME ENGINE - MATCH COMPLETE WITH SCORE
@@ -1270,6 +1255,63 @@ deleteBall(index) {
     
     this.saveAllData();
     return { message: `Ball ${index + 1} deleted successfully` };
+}
+    // ============================================
+// GOOGLE SHEET AUTO-SYNC
+// ============================================
+
+async function syncToGoogleSheet() {
+    try {
+        const batsmen = gameEngine.getTopBatsmen(10);
+        const bowlers = gameEngine.getTopBowlers(10);
+        const mom = gameEngine.getTopManOfMatch(5);
+        const pointsTable = gameEngine.getPointsTable();
+        
+        const doc = new GoogleSpreadsheet(SHEET_ID);
+        await doc.useServiceAccountAuth(creds);
+        await doc.loadInfo();
+        
+        // Batsmen Sheet (Index 0)
+        const batsmenSheet = doc.sheetsByIndex[0];
+        await batsmenSheet.clearRows();
+        await batsmenSheet.setHeaderRow(['Player', 'Runs', 'Balls', 'Fours', 'Sixes', 'Avg', 'SR']);
+        await batsmenSheet.addRows(batsmen.map(b => [
+            b.name, b.runs || 0, b.balls || 0, b.fours || 0, b.sixes || 0,
+            (b.average || 0).toFixed(2), (b.strikeRate || 0).toFixed(2)
+        ]));
+        
+        // MOM Sheet (Index 1)
+        const momSheet = doc.sheetsByIndex[1];
+        await momSheet.clearRows();
+        await momSheet.setHeaderRow(['Player', 'Count']);
+        await momSheet.addRows(mom.map(m => [m.name, m.count || 0]));
+        
+        // Bowlers Sheet (Index 2)
+        const bowlersSheet = doc.sheetsByIndex[2];
+        await bowlersSheet.clearRows();
+        await bowlersSheet.setHeaderRow(['Player', 'Wickets', 'Balls', 'Runs', 'Economy', 'Best']);
+        await bowlersSheet.addRows(bowlers.map(b => [
+            b.name, b.wickets || 0, b.balls || 0, b.runsConceded || 0,
+            (b.economy || 0).toFixed(2), b.best || 0
+        ]));
+        
+        // Points Table Sheet (Index 3)
+        const pointsSheet = doc.sheetsByIndex[3];
+        if (pointsSheet) {
+            await pointsSheet.clearRows();
+            await pointsSheet.setHeaderRow(['Rank', 'Team', 'Matches', 'Wins', 'Losses', 'Points', 'NRR']);
+            await pointsSheet.addRows(pointsTable.map(t => [
+                t.rank, t.name, t.matches || 0, t.wins || 0, t.losses || 0,
+                t.points || 0, t.netRunRate || 0
+            ]));
+        }
+        
+        console.log('✅ Google Sheet auto-synced successfully!');
+        return true;
+    } catch (error) {
+        console.error('❌ Google Sheet sync failed:', error.message);
+        return false;
+    }
 }
     
     exportTournamentData(format = 'json') {
