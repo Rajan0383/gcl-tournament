@@ -1345,7 +1345,185 @@ class GCLEngine {
             return false;
         }
     }
+// ============================================
+// NON-STRIKER SET
+// ============================================
 
+setNonStriker(name) {
+    this.matchState.nonStriker = name;
+    return { message: `Non-Striker set: ${name}` };
+}
+
+// ============================================
+// PENALTY FUNCTIONS
+// ============================================
+
+// Track offences per player
+penaltyTracker = {};
+
+applyPenalty(data) {
+    const { type, player, offence } = data;
+    
+    if (!this.matchState.isActive) {
+        return { error: 'Match not active' };
+    }
+    
+    // Initialize penalty tracker for player
+    if (!this.penaltyTracker[player]) {
+        this.penaltyTracker[player] = { batsman: 0, bowler: 0 };
+    }
+    
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    let message = '';
+    let runsChange = 0;
+    let isOut = false;
+    
+    if (type === 'batsman') {
+        const count = (this.penaltyTracker[player].batsman || 0) + 1;
+        this.penaltyTracker[player].batsman = count;
+        
+        switch(offence) {
+            case 'score_without_permission':
+                if (count === 1) {
+                    runsChange = -3;
+                    message = `${player} - Score without permission (1st offence): -3 runs`;
+                } else if (count === 2) {
+                    runsChange = -6;
+                    message = `${player} - Score without permission (2nd offence): -6 runs`;
+                } else {
+                    isOut = true;
+                    message = `${player} - Score without permission (3rd offence): DISMISSED!`;
+                }
+                break;
+                
+            case 'text_instead_of_score':
+                if (count === 1) {
+                    // DOT ball - no runs
+                    message = `${player} - Text instead of score (1st offence): DOT ball`;
+                } else {
+                    isOut = true;
+                    message = `${player} - Text instead of score (2nd offence): DISMISSED!`;
+                }
+                break;
+                
+            case 'double_score':
+                if (count === 1) {
+                    runsChange = -3;
+                    message = `${player} - Double score (1st offence): -3 runs`;
+                } else {
+                    runsChange = -6;
+                    isOut = true;
+                    message = `${player} - Double score (2nd offence): -6 runs + DISMISSED!`;
+                }
+                break;
+                
+            case 'edit_delete_score':
+                isOut = true;
+                message = `${player} - Edit/delete score in PM: IMMEDIATE DISMISSAL!`;
+                break;
+                
+            default:
+                return { error: 'Invalid offence' };
+        }
+    } else if (type === 'bowler') {
+        const count = (this.penaltyTracker[player].bowler || 0) + 1;
+        this.penaltyTracker[player].bowler = count;
+        
+        switch(offence) {
+            case 'guess_before_permission':
+                if (count === 1) {
+                    runsChange = 3;
+                    message = `${player} - Guess before permission (1st offence): +3 runs to batting`;
+                } else if (count === 2) {
+                    runsChange = 6;
+                    message = `${player} - Guess before permission (2nd offence): +6 runs to batting`;
+                } else {
+                    runsChange = 6;
+                    isOut = true;
+                    message = `${player} - Guess before permission (3rd offence): +6 runs + BOWLER DISMISSED!`;
+                }
+                break;
+                
+            default:
+                return { error: 'Invalid offence' };
+        }
+    }
+    
+    // Apply changes
+    if (runsChange !== 0) {
+        battingTeam.runs += runsChange;
+    }
+    if (isOut) {
+        battingTeam.wickets += 1;
+        // If batsman out, advance batting order
+        battingTeam.currentBattingIndex += 1;
+        if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
+            battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
+            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
+        }
+    }
+    
+    // Add to ball log
+    if (!this.matchState.ballLog) this.matchState.ballLog = [];
+    this.matchState.ballLog.push({
+        over: `${this.matchState.currentOver}.${this.matchState.currentBall}`,
+        result: message,
+        resultClass: 'penalty',
+        batsman: type === 'batsman' ? player : '',
+        bowler: type === 'bowler' ? player : '',
+        runs: runsChange,
+        isOut: isOut,
+        isPenalty: true
+    });
+    
+    this.saveAllData();
+    return { message, runsChange, isOut };
+}
+
+// ============================================
+// CALCULATE BALL RESULT (For Edit/Delete)
+// ============================================
+
+calculateBallResult(batsmanScore, bowlerGuess) {
+    let result = {
+        isOut: false,
+        runsScored: 0,
+        isWide: false,
+        isNoBall: false,
+        message: '',
+        resultClass: ''
+    };
+
+    // WIDE: 3 vs 6 OR 6 vs 3
+    if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
+        result.isWide = true;
+        result.runsScored = 0;
+        result.message = `📏 WIDE! (${batsmanScore}-${bowlerGuess}) Ball counts. No extra run.`;
+        result.resultClass = 'wide';
+    }
+    // NO-BALL: Batsman 5 with any guess other than 5
+    else if (batsmanScore === 5 && bowlerGuess !== 5) {
+        result.isNoBall = true;
+        result.runsScored = 0;
+        result.message = `❌ NO-BALL! (5-${bowlerGuess}) Ball counts. No extra run.`;
+        result.resultClass = 'noball';
+    }
+    // OUT: Exact match
+    else if (batsmanScore === bowlerGuess) {
+        result.isOut = true;
+        result.runsScored = 0;
+        result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
+        result.resultClass = 'wicket';
+    }
+    // SAFE: Runs added
+    else {
+        result.runsScored = batsmanScore;
+        result.message = `✅ Safe! ${batsmanScore} runs`;
+        result.resultClass = 'runs';
+    }
+
+    return result;
+}
     // ============================================
     // DATA EXPORT
     // ============================================
@@ -1508,6 +1686,49 @@ io.on('connection', (socket) => {
         bowlers: gameEngine.getTopBowlers(),
         manOfMatch: gameEngine.getTopManOfMatch()
     });
+    // ============================================
+// SOCKET EVENTS — NON-STRIKER & PENALTY
+// ============================================
+
+// Set Non-Striker
+socket.on('setNonStriker', (data) => {
+    try {
+        const result = gameEngine.setNonStriker(data.name);
+        io.emit('nonStrikerSet', {
+            name: data.name,
+            state: gameEngine.getMatchState()
+        });
+        io.emit('stateUpdate', gameEngine.getMatchState());
+        io.emit('notification', `🔄 Non-Striker set: ${data.name}`);
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+
+// Apply Penalty
+socket.on('applyPenalty', (data) => {
+    try {
+        const result = gameEngine.applyPenalty(data);
+        if (result.error) {
+            socket.emit('penaltyError', { message: result.error });
+            return;
+        }
+        io.emit('penaltyApplied', {
+            message: result.message,
+            state: gameEngine.getMatchState()
+        });
+        io.emit('stateUpdate', gameEngine.getMatchState());
+        io.emit('pointsTable', gameEngine.getPointsTable());
+        io.emit('topStats', {
+            batsmen: gameEngine.getTopBatsmen(),
+            bowlers: gameEngine.getTopBowlers(),
+            manOfMatch: gameEngine.getTopManOfMatch()
+        });
+        io.emit('notification', `⚠️ ${result.message}`);
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
 
     // ============================================
     // SOCKET EVENTS — ADMIN OVERRIDE
