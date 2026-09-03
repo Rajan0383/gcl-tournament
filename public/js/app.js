@@ -3401,3 +3401,598 @@ socket.on('error', (data) => {
         showNotification(`⚠️ ${data.message}`, 'danger');
     }
 });
+// ============================================
+// NON-STRIKER & PENALTY FUNCTIONS — ADD THIS
+// ============================================
+
+// ============================================
+// 1. MANUAL ENTRY TOGGLE FUNCTIONS
+// ============================================
+
+function toggleBatsmanManualInput() {
+    const select = document.getElementById('batsmanSelect');
+    const manualDiv = document.getElementById('batsmanManualInput');
+    if (select.value === '__manual__') {
+        manualDiv.style.display = 'block';
+        document.getElementById('batsmanManualName').focus();
+    } else {
+        manualDiv.style.display = 'none';
+    }
+}
+
+function toggleBowlerManualInput() {
+    const select = document.getElementById('bowlerSelect');
+    const manualDiv = document.getElementById('bowlerManualInput');
+    if (select.value === '__manual__') {
+        manualDiv.style.display = 'block';
+        document.getElementById('bowlerManualName').focus();
+    } else {
+        manualDiv.style.display = 'none';
+    }
+}
+
+function toggleNonStrikerManualInput() {
+    const select = document.getElementById('nonStrikerSelect');
+    const manualDiv = document.getElementById('nonStrikerManualInput');
+    if (select.value === '__manual__') {
+        manualDiv.style.display = 'block';
+        document.getElementById('nonStrikerManualName').focus();
+    } else {
+        manualDiv.style.display = 'none';
+    }
+}
+
+// ============================================
+// 2. SUBMIT FUNCTIONS (FIXED)
+// ============================================
+
+function submitBatScore() {
+    if (!isAdminMode) {
+        showNotification('⚠️ Admin login required!', 'danger');
+        return;
+    }
+    
+    const select = document.getElementById('batsmanSelect');
+    let name = select.value;
+    
+    if (name === '__manual__') {
+        name = document.getElementById('batsmanManualName').value.trim();
+        if (!name) {
+            showNotification('⚠️ Please enter batsman name!', 'danger');
+            return;
+        }
+    }
+    
+    if (!name || name === '') {
+        showNotification('⚠️ Please select batsman!', 'danger');
+        return;
+    }
+    
+    const score = parseInt(document.getElementById('batsmanScoreInput').value);
+    if (isNaN(score) || score < 3 || score > 6) {
+        showNotification('⚠️ Score must be 3, 4, 5, or 6!', 'danger');
+        return;
+    }
+    
+    socket.emit('batsmanSetScore', { name, score });
+    document.getElementById('batsmanScoreInput').value = '';
+}
+
+function submitBowlGuess() {
+    if (!isAdminMode) {
+        showNotification('⚠️ Admin login required!', 'danger');
+        return;
+    }
+    
+    if (!batsmanScoreSet) {
+        showNotification('⚠️ Batsman has not set score yet! Bowler cannot guess first.', 'danger');
+        return;
+    }
+    
+    const select = document.getElementById('bowlerSelect');
+    let name = select.value;
+    
+    if (name === '__manual__') {
+        name = document.getElementById('bowlerManualName').value.trim();
+        if (!name) {
+            showNotification('⚠️ Please enter bowler name!', 'danger');
+            return;
+        }
+    }
+    
+    if (!name || name === '') {
+        showNotification('⚠️ Please select bowler!', 'danger');
+        return;
+    }
+    
+    const guess = parseInt(document.getElementById('bowlerGuessInput').value);
+    if (isNaN(guess) || guess < 3 || guess > 6) {
+        showNotification('⚠️ Guess must be 3, 4, 5, or 6!', 'danger');
+        return;
+    }
+    
+    socket.emit('bowlerGuess', { name, guess });
+    document.getElementById('bowlerGuessInput').value = '';
+}
+
+// ============================================
+// 3. NON-STRIKER FUNCTION
+// ============================================
+
+function setNonStriker() {
+    if (!isAdminMode) {
+        showNotification('⚠️ Admin login required!', 'danger');
+        return;
+    }
+    
+    const select = document.getElementById('nonStrikerSelect');
+    let name = select.value;
+    
+    if (name === '__manual__') {
+        name = document.getElementById('nonStrikerManualName').value.trim();
+        if (!name) {
+            showNotification('⚠️ Please enter non-striker name!', 'danger');
+            return;
+        }
+    }
+    
+    if (!name || name === '') {
+        showNotification('⚠️ Please select non-striker!', 'danger');
+        return;
+    }
+    
+    socket.emit('setNonStriker', { name });
+    document.getElementById('nonStrikerStatus').textContent = `✅ ${name}`;
+    document.getElementById('nonStrikerStatus').className = 'status-msg success';
+    showNotification(`🔄 Non-Striker set: ${name}`, 'success');
+}
+
+// ============================================
+// 4. PENALTY FUNCTIONS
+// ============================================
+
+function applyPenalty(type) {
+    if (!isAdminMode) {
+        showNotification('⚠️ Admin login required!', 'danger');
+        return;
+    }
+    
+    let playerName, offence, penaltyData;
+    
+    if (type === 'batsman') {
+        playerName = document.getElementById('penaltyBatsmanSelect').value;
+        offence = document.getElementById('penaltyBatsmanOffence').value;
+        if (!playerName || !offence) {
+            showNotification('⚠️ Please select batsman and offence!', 'danger');
+            return;
+        }
+        penaltyData = { type: 'batsman', player: playerName, offence: offence };
+    } else if (type === 'bowler') {
+        playerName = document.getElementById('penaltyBowlerSelect').value;
+        offence = document.getElementById('penaltyBowlerOffence').value;
+        if (!playerName || !offence) {
+            showNotification('⚠️ Please select bowler and offence!', 'danger');
+            return;
+        }
+        penaltyData = { type: 'bowler', player: playerName, offence: offence };
+    }
+    
+    socket.emit('applyPenalty', penaltyData);
+    document.getElementById('penaltyStatus').textContent = '⏳ Applying penalty...';
+    document.getElementById('penaltyStatus').className = 'status-msg waiting';
+}
+
+// ============================================
+// 5. UPDATE MATCH STATE (FIXED - WITH TEAM NAMES)
+// ============================================
+
+function updateMatchState(state) {
+    if (!state) return;
+    currentMatchState = state;
+    
+    // Update scoreboard — WITH TEAM NAMES
+    if (state.battingTeam) {
+        const battingName = document.getElementById('battingTeamName');
+        if (battingName) battingName.textContent = state.battingTeam.name || 'Team 1';
+        
+        const runs = document.getElementById('runsDisplay');
+        if (runs) runs.textContent = state.battingTeam.runs || 0;
+        
+        const wickets = document.getElementById('wicketsDisplay');
+        if (wickets) wickets.textContent = state.battingTeam.wickets || 0;
+        
+        const balls = document.getElementById('ballsDisplay');
+        if (balls) balls.textContent = state.battingTeam.balls || 0;
+        
+        const extras = document.getElementById('extrasDisplay');
+        if (extras) extras.textContent = state.battingTeam.extras || 0;
+    }
+    
+    if (state.bowlingTeam) {
+        const bowlingName = document.getElementById('bowlingTeamName');
+        if (bowlingName) bowlingName.textContent = state.bowlingTeam.name || 'Team 2';
+    }
+    
+    const targetDisplay = document.getElementById('targetDisplay');
+    if (targetDisplay) {
+        targetDisplay.textContent = state.target ? `Target: ${state.target}` : '';
+    }
+    
+    // Update batsmen
+    const strikerName = document.getElementById('strikerName');
+    if (strikerName) strikerName.textContent = state.striker || '-';
+    
+    const nonStrikerName = document.getElementById('nonStrikerName');
+    if (nonStrikerName) nonStrikerName.textContent = state.nonStriker || '-';
+    
+    // Update bowler
+    const currentBowler = document.getElementById('currentBowler');
+    if (currentBowler) currentBowler.textContent = state.currentBowlerName || '-';
+    
+    // Update over info
+    const overDisplay = document.getElementById('currentOverDisplay');
+    if (overDisplay && state.currentOver !== undefined && state.currentBall !== undefined) {
+        overDisplay.textContent = `${state.currentOver}.${state.currentBall}`;
+    }
+    
+    const strikeDisplay = document.getElementById('strikeDisplay');
+    if (strikeDisplay) {
+        strikeDisplay.textContent = state.striker || '-';
+    }
+    
+    // Update last ball
+    const lastBallDisplay = document.getElementById('lastBallDisplay');
+    if (lastBallDisplay) {
+        if (state.lastBallResult) {
+            lastBallDisplay.textContent = `Last Ball: ${state.lastBallResult.message || '-'}`;
+        } else {
+            lastBallDisplay.textContent = 'Last Ball: -';
+        }
+    }
+    
+    // Update no-ball status
+    if (state.noBallUsed !== undefined) {
+        const statusEl = document.getElementById('noBallStatus');
+        if (statusEl) {
+            if (state.noBallUsed) {
+                statusEl.textContent = '✅ YES (1/1)';
+                statusEl.className = 'noball-status yes';
+            } else {
+                statusEl.textContent = '❌ No';
+                statusEl.className = 'noball-status no';
+            }
+        }
+    }
+    
+    // Update scorecard
+    updateScorecard(state);
+    
+    // Update ball-by-ball
+    updateBallByBall(state);
+}
+
+// ============================================
+// 6. SCORECARD UPDATE (FIXED)
+// ============================================
+
+function updateScorecard(state) {
+    if (!state) return;
+    
+    const batsmen = state.batsmen || [];
+    const batsmenContainer = document.getElementById('batsmenScorecard');
+    if (batsmenContainer) {
+        if (batsmen.length === 0) {
+            batsmenContainer.innerHTML = '<p class="empty-message">No batsmen yet</p>';
+        } else {
+            let html = '';
+            batsmen.forEach(b => {
+                const fours = b.fours || 0;
+                const sixes = b.sixes || 0;
+                html += `<div class="scorecard-player">
+                    <span class="sc-name">${b.name}</span>
+                    <span class="sc-stats">${b.runs}(${b.balls}) ${fours}x4 ${sixes}x6</span>
+                </div>`;
+            });
+            batsmenContainer.innerHTML = html;
+        }
+    }
+    
+    const bowlers = state.bowlers || [];
+    const bowlersContainer = document.getElementById('bowlersScorecard');
+    if (bowlersContainer) {
+        if (bowlers.length === 0) {
+            bowlersContainer.innerHTML = '<p class="empty-message">No bowlers yet</p>';
+        } else {
+            let html = '';
+            bowlers.forEach(b => {
+                html += `<div class="scorecard-player">
+                    <span class="sc-name">${b.name}</span>
+                    <span class="sc-stats">${b.wickets}w ${b.runsConceded}r ${b.overs}ov</span>
+                </div>`;
+            });
+            bowlersContainer.innerHTML = html;
+        }
+    }
+}
+
+// ============================================
+// 7. BALL-BY-BALL UPDATE
+// ============================================
+
+function updateBallByBall(state) {
+    if (!state) return;
+    
+    const balls = state.ballLog || [];
+    const container = document.getElementById('ballByBall');
+    if (!container) return;
+    
+    if (balls.length === 0) {
+        container.innerHTML = '<p class="empty-message">No balls bowled yet</p>';
+        return;
+    }
+    
+    let html = '';
+    balls.forEach((ball, index) => {
+        const editBtn = isAdminMode ? `<button class="ball-edit-btn" onclick="editBall(${index})" style="display:inline-block;">✏️</button>` : '';
+        const deleteBtn = isAdminMode ? `<button class="ball-delete-btn" onclick="deleteBall(${index})" style="display:inline-block;">🗑️</button>` : '';
+        const corrected = ball.corrected ? ' [Corrected]' : '';
+        const resultClass = ball.resultClass || '';
+        html += `<div class="ball-entry">
+            <span class="ball-over">${ball.over || '0.0'}</span>
+            <span class="ball-result ${resultClass}">${ball.result || ''}${corrected}</span>
+            <span class="ball-actions">${editBtn}${deleteBtn}</span>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+// ============================================
+// 8. DROPDOWN POPULATE (FILTER BY MATCH TEAMS)
+// ============================================
+
+let currentMatchTeams = { team1: null, team2: null };
+
+function populateDropdowns(teams, matchTeam1, matchTeam2) {
+    const players = [];
+    
+    // Filter only match teams
+    const matchTeams = teams.filter(t => 
+        t.name === matchTeam1 || t.name === matchTeam2
+    );
+    
+    matchTeams.forEach(team => {
+        if (team.captain) players.push(team.captain);
+        if (team.viceCaptain) players.push(team.viceCaptain);
+        if (team.squad) {
+            team.squad.forEach(p => {
+                if (p && !players.includes(p)) players.push(p);
+            });
+        }
+    });
+    
+    allPlayers = players;
+    
+    // Populate Batsman Dropdown
+    const batsmanSelect = document.getElementById('batsmanSelect');
+    if (batsmanSelect) {
+        batsmanSelect.innerHTML = '<option value="">Select Batsman...</option><option value="__manual__">✏️ Type manually...</option>';
+        players.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            batsmanSelect.appendChild(option);
+        });
+    }
+    
+    // Populate Bowler Dropdown
+    const bowlerSelect = document.getElementById('bowlerSelect');
+    if (bowlerSelect) {
+        bowlerSelect.innerHTML = '<option value="">Select Bowler...</option><option value="__manual__">✏️ Type manually...</option>';
+        players.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            bowlerSelect.appendChild(option);
+        });
+    }
+    
+    // Populate Non-Striker Dropdown
+    const nonStrikerSelect = document.getElementById('nonStrikerSelect');
+    if (nonStrikerSelect) {
+        nonStrikerSelect.innerHTML = '<option value="">Select Non-Striker...</option><option value="__manual__">✏️ Type manually...</option>';
+        players.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            nonStrikerSelect.appendChild(option);
+        });
+    }
+    
+    // Populate Penalty Dropdowns
+    const penaltyBatsmanSelect = document.getElementById('penaltyBatsmanSelect');
+    if (penaltyBatsmanSelect) {
+        penaltyBatsmanSelect.innerHTML = '<option value="">Select Batsman...</option>';
+        players.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            penaltyBatsmanSelect.appendChild(option);
+        });
+    }
+    
+    const penaltyBowlerSelect = document.getElementById('penaltyBowlerSelect');
+    if (penaltyBowlerSelect) {
+        penaltyBowlerSelect.innerHTML = '<option value="">Select Bowler...</option>';
+        players.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            penaltyBowlerSelect.appendChild(option);
+        });
+    }
+}
+
+// Override socket events
+socket.on('teamsList', (teams) => {
+    window.teams = teams;
+    populateDropdowns(teams, currentMatchTeams.team1, currentMatchTeams.team2);
+});
+
+socket.on('stateUpdate', (state) => {
+    if (state && state.battingTeam && state.bowlingTeam) {
+        currentMatchTeams.team1 = state.battingTeam.name;
+        currentMatchTeams.team2 = state.bowlingTeam.name;
+        // Re-populate dropdowns with match teams
+        if (window.teams) {
+            populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
+        }
+    }
+    updateMatchState(state);
+});
+
+// ============================================
+// 9. ADMIN LOCK FUNCTIONS (FIXED)
+// ============================================
+
+function checkLiveScorePassword() {
+    const input = document.getElementById('adminPasswordInput').value;
+    if (input === ADMIN_PASSWORD) {
+        isAdminMode = true;
+        document.getElementById('adminLoginPopup').style.display = 'none';
+        document.getElementById('adminModeStatus').textContent = '👑 Admin Mode';
+        document.getElementById('adminModeStatus').className = 'admin-status admin-mode';
+        document.getElementById('adminLockBtn').style.display = 'none';
+        document.getElementById('adminLogoutBtn').style.display = 'inline-block';
+        document.querySelector('.game-controls').style.display = 'grid';
+        document.querySelectorAll('.ball-edit-btn').forEach(b => b.style.display = 'inline-block');
+        document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'inline-block');
+        const resetBtn = document.getElementById('resetMatchBtn');
+        if (resetBtn) resetBtn.style.display = 'inline-block';
+        showNotification('✅ Admin Mode Activated!', 'success');
+    } else {
+        document.getElementById('adminLoginError').style.display = 'block';
+        document.getElementById('adminPasswordInput').value = '';
+        document.getElementById('adminPasswordInput').focus();
+    }
+}
+
+function logoutAdmin() {
+    isAdminMode = false;
+    document.getElementById('adminModeStatus').textContent = '👤 Read-Only Mode';
+    document.getElementById('adminModeStatus').className = 'admin-status read-only';
+    document.getElementById('adminLockBtn').style.display = 'inline-block';
+    document.getElementById('adminLogoutBtn').style.display = 'none';
+    document.querySelector('.game-controls').style.display = 'none';
+    document.querySelectorAll('.ball-edit-btn').forEach(b => b.style.display = 'none');
+    document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'none');
+    const resetBtn = document.getElementById('resetMatchBtn');
+    if (resetBtn) resetBtn.style.display = 'none';
+    showNotification('🔒 Logged out from Admin Mode', 'warning');
+}
+
+// ============================================
+// 10. SOCKET EVENT LISTENERS (ADD PENALTY & NON-STRIKER)
+// ============================================
+
+socket.on('scoreUpdate', (data) => {
+    if (data.type === 'batsmanSet') {
+        batsmanScoreSet = true;
+        document.getElementById('batsmanStatus').textContent = `✅ Score set: ${data.result.score}`;
+        document.getElementById('batsmanStatus').className = 'status-msg success';
+        document.getElementById('bowlerStatus').textContent = '⏳ Ready to guess...';
+        document.getElementById('bowlerStatus').className = 'status-msg waiting';
+        showNotification(`✅ ${data.result.message}`, 'success');
+    } else if (data.type === 'bowlResult') {
+        batsmanScoreSet = false;
+        document.getElementById('batsmanStatus').textContent = '⏳ Waiting...';
+        document.getElementById('batsmanStatus').className = 'status-msg waiting';
+        document.getElementById('bowlerStatus').textContent = '⏳ Waiting...';
+        document.getElementById('bowlerStatus').className = 'status-msg waiting';
+        document.getElementById('batsmanScoreInput').value = '';
+        document.getElementById('bowlerGuessInput').value = '';
+        
+        if (data.result && data.result.isOut) {
+            showNotification(`🎯 ${data.result.message}`, 'danger');
+        } else if (data.result && data.result.isWide) {
+            showNotification(`📏 ${data.result.message}`, 'warning');
+        } else if (data.result && data.result.isNoBall) {
+            showNotification(`❌ ${data.result.message}`, 'warning');
+        } else if (data.result) {
+            showNotification(`✅ ${data.result.message}`, 'success');
+        }
+    }
+    if (data.state) updateMatchState(data.state);
+});
+
+socket.on('stateUpdate', (state) => {
+    if (state) {
+        if (state.battingTeam && state.bowlingTeam) {
+            currentMatchTeams.team1 = state.battingTeam.name;
+            currentMatchTeams.team2 = state.bowlingTeam.name;
+            if (window.teams) {
+                populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
+            }
+        }
+        updateMatchState(state);
+    }
+});
+
+socket.on('ballUpdated', (data) => {
+    if (data.result) showNotification(`✅ Ball updated! ${data.result}`, 'success');
+    if (data.state) updateMatchState(data.state);
+});
+
+socket.on('ballDeleted', (data) => {
+    showNotification(`🗑️ Ball deleted!`, 'warning');
+    if (data.state) updateMatchState(data.state);
+});
+
+socket.on('notification', (message) => {
+    showNotification(message, 'info');
+});
+
+socket.on('error', (data) => {
+    if (data && data.message) {
+        showNotification(`⚠️ ${data.message}`, 'danger');
+    }
+});
+
+// Non-Striker update
+socket.on('nonStrikerSet', (data) => {
+    document.getElementById('nonStrikerStatus').textContent = `✅ ${data.name}`;
+    document.getElementById('nonStrikerStatus').className = 'status-msg success';
+    if (data.state) updateMatchState(data.state);
+});
+
+// Penalty update
+socket.on('penaltyApplied', (data) => {
+    document.getElementById('penaltyStatus').textContent = data.message;
+    document.getElementById('penaltyStatus').className = 'status-msg success';
+    showNotification(`⚠️ ${data.message}`, 'warning');
+    if (data.state) updateMatchState(data.state);
+});
+
+socket.on('penaltyError', (data) => {
+    document.getElementById('penaltyStatus').textContent = `❌ ${data.message}`;
+    document.getElementById('penaltyStatus').className = 'status-msg error';
+    showNotification(`⚠️ ${data.message}`, 'danger');
+});
+
+// Show notification function (already exists, but ensure it's there)
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    if (!notification) return;
+    
+    notification.textContent = message;
+    notification.className = 'notification';
+    if (type) {
+        notification.classList.add(type);
+    }
+    notification.style.display = 'flex';
+    
+    clearTimeout(notification._timeout);
+    notification._timeout = setTimeout(() => {
+        notification.style.display = 'none';
+    }, 5000);
+}
