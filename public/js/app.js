@@ -2182,7 +2182,7 @@ function submitBowlGuess() {
     updateLiveScoreDisplay();
 }
 
-function updateLiveScoreDisplay() {
+/*function updateLiveScoreDisplay() {
     // Update scoreboard
     const state = liveScoreData;
     
@@ -2207,7 +2207,7 @@ function updateLiveScoreDisplay() {
     }
     
     document.getElementById('strikeDisplay').textContent = state.striker || '-';
-}
+}*/
 
 // Socket events for live score
 socket.on('scoreUpdate', (data) => {
