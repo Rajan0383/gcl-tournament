@@ -404,49 +404,6 @@ function updateTop10Players(data) {
         }
     }
 }
-
-// ============================================
-// GAME ACTIONS
-// ============================================
-
-/*function submitBatScore() {
-    const name = document.getElementById('batsmanName').value.trim();
-    const score = parseInt(document.getElementById('batsmanScore').value);
-    
-    if (!name) {
-        showNotification('⚠️ Please enter batsman name!', 'danger');
-        return;
-    }
-    
-    if (!score || score < 1 || score > 6) {
-        showNotification('⚠️ Please enter a valid score (1-6)', 'danger');
-        return;
-    }
-    
-    socket.emit('batsmanSetScore', { name, score });
-    document.getElementById('batsmanScore').value = '';
-    showNotification(`✅ ${name} set score: ${score}`, 'success');
-}
-
-function submitBowlGuess() {
-    const name = document.getElementById('bowlerName').value.trim();
-    const guess = parseInt(document.getElementById('bowlerGuess').value);
-    
-    if (!name) {
-        showNotification('⚠️ Please enter bowler name!', 'danger');
-        return;
-    }
-    
-    if (!guess || guess < 1 || guess > 6) {
-        showNotification('⚠️ Please enter a valid guess (1-6)', 'danger');
-        return;
-    }
-    
-    socket.emit('bowlerGuess', { name, guess });
-    document.getElementById('bowlerGuess').value = '';
-    showNotification(`⚾ ${name} guessed: ${guess}`, 'warning');
-}*/
-
 // ============================================
 // FIXTURE FUNCTIONS
 // ============================================
@@ -2121,67 +2078,6 @@ let liveScoreData = {
     bowlers: [],
     ballByBall: []
 };
-
-function submitBatScore() {
-    const name = document.getElementById('batsmanName').value.trim();
-    const score = parseInt(document.getElementById('batsmanScore').value);
-    
-    if (!name) {
-        showNotification('⚠️ Please enter batsman name!', 'danger');
-        return;
-    }
-    
-    if (!score || score < 3 || score > 6) {
-        showNotification('⚠️ Please enter a valid score (3-6)', 'danger');
-        return;
-    }
-    
-    // Update live score data
-    if (!liveScoreData.striker) {
-        liveScoreData.striker = name;
-    }
-    
-    liveScoreData.currentBatsmanName = name;
-    liveScoreData.batsmanScore = score;
-    
-    // Send to server
-    socket.emit('batsmanSetScore', { 
-        name: name, 
-        score: score 
-    });
-    
-    document.getElementById('batsmanScore').value = '';
-    showNotification(`✅ ${name} set score: ${score}`, 'success');
-    updateLiveScoreDisplay();
-}
-
-function submitBowlGuess() {
-    const name = document.getElementById('bowlerName').value.trim();
-    const guess = parseInt(document.getElementById('bowlerGuess').value);
-    
-    if (!name) {
-        showNotification('⚠️ Please enter bowler name!', 'danger');
-        return;
-    }
-    
-    if (!guess || guess < 3 || guess > 6) {
-        showNotification('⚠️ Please enter a valid guess (3-6)', 'danger');
-        return;
-    }
-    
-    liveScoreData.bowler = name;
-    liveScoreData.bowlerGuess = guess;
-    
-    socket.emit('bowlerGuess', { 
-        name: name, 
-        guess: guess 
-    });
-    
-    document.getElementById('bowlerGuess').value = '';
-    showNotification(`⚾ ${name} guessed: ${guess}`, 'warning');
-    updateLiveScoreDisplay();
-}
-
 /*function updateLiveScoreDisplay() {
     // Update scoreboard
     const state = liveScoreData;
@@ -2864,7 +2760,7 @@ function closeAdminLogin() {
     document.getElementById('adminLoginPopup').style.display = 'none';
 }
 
-function checkLiveScorePassword() {
+/*function checkLiveScorePassword() {
     const input = document.getElementById('adminPasswordInput').value;
     if (input === ADMIN_PASSWORD) {
         isAdminMode = true;
@@ -2900,13 +2796,13 @@ function logoutAdmin() {
     const resetBtn = document.getElementById('resetMatchBtn');
     if (resetBtn) resetBtn.style.display = 'none';
     showNotification('🔒 Logged out from Admin Mode', 'warning');
-}
+}*/
 
 // ============================================
 // 2. DROPDOWN POPULATE FUNCTIONS
 // ============================================
 
-function populateDropdowns(teams) {
+/*function populateDropdowns(teams) {
     const players = [];
     teams.forEach(team => {
         if (team.captain) players.push(team.captain);
@@ -2950,13 +2846,13 @@ socket.on('teamsList', (teams) => {
 });
 
 // Also request teams on connect
-socket.emit('getTeams');
+socket.emit('getTeams');*/
 
 // ============================================
 // 3. SUBMIT FUNCTIONS
 // ============================================
 
-function submitBatScore() {
+/*function submitBatScore() {
     if (!isAdminMode) {
         showNotification('⚠️ Admin login required!', 'danger');
         return;
@@ -2984,9 +2880,9 @@ function submitBatScore() {
     }
     
     socket.emit('batsmanSetScore', { name, score });
-}
+}*?
 
-function submitBowlGuess() {
+/*function submitBowlGuess() {
     if (!isAdminMode) {
         showNotification('⚠️ Admin login required!', 'danger');
         return;
@@ -3019,13 +2915,13 @@ function submitBowlGuess() {
     }
     
     socket.emit('bowlerGuess', { name, guess });
-}
+}*/
 
 // ============================================
 // 4. MATCH STATE UPDATE
 // ============================================
 
-function updateMatchState(state) {
+/*function updateMatchState(state) {
     // Update team selection dropdowns
 if (state.battingTeam && state.bowlingTeam) {
     currentMatchTeams.team1 = state.battingTeam.name;
@@ -3198,7 +3094,7 @@ function updateBallByBall(state) {
     });
     
     container.innerHTML = html;
-}
+}*/
 
 // ============================================
 // 7. ADMIN OVERRIDE — EDIT BALL
@@ -3481,7 +3377,8 @@ function submitBatScore() {
         showNotification('⚠️ Score must be 3, 4, 5, or 6!', 'danger');
         return;
     }
-    
+    document.getElementById('batsmanStatus').textContent = '⏳ Sending score...';
+    document.getElementById('batsmanStatus').className = 'status-msg waiting';
     socket.emit('batsmanSetScore', { name, score });
     document.getElementById('batsmanScoreInput').value = '';
 }
@@ -3518,7 +3415,8 @@ function submitBowlGuess() {
         showNotification('⚠️ Guess must be 3, 4, 5, or 6!', 'danger');
         return;
     }
-    
+    document.getElementById('bowlerStatus').textContent = '⏳ Sending guess...';
+    document.getElementById('bowlerStatus').className = 'status-msg waiting';
     socket.emit('bowlerGuess', { name, guess });
     document.getElementById('bowlerGuessInput').value = '';
 }
@@ -3844,10 +3742,13 @@ function populateDropdowns(teams, matchTeam1, matchTeam2) {
 // Override socket events
 socket.on('teamsList', (teams) => {
     window.teams = teams;
+    updateTeamsList(teams);        // ✅ ADD THIS
+    updateTeamSelects(teams);      // ✅ ADD THIS
+    updateAdminTeamsList();        // ✅ ADD THIS
     populateDropdowns(teams, currentMatchTeams.team1, currentMatchTeams.team2);
 });
 
-socket.on('stateUpdate', (state) => {
+/*socket.on('stateUpdate', (state) => {
     if (state && state.battingTeam && state.bowlingTeam) {
         currentMatchTeams.team1 = state.battingTeam.name;
         currentMatchTeams.team2 = state.bowlingTeam.name;
@@ -3857,7 +3758,7 @@ socket.on('stateUpdate', (state) => {
         }
     }
     updateMatchState(state);
-});
+});*/
 
 // ============================================
 // 9. ADMIN LOCK FUNCTIONS (FIXED)
@@ -3877,6 +3778,7 @@ function checkLiveScorePassword() {
         document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'inline-block');
         const resetBtn = document.getElementById('resetMatchBtn');
         if (resetBtn) resetBtn.style.display = 'inline-block';
+        populateTeamDropdowns();  // ✅ ADD THIS
         showNotification('✅ Admin Mode Activated!', 'success');
     } else {
         document.getElementById('adminLoginError').style.display = 'block';
@@ -3884,7 +3786,6 @@ function checkLiveScorePassword() {
         document.getElementById('adminPasswordInput').focus();
     }
 }
-
 function logoutAdmin() {
     isAdminMode = false;
     document.getElementById('adminModeStatus').textContent = '👤 Read-Only Mode';
@@ -4012,6 +3913,9 @@ socket.on('scoreUpdate', (data) => {
 
 socket.on('stateUpdate', (state) => {
     if (state) {
+        // ✅ Always update scoreboard first
+        updateScoreboard(state);
+        
         if (state.battingTeam && state.bowlingTeam) {
             currentMatchTeams.team1 = state.battingTeam.name;
             currentMatchTeams.team2 = state.bowlingTeam.name;
@@ -4022,7 +3926,6 @@ socket.on('stateUpdate', (state) => {
         updateMatchState(state);
     }
 });
-
 socket.on('ballUpdated', (data) => {
     if (data.result) showNotification(`✅ Ball updated! ${data.result}`, 'success');
     if (data.state) updateMatchState(data.state);
