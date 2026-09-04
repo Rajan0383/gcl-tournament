@@ -1500,7 +1500,7 @@ applyPenalty(data) {
 // CALCULATE BALL RESULT (For Edit/Delete)
 // ============================================
 
-calculateBallResult(batsmanScore, bowlerGuess) {
+/*calculateBallResult(batsmanScore, bowlerGuess) {
     let result = {
         isOut: false,
         runsScored: 0,
@@ -1539,7 +1539,7 @@ calculateBallResult(batsmanScore, bowlerGuess) {
     }
 
     return result;
-}
+}*/
     // ============================================
     // DATA EXPORT
     // ============================================
