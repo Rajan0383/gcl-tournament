@@ -2169,7 +2169,7 @@ socket.on('stateUpdate', (state) => {
 // ADMIN - FIXTURE EDIT/DELETE
 // ============================================
 
-window.editFixture = function(fixtureId) {
+/*window.editFixture = function(fixtureId) {
     const fixtures = window.fixtures || { matches: [] };
     const fixture = fixtures.matches.find(f => f.id === fixtureId);
     if (!fixture) {
@@ -2248,7 +2248,7 @@ Example: Delhi Capitals, SRH, 2026-08-25, 21:30, PalTalk Room, Gemstar`;
         showNotification('❌ Error updating fixture', 'danger');
         console.error(err);
     });
-}
+}*/
 
 function deleteFixture(fixtureId) {
     if (!confirm('Are you sure you want to delete this fixture?')) return;
