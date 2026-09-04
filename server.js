@@ -1478,7 +1478,15 @@ applyPenalty(data) {
             this.matchState.currentBatsmanName = battingTeam.currentBatsman;
         }
     }
-    
+      // ✅ ADD THIS - Apply ball effect to update batsmen/bowlers stats
+    this.applyBallEffect({
+        runsScored: result.runsScored,
+        isOut: result.isOut,
+        isWide: result.isWide,
+        isNoBall: result.isNoBall,
+        batsmanName: this.matchState.currentBatsmanName,
+        bowlerName: this.matchState.currentBowlerName
+    });
     // Add to ball log
     if (!this.matchState.ballLog) this.matchState.ballLog = [];
     this.matchState.ballLog.push({
