@@ -40,22 +40,6 @@ socket.on('stateUpdate', (state) => {
     matchState = state;
     updateScoreboard(state);
 });
-
-socket.on('scoreUpdate', (data) => {
-    console.log('🎯 Score Update:', data);
-    
-    if (data.result && data.result.message) {
-        showNotification(data.result.message, 
-            data.result.isOut ? 'danger' : 
-            data.result.isWide ? 'warning' : 'success'
-        );
-    }
-    if (data.state) {
-        matchState = data.state;
-        updateScoreboard(data.state);
-    }
-});
-
 socket.on('teamsList', (data) => {
     console.log('🏏 Teams List:', data);
     teams = data;
