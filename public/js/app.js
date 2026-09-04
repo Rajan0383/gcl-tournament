@@ -3708,6 +3708,7 @@ function populateDropdowns(teams, matchTeam1, matchTeam2) {
 
 // Override socket events
 socket.on('teamsList', (teams) => {
+   teams = teams;
     window.teams = teams;
     updateTeamsList(teams);        // ✅ ADD THIS
     updateTeamSelects(teams);      // ✅ ADD THIS
