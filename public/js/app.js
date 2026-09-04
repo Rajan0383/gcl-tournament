@@ -2868,6 +2868,8 @@ function checkLiveScorePassword() {
     const input = document.getElementById('adminPasswordInput').value;
     if (input === ADMIN_PASSWORD) {
         isAdminMode = true;
+        const teamSelection = document.querySelector('.team-selection');
+        if (teamSelection) teamSelection.style.display = 'block';
         document.getElementById('adminLoginPopup').style.display = 'none';
         document.getElementById('adminModeStatus').textContent = '👑 Admin Mode';
         document.getElementById('adminModeStatus').className = 'admin-status admin-mode';
