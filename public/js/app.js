@@ -3707,13 +3707,13 @@ function populateDropdowns(teams, matchTeam1, matchTeam2) {
 }
 
 // Override socket events
-socket.on('teamsList', (teams) => {
-   teams = teams;
-    window.teams = teams;
-    updateTeamsList(teams);        // ✅ ADD THIS
-    updateTeamSelects(teams);      // ✅ ADD THIS
-    updateAdminTeamsList();        // ✅ ADD THIS
-    populateDropdowns(teams, currentMatchTeams.team1, currentMatchTeams.team2);
+socket.on('teamsList', (data) => {
+    teams = data;          // ✅ Global teams update ho raha hai
+    window.teams = data;
+    updateTeamsList(data);
+    updateTeamSelects(data);
+    updateAdminTeamsList();
+    populateDropdowns(data, currentMatchTeams.team1, currentMatchTeams.team2);
 });
 
 /*socket.on('stateUpdate', (state) => {
