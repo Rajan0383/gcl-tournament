@@ -2189,7 +2189,7 @@ function updateLiveScoreDisplay() {
     document.getElementById('runsDisplay').textContent = state.runs || 0;
     document.getElementById('wicketsDisplay').textContent = state.wickets || 0;
     document.getElementById('ballsDisplay').textContent = state.balls || 0;
-    document.getElementById('extrasDisplay').textContent = state.extras || 0;
+    //document.getElementById('extrasDisplay').textContent = state.extras || 0;//
     
     if (state.striker) {
         document.getElementById('strikerName').textContent = state.striker;
