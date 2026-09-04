@@ -35,23 +35,6 @@ socket.on('disconnect', () => {
     updateConnectionStatus(false);
 });
 
-socket.on('stateUpdate', (state) => {
-    console.log('📊 State Update:', state);
-    matchState = state;
-    updateScoreboard(state);
-});
-socket.on('teamsList', (data) => {
-    console.log('🏏 Teams List:', data);
-    teams = data;
-    window.teams = data;
-    updateTeamsList(data);
-    updateTeamSelects(data);
-    updateAdminTeamsList(); // 👈 ADD THIS
-    if (document.getElementById('assignTeam')) {
-        updateTeamDropdowns();
-    }
-});
-
 socket.on('teamCreated', (team) => {
     showNotification(`✅ Team "${team.name}" created!`, 'success');
     socket.emit('getTeams');
@@ -3752,6 +3735,8 @@ function checkLiveScorePassword() {
     const input = document.getElementById('adminPasswordInput').value;
     if (input === ADMIN_PASSWORD) {
         isAdminMode = true;
+        const teamSelection = document.querySelector('.team-selection');
+if (teamSelection) teamSelection.style.display = 'block';
         document.getElementById('adminLoginPopup').style.display = 'none';
         document.getElementById('adminModeStatus').textContent = '👑 Admin Mode';
         document.getElementById('adminModeStatus').className = 'admin-status admin-mode';
