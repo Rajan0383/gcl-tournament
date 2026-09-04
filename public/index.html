@@ -546,7 +546,28 @@
                 <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
             </div>
         </div>
-
+<!-- ========================================== -->
+<!-- BATTING/BOWLING TEAM SELECTION — Admin Only -->
+<!-- ========================================== -->
+<div class="team-selection" style="display: none; margin-bottom: 16px; padding: 16px; background: rgba(0, 0, 0, 0.15); border-radius: 12px; border: 1px solid rgba(255, 215, 0, 0.1);">
+    <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="color: var(--text-muted); font-weight: 600;">🏏 Batting:</span>
+            <select id="battingTeamSelect" class="player-input" style="width: auto; min-width: 120px; margin-bottom: 0;">
+                <option value="">Select Team</option>
+            </select>
+        </div>
+        <span style="color: var(--text-muted); font-weight: 700;">VS</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="color: var(--text-muted); font-weight: 600;">⚾ Bowling:</span>
+            <select id="bowlingTeamSelect" class="player-input" style="width: auto; min-width: 120px; margin-bottom: 0;">
+                <option value="">Select Team</option>
+            </select>
+        </div>
+        <button onclick="setBattingBowlingTeams()" class="admin-lock-btn" style="padding: 8px 24px;">✅ SET TEAMS</button>
+    </div>
+    <div id="teamSelectionStatus" class="status-msg waiting" style="margin-top: 8px; text-align: center;">⏳ Select batting and bowling teams</div>
+</div>
         <!-- SCOREBOARD -->
         <div class="scoreboard">
             <div class="scoreboard-top">
