@@ -409,7 +409,7 @@ function updateTop10Players(data) {
 // GAME ACTIONS
 // ============================================
 
-function submitBatScore() {
+/*function submitBatScore() {
     const name = document.getElementById('batsmanName').value.trim();
     const score = parseInt(document.getElementById('batsmanScore').value);
     
@@ -445,7 +445,7 @@ function submitBowlGuess() {
     socket.emit('bowlerGuess', { name, guess });
     document.getElementById('bowlerGuess').value = '';
     showNotification(`⚾ ${name} guessed: ${guess}`, 'warning');
-}
+}*/
 
 // ============================================
 // FIXTURE FUNCTIONS
@@ -3024,6 +3024,12 @@ function submitBowlGuess() {
 // ============================================
 
 function updateMatchState(state) {
+    // Update team selection dropdowns
+if (state.battingTeam && state.bowlingTeam) {
+    currentMatchTeams.team1 = state.battingTeam.name;
+    currentMatchTeams.team2 = state.bowlingTeam.name;
+    populateTeamDropdowns(state.battingTeam.name, state.bowlingTeam.name);
+}
     if (!state) return;
     currentMatchState = state;
     
@@ -3888,9 +3894,86 @@ function logoutAdmin() {
     document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'none');
     const resetBtn = document.getElementById('resetMatchBtn');
     if (resetBtn) resetBtn.style.display = 'none';
+    const teamSelection = document.querySelector('.team-selection');
+    if (teamSelection) teamSelection.style.display = 'none';
     showNotification('🔒 Logged out from Admin Mode', 'warning');
 }
+// ============================================
+// BATTING/BOWLING TEAM SELECTION
+// ============================================
 
+function populateTeamDropdowns(team1, team2) {
+    const battingSelect = document.getElementById('battingTeamSelect');
+    const bowlingSelect = document.getElementById('bowlingTeamSelect');
+    
+    if (battingSelect) {
+        battingSelect.innerHTML = '<option value="">Select Team</option>';
+        if (team1) {
+            const opt1 = document.createElement('option');
+            opt1.value = team1;
+            opt1.textContent = team1;
+            battingSelect.appendChild(opt1);
+        }
+        if (team2) {
+            const opt2 = document.createElement('option');
+            opt2.value = team2;
+            opt2.textContent = team2;
+            battingSelect.appendChild(opt2);
+        }
+    }
+    
+    if (bowlingSelect) {
+        bowlingSelect.innerHTML = '<option value="">Select Team</option>';
+        if (team1) {
+            const opt1 = document.createElement('option');
+            opt1.value = team1;
+            opt1.textContent = team1;
+            bowlingSelect.appendChild(opt1);
+        }
+        if (team2) {
+            const opt2 = document.createElement('option');
+            opt2.value = team2;
+            opt2.textContent = team2;
+            bowlingSelect.appendChild(opt2);
+        }
+    }
+}
+
+function setBattingBowlingTeams() {
+    if (!isAdminMode) {
+        showNotification('⚠️ Admin login required!', 'danger');
+        return;
+    }
+    
+    const battingTeam = document.getElementById('battingTeamSelect').value;
+    const bowlingTeam = document.getElementById('bowlingTeamSelect').value;
+    
+    if (!battingTeam || !bowlingTeam) {
+        showNotification('⚠️ Please select both teams!', 'danger');
+        return;
+    }
+    
+    if (battingTeam === bowlingTeam) {
+        showNotification('⚠️ Batting and bowling teams must be different!', 'danger');
+        return;
+    }
+    
+    socket.emit('setBattingBowlingTeams', { battingTeam, bowlingTeam });
+    document.getElementById('teamSelectionStatus').textContent = `⏳ Setting teams: ${battingTeam} (bat) vs ${bowlingTeam} (bowl)...`;
+    document.getElementById('teamSelectionStatus').className = 'status-msg waiting';
+}
+
+// Socket listener for team selection confirmation
+socket.on('teamsSet', (data) => {
+    document.getElementById('teamSelectionStatus').textContent = `✅ ${data.battingTeam} batting, ${data.bowlingTeam} bowling`;
+    document.getElementById('teamSelectionStatus').className = 'status-msg success';
+    showNotification(`✅ Teams set: ${data.battingTeam} batting, ${data.bowlingTeam} bowling`, 'success');
+    
+    // Update dropdowns with filtered players
+    if (window.teams) {
+        populateDropdowns(window.teams, data.battingTeam, data.bowlingTeam);
+    }
+});
 // ============================================
 // 10. SOCKET EVENT LISTENERS (ADD PENALTY & NON-STRIKER)
 // ============================================
