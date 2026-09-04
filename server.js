@@ -726,7 +726,7 @@ class GCLEngine {
         this.matchState.team2.currentBatsman = this.matchState.team2.battingOrder[0];
         this.matchState.battingTeam = 1;
         this.matchState.bowlingTeam = 2;
-        this.matchState.currentOver = 1;
+        this.matchState.currentOver = 0.0;
         this.matchState.currentBall = 0;
         this.matchState.overType = 'normal';
         this.matchState.currentBatsmanName = this.matchState.team1.currentBatsman;
@@ -1108,27 +1108,43 @@ class GCLEngine {
         if (result.isWide || result.isNoBall) battingTeam.extras += 1;
         battingTeam.balls += 1;
         
-        // Update batsman stats
-        if (result.batsmanName) {
-            if (!this.currentMatchStats.batsmen[result.batsmanName]) {
-                this.currentMatchStats.batsmen[result.batsmanName] = { runs: 0, balls: 0, fours: 0, sixes: 0 };
-            }
-            const batsman = this.currentMatchStats.batsmen[result.batsmanName];
-            batsman.runs = (batsman.runs || 0) + (result.runsScored || 0);
-            batsman.balls = (batsman.balls || 0) + 1;
+       // ✅ Update batsman stats
+    if (result.batsmanName) {
+        if (!this.currentMatchStats.batsmen[result.batsmanName]) {
+            this.currentMatchStats.batsmen[result.batsmanName] = { 
+                name: result.batsmanName,
+                runs: 0, 
+                balls: 0, 
+                fours: 0, 
+                sixes: 0 
+            };
         }
-        
-        // Update bowler stats
-        if (result.bowlerName) {
-            if (!this.currentMatchStats.bowlers[result.bowlerName]) {
-                this.currentMatchStats.bowlers[result.bowlerName] = { wickets: 0, balls: 0, runsConceded: 0 };
-            }
-            const bowler = this.currentMatchStats.bowlers[result.bowlerName];
-            if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
-            bowler.balls = (bowler.balls || 0) + 1;
-            bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
-        }
+        const batsman = this.currentMatchStats.batsmen[result.batsmanName];
+        batsman.runs = (batsman.runs || 0) + (result.runsScored || 0);
+        batsman.balls = (batsman.balls || 0) + 1;
+        // Update fours/sixes
+        if (result.runsScored === 4) batsman.fours = (batsman.fours || 0) + 1;
+        if (result.runsScored === 6) batsman.sixes = (batsman.sixes || 0) + 1;
     }
+    
+    // ✅ Update bowler stats
+    if (result.bowlerName) {
+        if (!this.currentMatchStats.bowlers[result.bowlerName]) {
+            this.currentMatchStats.bowlers[result.bowlerName] = {
+                name: result.bowlerName,
+                wickets: 0, 
+                balls: 0, 
+                runsConceded: 0,
+                overs: 0
+            };
+        }
+        const bowler = this.currentMatchStats.bowlers[result.bowlerName];
+        if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
+        bowler.balls = (bowler.balls || 0) + 1;
+        bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
+        bowler.overs = (bowler.balls / 6).toFixed(1);
+    }
+}
 
     // ============================================
     // ADMIN OVERRIDE — DELETE BALL
@@ -1729,7 +1745,49 @@ socket.on('applyPenalty', (data) => {
         socket.emit('error', { message: error.message });
     }
 });
+// ============================================
+// SET BATTING/BOWLING TEAMS
+// ============================================
 
+socket.on('setBattingBowlingTeams', (data) => {
+    try {
+        const { battingTeam, bowlingTeam } = data;
+        
+        // Find team names in match state
+        const team1Name = gameEngine.matchState.team1.name;
+        const team2Name = gameEngine.matchState.team2.name;
+        
+        // Determine which team is batting and which is bowling
+        let battingTeamId = battingTeam === team1Name ? 1 : 2;
+        let bowlingTeamId = bowlingTeam === team1Name ? 1 : 2;
+        
+        // Switch batting and bowling teams
+        gameEngine.matchState.battingTeam = battingTeamId;
+        gameEngine.matchState.bowlingTeam = bowlingTeamId;
+        
+        // Update current batsman from batting team
+        const battingTeamObj = battingTeamId === 1 ? gameEngine.matchState.team1 : gameEngine.matchState.team2;
+        const bowlingTeamObj = bowlingTeamId === 1 ? gameEngine.matchState.team1 : gameEngine.matchState.team2;
+        
+        // Set current batsman from batting team
+        if (battingTeamObj.battingOrder && battingTeamObj.battingOrder.length > 0) {
+            battingTeamObj.currentBatsman = battingTeamObj.battingOrder[0];
+            gameEngine.matchState.currentBatsmanName = battingTeamObj.currentBatsman;
+            gameEngine.striker = battingTeamObj.currentBatsman;
+            gameEngine.nonStriker = battingTeamObj.battingOrder[1] || 'Non-Striker';
+        }
+        
+        io.emit('teamsSet', {
+            battingTeam: battingTeam,
+            bowlingTeam: bowlingTeam,
+            state: gameEngine.getMatchState()
+        });
+        io.emit('stateUpdate', gameEngine.getMatchState());
+        io.emit('notification', `🏏 ${battingTeam} batting vs ${bowlingTeam} bowling`);
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
     // ============================================
     // SOCKET EVENTS — ADMIN OVERRIDE
     // ============================================
