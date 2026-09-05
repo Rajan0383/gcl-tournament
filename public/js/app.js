@@ -2512,10 +2512,22 @@ function pickRandomTeam() {
     
   const group = lastAssignedGroup === 'A' ? 'B' : 'A';
     lastAssignedGroup = group;
+     // ✅ Play sound
+    const audio = document.getElementById('revealSound');
+    if (audio) {
+        audio.currentTime = 0;  // Reset sound
+        audio.play().catch(err => console.log('Sound play error:', err));
+    }
     
-    // ✅ Full screen flashy effect
-    showTeamReveal(team, group);
+    // ✅ Show team after sound (1.5 second delay)
+    setTimeout(() => {
+        showTeamReveal(team, group);
+    }, 1500);
 }
+    
+   /* // ✅ Full screen flashy effect
+    showTeamReveal(team, group);
+}*/
 
 function showTeamReveal(team, group) {
     // ✅ Null check
