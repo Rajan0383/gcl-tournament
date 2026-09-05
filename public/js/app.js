@@ -2457,11 +2457,11 @@ function renderTeamsGrouping() {
         if (teamsGroupingData.available.length === 0) {
             availableContainer.innerHTML = '<p class="empty-message">No teams available</p>';
         } else {
-            availableContainer.innerHTML = teamsGroupingData.available.map((team, index) => `
-                <div class="team-item">
-                    <span class="team-name">${index + 1}. ${team.name || 'Unnamed Team'}</span>
-                </div>
-            `).join('');
+           availableContainer.innerHTML = teamsGroupingData.available.map((team, index) => `
+    <div class="team-item">
+        <span class="team-name">${index + 1}. ${team.name || 'Unnamed Team'}</span>
+    </div>
+`).join('');
         }
     }
     
@@ -2518,6 +2518,12 @@ function pickRandomTeam() {
 }
 
 function showTeamReveal(team, group) {
+    // ✅ Null check
+    if (!team || !team.name) {
+        showNotification('⚠️ Team not found! Please refresh and try again.', 'danger');
+        return;
+    }
+    
     const overlay = document.createElement('div');
     overlay.className = 'player-reveal-overlay';
     overlay.id = 'teamRevealOverlay';
@@ -2560,7 +2566,23 @@ function confirmTeamAssign(teamId, group) {
     }*/
 
 function assignTeamToGroup(teamId, group) {
-    fetch('/api/teams/update', {
+    // ✅ Immediate UI update
+    const teamIndex = teamsGroupingData.available.findIndex(t => t.id === teamId);
+    if (teamIndex !== -1) {
+        const team = teamsGroupingData.available.splice(teamIndex, 1)[0];
+        team.group = group;
+        if (group === 'A') {
+            teamsGroupingData.groupA.push(team);
+        } else {
+            teamsGroupingData.groupB.push(team);
+        }
+        renderTeamsGrouping();
+        // ✅ Points table update
+        socket.emit('getPointsTable');
+    }
+    
+    // ✅ Naya endpoint use karein - Sirf group update
+    fetch('/api/teams/update-group', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2572,36 +2594,14 @@ function assignTeamToGroup(teamId, group) {
     .then(data => {
         if (data.success) {
             showNotification(`✅ Team assigned to Group ${group}!`, 'success');
-            updateTeamsGrouping();
-            
-            // ✅ Points Table update — Group A/B filter ke saath
-            fetch(`/api/points-table/${group}`)
-                .then(res => res.json())
-                .then(tableData => {
-                    // Update Group A or B in Points Table
-                    if (group === 'A') {
-                        const groupAElement = document.getElementById('groupA');
-                        if (groupAElement) {
-                            updatePointsTableGroup(groupAElement, tableData);
-                        }
-                    } else if (group === 'B') {
-                        const groupBElement = document.getElementById('groupB');
-                        if (groupBElement) {
-                            updatePointsTableGroup(groupBElement, tableData);
-                        }
-                    }
-                })
-                .catch(err => console.error('Error fetching points table:', err));
-            
-            // ✅ Overall points table update
-            socket.emit('getPointsTable');
-        } else {
-            showNotification(`❌ Assignment failed: ${data.error}`, 'danger');
+            // ✅ REMOVE - updateTeamsGrouping() data corrupt karta hai
         }
     })
     .catch(err => {
         showNotification('❌ Error assigning team', 'danger');
         console.error(err);
+        // ✅ Rollback on failure
+        updateTeamsGrouping();
     });
 }
 
