@@ -2367,6 +2367,7 @@ app.post('/api/teams/update', (req, res) => {
         gameEngine.teams[index].captain = updatedTeam.captain;
         gameEngine.teams[index].viceCaptain = updatedTeam.viceCaptain;
         gameEngine.teams[index].squad = updatedTeam.squad || [];
+        gameEngine.teams[index].group = updatedTeam.group
         gameEngine.saveAllData();
         res.json({ success: true });
     } catch (error) {
