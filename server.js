@@ -2363,18 +2363,36 @@ app.post('/api/teams/update', (req, res) => {
         if (index === -1) {
             return res.status(404).json({ success: false, error: 'Team not found' });
         }
-        gameEngine.teams[index].name = updatedTeam.name;
-        gameEngine.teams[index].captain = updatedTeam.captain;
-        gameEngine.teams[index].viceCaptain = updatedTeam.viceCaptain;
-        gameEngine.teams[index].squad = updatedTeam.squad || [];
-        gameEngine.teams[index].group = updatedTeam.group
+        // ✅ Sirf provided fields update karein
+        if (updatedTeam.name !== undefined) gameEngine.teams[index].name = updatedTeam.name;
+        if (updatedTeam.captain !== undefined) gameEngine.teams[index].captain = updatedTeam.captain;
+        if (updatedTeam.viceCaptain !== undefined) gameEngine.teams[index].viceCaptain = updatedTeam.viceCaptain;
+        if (updatedTeam.squad !== undefined) gameEngine.teams[index].squad = updatedTeam.squad || [];
+        if (updatedTeam.group !== undefined) gameEngine.teams[index].group = updatedTeam.group || null;
         gameEngine.saveAllData();
         res.json({ success: true });
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
     }
 });
+// ============================================
+// TEAMS - UPDATE GROUP ONLY
+// ============================================
 
+app.post('/api/teams/update-group', (req, res) => {
+    try {
+        const { id, group } = req.body;
+        const index = gameEngine.teams.findIndex(t => t.id === id);
+        if (index === -1) {
+            return res.status(404).json({ success: false, error: 'Team not found' });
+        }
+        gameEngine.teams[index].group = group || null;
+        gameEngine.saveAllData();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
 app.post('/api/teams/delete', (req, res) => {
     try {
         const { id } = req.body;
