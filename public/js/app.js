@@ -2435,7 +2435,7 @@ let teamsGroupingData = {
     groupA: [],
     groupB: []
 };
-let lastAssignedGroup = 'B';
+let lastAssignedGroup = 'A';
 
 function updateTeamsGrouping() {
     fetch('/api/teams')
