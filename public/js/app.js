@@ -2510,7 +2510,7 @@ function pickRandomTeam() {
     const randomIndex = Math.floor(Math.random() * teamsGroupingData.available.length);
     const team = teamsGroupingData.available[randomIndex];
     
-    const group = lastAssignedGroup === 'B' ? 'A' : 'B';
+  const group = lastAssignedGroup === 'A' ? 'B' : 'A';
     lastAssignedGroup = group;
     
     // ✅ Full screen flashy effect
