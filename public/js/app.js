@@ -107,12 +107,12 @@ function updateScoreboard(state) {
         inningEl.textContent = state.inning ? `Inning ${state.inning}` : 'Inning 1';
     }
     
-    const overEl = document.querySelector('.over-info');
-    if (overEl) {
-        const ball = state.currentBall || 0;
-        const over = state.currentOver || 1;
-        overEl.textContent = `Over: ${over}.${ball} / ${state.totalOvers || 4}`;
-    }
+   const overEl = document.querySelector('.over-info');
+if (overEl) {
+    const ball = state.currentBall || 0;
+    const over = state.currentOver !== undefined ? state.currentOver : 0;  // ✅ FIXED
+    overEl.textContent = `Over: ${over}.${ball} / ${state.totalOvers || 4}`;
+}
 
     const overTypes = {
         'lbw': '🔥 LBW Over',
@@ -128,23 +128,19 @@ function updateScoreboard(state) {
         const wickets = document.getElementById('wicketsDisplay');
         const balls = document.getElementById('ballsDisplay');
         const extras = document.getElementById('extrasDisplay');
-        const batsman = document.getElementById('currentBatsman');
         
         if (battingName) battingName.textContent = state.battingTeam.name || 'Team 1';
         if (runs) runs.textContent = state.battingTeam.runs || 0;
         if (wickets) wickets.textContent = state.battingTeam.wickets || 0;
         if (balls) balls.textContent = state.battingTeam.balls || 0;
-        if (extras) extras.textContent = state.battingTeam.extras || 0;
-        if (batsman) batsman.textContent = state.battingTeam.currentBatsman || '-';
+        if (extras) extras.textContent = state.battingTeam.extras || 0;    
     }
 
     if (state.bowlingTeam) {
         const bowlingName = document.getElementById('bowlingTeamName');
-        const bowler = document.getElementById('currentBowler');
-        
+       
         if (bowlingName) bowlingName.textContent = state.bowlingTeam.name || 'Team 2';
-        if (bowler) bowler.textContent = state.bowlingTeam.currentBowler || '-';
-    }
+  }
 
     const targetDisplay = document.getElementById('targetDisplay');
     if (targetDisplay) {
@@ -3787,40 +3783,34 @@ function logoutAdmin() {
 // BATTING/BOWLING TEAM SELECTION
 // ============================================
 
-function populateTeamDropdowns(team1, team2) {
+function populateTeamDropdowns() {
+    const teams = window.teams || [];
+    if (teams.length === 0) {
+        console.log('⚠️ No teams available to populate dropdowns');
+        return;
+    }
+    
     const battingSelect = document.getElementById('battingTeamSelect');
     const bowlingSelect = document.getElementById('bowlingTeamSelect');
     
     if (battingSelect) {
-        battingSelect.innerHTML = '<option value="">Select Team</option>';
-        if (team1) {
-            const opt1 = document.createElement('option');
-            opt1.value = team1;
-            opt1.textContent = team1;
-            battingSelect.appendChild(opt1);
-        }
-        if (team2) {
-            const opt2 = document.createElement('option');
-            opt2.value = team2;
-            opt2.textContent = team2;
-            battingSelect.appendChild(opt2);
-        }
+        battingSelect.innerHTML = '<option value="">Select Batting Team</option>';
+        teams.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.name;
+            opt.textContent = t.name;
+            battingSelect.appendChild(opt);
+        });
     }
     
     if (bowlingSelect) {
-        bowlingSelect.innerHTML = '<option value="">Select Team</option>';
-        if (team1) {
-            const opt1 = document.createElement('option');
-            opt1.value = team1;
-            opt1.textContent = team1;
-            bowlingSelect.appendChild(opt1);
-        }
-        if (team2) {
-            const opt2 = document.createElement('option');
-            opt2.value = team2;
-            opt2.textContent = team2;
-            bowlingSelect.appendChild(opt2);
-        }
+        bowlingSelect.innerHTML = '<option value="">Select Bowling Team</option>';
+        teams.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.name;
+            opt.textContent = t.name;
+            bowlingSelect.appendChild(opt);
+        });
     }
 }
 
