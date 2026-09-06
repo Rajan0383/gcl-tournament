@@ -737,6 +737,8 @@ class GCLEngine {
 
     batsmanSetScore(data) {
         const { name, score } = data;
+        console.log('🔍 batsmanSetScore called with:', data);
+        console.log('🔍 Current matchState.batsmanSet:', this.matchState.batsmanSet);
         if (!this.matchState.isActive) return { error: 'Match not active' };
         if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
         
@@ -764,6 +766,9 @@ class GCLEngine {
     }
 
     bowlerGuess(data) {
+        console.log('🔍 bowlerGuess called with:', data);
+        console.log('🔍 matchState.batsmanSet:', this.matchState.batsmanSet);
+        console.log('🔍 matchState.secretScore:', this.matchState.secretScore);
         const { name, guess } = data;
         if (!this.matchState.isActive) return { error: 'Match not active' };
         if (!this.matchState.batsmanSet) return { error: 'Batsman has not set score yet!' };
