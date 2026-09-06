@@ -841,68 +841,66 @@ class GCLEngine {
             result.ballResult = 'W';
         }
         // SAFE: Runs added
-        else {
-            result.runsScored = batsmanScore;
-            result.message = `✅ Safe! ${batsmanScore} runs`;
-            result.ballResult = batsmanScore.toString();
-        }
-        if (!result.isWide && !result.isNoBall) {
-            this.matchState.currentBall += 1;
-        }
-        this.applyBallEffect({
-        runsScored: result.runsScored,
-        isOut: result.isOut,
-        isWide: result.isWide,
-        isNoBall: result.isNoBall,
-        batsmanName: this.matchState.currentBatsmanName,
-        bowlerName: this.matchState.currentBowlerName
-    });
-        if (result.isOut) {
-            battingTeam.wickets += 1;
-            battingTeam.currentBattingIndex += 1;
-            if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
-                battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
-                this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-            } else {
-                result.message += ' 🏏 All out!';
-                this.endInnings();
-            }
-        } else {
-            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-            if (result.runsScored > 0) {
-                this.updateStrike(this.matchState.currentBatsmanName, result.runsScored);
-            }
-        }
-        this.matchState.lastBallResult = result;
-        // Check if over is complete
-        if (this.matchState.currentBall >= 6) {
-            const isLastBall = true;
-            const runsScored = result.runsScored;
-            const isWide = result.isWide;
-            const isNoBall = result.isNoBall;
-            
-            this.updateStrike(
-                this.matchState.currentBatsmanName,
-                runsScored,
-                isWide,
-                isNoBall,
-                true
-            );
-            
-            this.matchState.currentBall = 0;
-            this.matchState.currentOver += 1;
-            this.matchState.noBallUsed = false;
-            this.matchState.lastStrikeReason = 'Over complete! Strike rule applied.';
-        }
-        this.matchState.batsmanSet = false;
-        this.matchState.bowlerGuessed = false;
-        this.matchState.secretScore = null;
-        return {
-            ...result,
-            matchState: this.getMatchState()
-        };
+else {
+    result.runsScored = batsmanScore;
+    result.message = `✅ Safe! ${batsmanScore} runs`;
+    result.ballResult = batsmanScore.toString();
+}
+if (!result.isWide && !result.isNoBall) {
+    this.matchState.currentBall += 1;
+}
+this.applyBallEffect({
+    runsScored: result.runsScored,
+    isOut: result.isOut,
+    isWide: result.isWide,
+    isNoBall: result.isNoBall,
+    batsmanName: this.matchState.currentBatsmanName,
+    bowlerName: this.matchState.currentBowlerName
+});
+if (result.isOut) {
+    battingTeam.wickets += 1;
+    battingTeam.currentBattingIndex += 1;
+    if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
+        battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
+        this.matchState.currentBatsmanName = battingTeam.currentBatsman;
+    } else {
+        result.message += ' 🏏 All out!';
+        this.endInnings();
     }
-
+} else {
+    // ✅ FIX: Use striker variable
+    if (result.runsScored > 0) {
+        this.updateStrike(this.striker, result.runsScored);
+    }
+}
+this.matchState.lastBallResult = result;
+// Check if over is complete
+if (this.matchState.currentBall >= 6) {
+    const isLastBall = true;
+    const runsScored = result.runsScored;
+    const isWide = result.isWide;
+    const isNoBall = result.isNoBall;
+    
+    this.updateStrike(
+        this.matchState.currentBatsmanName,
+        runsScored,
+        isWide,
+        isNoBall,
+        true
+    );
+    
+    this.matchState.currentBall = 0;
+    this.matchState.currentOver += 1;
+    this.matchState.noBallUsed = false;
+    this.matchState.lastStrikeReason = 'Over complete! Strike rule applied.';
+}
+this.matchState.batsmanSet = false;
+this.matchState.bowlerGuessed = false;
+this.matchState.secretScore = null;
+return {
+    ...result,
+    matchState: this.getMatchState()
+};
     // ============================================
     // STRIKE CHANGE — FULL LOGIC
     // ============================================
