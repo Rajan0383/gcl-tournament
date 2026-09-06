@@ -3507,22 +3507,22 @@ function updateMatchState(state) {
     const nonStrikerName = document.getElementById('nonStrikerName');
     if (nonStrikerName) nonStrikerName.textContent = state.nonStriker || '-';
     
-   // Update bowler - WITH STATS
-const currentBowler = document.getElementById('currentBowler');
-if (currentBowler) {
-    if (state.currentBowlerName) {
-        let bowlerStats = '';
-        if (state.bowlers) {
-            const bowler = state.bowlers.find(b => b.name === state.currentBowlerName);
-            if (bowler) {
-                bowlerStats = ` ${bowler.wickets}/${bowler.runsConceded || 0} (${bowler.overs || 0} ov)`;
+    // Update bowler - WITH STATS
+    const currentBowler = document.getElementById('currentBowler');
+    if (currentBowler) {
+        if (state.currentBowlerName) {
+            let bowlerStats = '';
+            if (state.bowlers) {
+                const bowler = state.bowlers.find(b => b.name === state.currentBowlerName);
+                if (bowler) {
+                    bowlerStats = ` ${bowler.wickets}/${bowler.runsConceded || 0} (${bowler.overs || 0} ov)`;
+                }
             }
+            currentBowler.textContent = state.currentBowlerName + bowlerStats;
+        } else {
+            currentBowler.textContent = '-';
         }
-        currentBowler.textContent = state.currentBowlerName + bowlerStats;
-    } else {
-        currentBowler.textContent = '-';
     }
-}
     
     // Update over info
     const overDisplay = document.getElementById('currentOverDisplay');
@@ -3556,6 +3556,50 @@ if (currentBowler) {
                 statusEl.textContent = '❌ No';
                 statusEl.className = 'noball-status no';
             }
+        }
+    }
+    
+    // ✅ FIX 4: AUTO-UPDATE DROPDOWN ON STRIKE CHANGE
+    const batsmanSelect = document.getElementById('batsmanSelect');
+    if (batsmanSelect && state.striker) {
+        // Check if striker is in dropdown options
+        let optionExists = false;
+        for (let i = 0; i < batsmanSelect.options.length; i++) {
+            if (batsmanSelect.options[i].value === state.striker) {
+                optionExists = true;
+                break;
+            }
+        }
+        if (optionExists) {
+            batsmanSelect.value = state.striker;
+        } else {
+            // Add striker to dropdown if not present
+            const option = document.createElement('option');
+            option.value = state.striker;
+            option.textContent = state.striker;
+            batsmanSelect.appendChild(option);
+            batsmanSelect.value = state.striker;
+        }
+    }
+    
+    // ✅ AUTO-UPDATE NON-STRIKER DROPDOWN
+    const nonStrikerSelect = document.getElementById('nonStrikerSelect');
+    if (nonStrikerSelect && state.nonStriker) {
+        let optionExists = false;
+        for (let i = 0; i < nonStrikerSelect.options.length; i++) {
+            if (nonStrikerSelect.options[i].value === state.nonStriker) {
+                optionExists = true;
+                break;
+            }
+        }
+        if (optionExists) {
+            nonStrikerSelect.value = state.nonStriker;
+        } else {
+            const option = document.createElement('option');
+            option.value = state.nonStriker;
+            option.textContent = state.nonStriker;
+            nonStrikerSelect.appendChild(option);
+            nonStrikerSelect.value = state.nonStriker;
         }
     }
     
