@@ -752,19 +752,23 @@ class GCLEngine {
         this.matchState.bowlerGuessed = false;
         this.matchState.currentBatsmanName = name || 'Batsman';
         const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        battingTeam.currentBatsman = name || battingTeam.currentBatsman;
-        if (!this.striker) {
-            this.striker = name || battingTeam.currentBatsman;
-            this.nonStriker = battingTeam.battingOrder[1] || 'Non-Striker';
-        }
-        return {
-            success: true,
-            message: `${name || 'Batsman'} set score ${score}`,
-            batsman: name || 'Batsman',
-            score: score
-        };
+        // ✅ ALWAYS update striker with selected name
+    this.striker = name || battingTeam.currentBatsman;
+    this.matchState.striker = this.striker;
+    
+    // ✅ Update non-striker if not set
+    if (!this.nonStriker) {
+        this.nonStriker = battingTeam.battingOrder[1] || 'Non-Striker';
+        this.matchState.nonStriker = this.nonStriker;
     }
-
+    
+    return {
+        success: true,
+        message: `${name || 'Batsman'} set score ${score}`,
+        batsman: name || 'Batsman',
+        score: score
+    };
+}
     bowlerGuess(data) {
         console.log('🔍 bowlerGuess called with:', data);
         console.log('🔍 matchState.batsmanSet:', this.matchState.batsmanSet);
@@ -845,11 +849,8 @@ class GCLEngine {
 
         battingTeam.runs += result.runsScored;
         if (!result.isWide && !result.isNoBall) {
-            battingTeam.balls += 1;
             this.matchState.currentBall += 1;
         }
-        if (result.isWide) battingTeam.extras += 1;
-        if (result.isNoBall) battingTeam.extras += 1;
         this.applyBallEffect({
         runsScored: result.runsScored,
         isOut: result.isOut,
@@ -1139,7 +1140,21 @@ class GCLEngine {
         if (result.runsScored === 4) batsman.fours = (batsman.fours || 0) + 1;
         if (result.runsScored === 6) batsman.sixes = (batsman.sixes || 0) + 1;
     }
-    
+    // ✅ ADD - Non-Striker stats (if exists)
+    if (this.matchState.nonStriker) {
+        const nonStrikerName = this.matchState.nonStriker;
+        if (!this.currentMatchStats.batsmen[nonStrikerName]) {
+            this.currentMatchStats.batsmen[nonStrikerName] = { 
+                name: nonStrikerName,
+                runs: 0, 
+                balls: 0, 
+                fours: 0, 
+                sixes: 0 
+            };
+        }
+        // Non-striker ka ball count update (if strike changed)
+        // Non-striker ke runs tab update honge jab wo striker banega
+    }
     // ✅ Update bowler stats
     if (result.bowlerName) {
         if (!this.currentMatchStats.bowlers[result.bowlerName]) {
@@ -1379,7 +1394,33 @@ class GCLEngine {
 // ============================================
 
 setNonStriker(name) {
+    // ✅ Preserve current striker and bowler
+    const currentStriker = this.matchState.striker || this.striker;
+    const currentBowler = this.matchState.currentBowlerName;
+    
     this.matchState.nonStriker = name;
+    this.nonStriker = name;
+    
+    // ✅ Restore striker and bowler
+    if (currentStriker) {
+        this.matchState.striker = currentStriker;
+        this.striker = currentStriker;
+    }
+    if (currentBowler) {
+        this.matchState.currentBowlerName = currentBowler;
+    }
+    
+    // ✅ Add non-striker to scorecard stats
+    if (name && !this.currentMatchStats.batsmen[name]) {
+        this.currentMatchStats.batsmen[name] = {
+            name: name,
+            runs: 0,
+            balls: 0,
+            fours: 0,
+            sixes: 0
+        };
+    }
+    
     return { message: `Non-Striker set: ${name}` };
 }
 
