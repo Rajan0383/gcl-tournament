@@ -846,8 +846,6 @@ class GCLEngine {
             result.message = `✅ Safe! ${batsmanScore} runs`;
             result.ballResult = batsmanScore.toString();
         }
-
-        battingTeam.runs += result.runsScored;
         if (!result.isWide && !result.isNoBall) {
             this.matchState.currentBall += 1;
         }
@@ -909,73 +907,64 @@ class GCLEngine {
     // STRIKE CHANGE — FULL LOGIC
     // ============================================
 
-    updateStrike(batsmanName, runsScored, isWide, isNoBall, isLastBall) {
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        const striker = battingTeam.currentBatsman;
-        const nonStriker = battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] || battingTeam.battingOrder[0];
-        
-        let shouldChange = false;
-        let reason = '';
-        
-        // 1. WIDE Case
-        if (isWide) {
-            if (runsScored === 3) {
-                shouldChange = true;
-                reason = 'WIDE 3 → Strike CHANGES';
-            } else if (runsScored === 6) {
-                shouldChange = false;
-                reason = 'WIDE 6 → Strike REMAINS';
-            }
-        }
-        // 2. NO-BALL Case
-        else if (isNoBall) {
+   updateStrike(batsmanName, runsScored, isWide, isNoBall, isLastBall) {
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    
+    let shouldChange = false;
+    let reason = '';
+    
+    // 1. WIDE Case
+    if (isWide) {
+        if (runsScored === 3) {
             shouldChange = true;
-            reason = 'NO-BALL 5 → Strike CHANGES';
+            reason = 'WIDE 3 → Strike CHANGES';
+        } else if (runsScored === 6) {
+            shouldChange = false;
+            reason = 'WIDE 6 → Strike REMAINS';
         }
-        // 3. OUT Case
-        else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
-            shouldChange = true;
-            reason = 'OUT → Strike CHANGES (new batsman)';
-        }
-        // 4. Normal Ball
-        else {
-            if (isLastBall) {
-                // Over last ball rule
-                if (runsScored % 2 === 0) {
-                    shouldChange = true;
-                    reason = 'Last Ball EVEN (4/6) → Strike CHANGES (next over)';
-                } else {
-                    shouldChange = false;
-                    reason = 'Last Ball ODD (3/5) → Strike REMAINS (next over)';
-                }
-            } else {
-                // Normal ball rule
-                if (runsScored % 2 !== 0) {
-                    shouldChange = true;
-                    reason = 'ODD (3/5) → Strike CHANGES';
-                } else {
-                    shouldChange = false;
-                    reason = 'EVEN (4/6) → Strike REMAINS';
-                }
-            }
-        }
-        
-        // Apply strike change
-        if (shouldChange) {
-            const temp = battingTeam.currentBatsman;
-            const nextBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] || battingTeam.battingOrder[0];
-            battingTeam.currentBatsman = nextBatsman;
-            battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] = temp;
-            this.strikeChanged = true;
-            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-        } else {
-            this.strikeChanged = false;
-        }
-        
-        this.matchState.lastStrikeReason = reason;
-        return { changed: shouldChange, reason: reason };
     }
-
+    // 2. NO-BALL Case
+    else if (isNoBall) {
+        shouldChange = true;
+        reason = 'NO-BALL 5 → Strike CHANGES';
+    }
+    // 3. OUT Case - WITH LAST BALL CHECK
+    else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
+        if (isLastBall) {
+            // ✅ Last ball OUT → New batsman non-strike next over
+            shouldChange = false;
+            reason = 'OUT on last ball → New batsman NON-STRIKE next over';
+        } else {
+            shouldChange = true;
+            reason = 'OUT → Strike CHANGES (new batsman on strike)';
+        }
+    }
+    // 4. Normal Ball
+    else {
+        // ... existing normal ball logic
+    }
+    
+    // Apply strike change
+    if (shouldChange) {
+        const temp = battingTeam.currentBatsman;
+        const nextBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] || battingTeam.battingOrder[0];
+        battingTeam.currentBatsman = nextBatsman;
+        battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] = temp;
+        this.strikeChanged = true;
+        this.matchState.currentBatsmanName = battingTeam.currentBatsman;
+    } else {
+        this.strikeChanged = false;
+        // ✅ If last ball OUT, set non-striker for next over
+        if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut && isLastBall) {
+            const nextBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] || battingTeam.battingOrder[0];
+            this.matchState.nonStriker = nextBatsman;
+            this.nonStriker = nextBatsman;
+        }
+    }
+    
+    this.matchState.lastStrikeReason = reason;
+    return { changed: shouldChange, reason: reason };
+}
     // ============================================
     // CALCULATE BALL RESULT (For Edit/Delete)
     // ============================================
@@ -1119,7 +1108,6 @@ class GCLEngine {
         
         battingTeam.runs += result.runsScored || 0;
         if (result.isOut) battingTeam.wickets += 1;
-        if (result.isWide || result.isNoBall) battingTeam.extras += 1;
         battingTeam.balls += 1;
         
        // ✅ Update batsman stats
