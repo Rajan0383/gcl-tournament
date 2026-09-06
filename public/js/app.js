@@ -2095,7 +2095,8 @@ socket.on('scoreUpdate', (data) => {
             document.getElementById('targetDisplay').textContent = `Target: ${state.target}`;
         }
         
-        updateLiveScoreDisplay();
+        updateScoreboard(state);
+        updateMatchState(state);
         
         // Update last ball
         if (state.lastBallResult) {
@@ -3210,7 +3211,7 @@ function deleteBall(index) {
 // ============================================
 
 // Score update (batsman set / ball result)
-socket.on('scoreUpdate', (data) => {
+ => socket.on('scoreUpdate', (data) => {
     if (data.type === 'batsmanSet') {
         batsmanScoreSet = true;
         document.getElementById('batsmanStatus').textContent = `✅ Score set: ${data.result.score}`;
@@ -3506,9 +3507,22 @@ function updateMatchState(state) {
     const nonStrikerName = document.getElementById('nonStrikerName');
     if (nonStrikerName) nonStrikerName.textContent = state.nonStriker || '-';
     
-    // Update bowler
-    const currentBowler = document.getElementById('currentBowler');
-    if (currentBowler) currentBowler.textContent = state.currentBowlerName || '-';
+   // Update bowler - WITH STATS
+const currentBowler = document.getElementById('currentBowler');
+if (currentBowler) {
+    if (state.currentBowlerName) {
+        let bowlerStats = '';
+        if (state.bowlers) {
+            const bowler = state.bowlers.find(b => b.name === state.currentBowlerName);
+            if (bowler) {
+                bowlerStats = ` ${bowler.wickets}/${bowler.runsConceded || 0} (${bowler.overs || 0} ov)`;
+            }
+        }
+        currentBowler.textContent = state.currentBowlerName + bowlerStats;
+    } else {
+        currentBowler.textContent = '-';
+    }
+}
     
     // Update over info
     const overDisplay = document.getElementById('currentOverDisplay');
