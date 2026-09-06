@@ -3211,7 +3211,7 @@ function deleteBall(index) {
 // ============================================
 
 // Score update (batsman set / ball result)
- => socket.on('scoreUpdate', (data) => {
+ socket.on('scoreUpdate', (data) => {
     if (data.type === 'batsmanSet') {
         batsmanScoreSet = true;
         document.getElementById('batsmanStatus').textContent = `✅ Score set: ${data.result.score}`;
