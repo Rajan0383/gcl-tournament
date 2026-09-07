@@ -845,10 +845,10 @@ else {
     result.runsScored = batsmanScore;
     result.message = `✅ Safe! ${batsmanScore} runs`;
     result.ballResult = batsmanScore.toString();
-}
-if (!result.isWide && !result.isNoBall) {
+  if (!result.isWide && !result.isNoBall) {
   this.matchState.currentBall += 1;  
 }
+}    
 this.applyBallEffect({
     runsScored: result.runsScored,
     isOut: result.isOut,
@@ -907,6 +907,7 @@ return {
     // ============================================
 
    updateStrike(batsmanName, runsScored, isWide, isNoBall, isLastBall) {
+        console.log('🔍 updateStrike called with:', { batsmanName, runsScored, isWide, isNoBall, isLastBall });
     const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
     
     let shouldChange = false;
@@ -982,6 +983,7 @@ else {
     }
     
     this.matchState.lastStrikeReason = reason;
+       console.log('🔍 updateStrike result:', { shouldChange, reason, newStriker: battingTeam.currentBatsman });
     return { changed: shouldChange, reason: reason };
 }
     // ============================================
