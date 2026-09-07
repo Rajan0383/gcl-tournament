@@ -901,6 +901,7 @@ return {
     ...result,
     matchState: this.getMatchState()
 };
+    
     // ============================================
     // STRIKE CHANGE — FULL LOGIC
     // ============================================
@@ -938,9 +939,27 @@ return {
         }
     }
     // 4. Normal Ball
-    else {
-        // ... existing normal ball logic
+else {
+    if (isLastBall) {
+        // Over last ball rule
+        if (runsScored % 2 === 0) {
+            shouldChange = true;
+            reason = 'Last Ball EVEN (4/6) → Strike CHANGES (next over)';
+        } else {
+            shouldChange = false;
+            reason = 'Last Ball ODD (3/5) → Strike REMAINS (next over)';
+        }
+    } else {
+        // Normal ball rule
+        if (runsScored % 2 !== 0) {
+            shouldChange = true;
+            reason = 'ODD (3/5) → Strike CHANGES';
+        } else {
+            shouldChange = false;
+            reason = 'EVEN (4/6) → Strike REMAINS';
+        }
     }
+}
     
     // Apply strike change
     if (shouldChange) {
