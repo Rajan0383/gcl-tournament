@@ -712,29 +712,32 @@ class GCLEngine {
     }
 
     setupMatch(team1Id, team2Id, team1BattingOrder, team2BattingOrder) {
-        const team1 = this.getTeam(team1Id);
-        const team2 = this.getTeam(team2Id);
-        if (!team1 || !team2) throw new Error('Team not found');
-        this.resetMatch();
-        this.matchState.isActive = true;
-        this.matchState.matchId = `MATCH-${Date.now()}`;
-        this.matchState.team1.name = team1.name;
-        this.matchState.team2.name = team2.name;
-        this.matchState.team1.battingOrder = team1BattingOrder || team1.squad;
-        this.matchState.team2.battingOrder = team2BattingOrder || team2.squad;
-        this.matchState.team1.currentBatsman = this.matchState.team1.battingOrder[0];
-        this.matchState.team2.currentBatsman = this.matchState.team2.battingOrder[0];
-        this.matchState.battingTeam = 1;
-        this.matchState.bowlingTeam = 2;
-        this.matchState.currentOver = 0.0;
-        this.matchState.currentBall = 0;
-        this.matchState.overType = 'normal';
-        this.matchState.currentBatsmanName = this.matchState.team1.currentBatsman;
-        this.striker = this.matchState.team1.currentBatsman;
-        this.nonStriker = this.matchState.team1.battingOrder[1] || 'Non-Striker';
-        return this.matchState;
-    }
-
+    const team1 = this.getTeam(team1Id);
+    const team2 = this.getTeam(team2Id);
+    if (!team1 || !team2) throw new Error('Team not found');
+    this.resetMatch();
+    this.matchState.isActive = true;
+    this.matchState.matchId = `MATCH-${Date.now()}`;
+    this.matchState.team1.name = team1.name;
+    this.matchState.team2.name = team2.name;
+    this.matchState.team1.battingOrder = team1BattingOrder || team1.squad;
+    this.matchState.team2.battingOrder = team2BattingOrder || team2.squad;
+    this.matchState.team1.currentBatsman = null;
+    this.matchState.team2.currentBatsman = null;
+    this.matchState.battingTeam = 1;
+    this.matchState.bowlingTeam = 2;
+    this.matchState.currentOver = 0.0;
+    this.matchState.currentBall = 0;
+    this.matchState.overType = 'normal';
+    // ✅ Match start pe striker/non-striker EMPTY rakhein
+    this.matchState.currentBatsmanName = '';
+    this.striker = null;
+    this.nonStriker = null;
+    this.matchState.striker = null;
+    this.matchState.nonStriker = null;
+    
+    return this.matchState;
+}
     batsmanSetScore(data) {
     const { name, score } = data;
     if (!this.matchState.isActive) return { error: 'Match not active' };
@@ -928,17 +931,18 @@ return {
         shouldChange = true;
         reason = 'NO-BALL 5 → Strike CHANGES';
     }
-    // 3. OUT Case - WITH LAST BALL CHECK
-    else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
-        if (isLastBall) {
-            // ✅ Last ball OUT → New batsman non-strike next over
-            shouldChange = false;
-            reason = 'OUT on last ball → New batsman NON-STRIKE next over';
-        } else {
-            shouldChange = true;
-            reason = 'OUT → Strike CHANGES (new batsman on strike)';
-        }
+  // 3. OUT Case - MANUAL batsman selection
+else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
+    // ✅ OUT ke baad, batsman ko manually select karna hoga
+    // System sirf strike change karega, new batsman nahi laayega
+    if (isLastBall) {
+        shouldChange = false;
+        reason = 'OUT on last ball → New batsman NON-STRIKE next over (select manually)';
+    } else {
+        shouldChange = true;
+        reason = 'OUT → Strike CHANGES (select new batsman manually)';
     }
+}
     // 4. Normal Ball
 else {
     if (isLastBall) {
@@ -962,28 +966,37 @@ else {
     }
 }
     
-    // Apply strike change
+    // ✅ Apply strike change - SWAP striker and non-striker (dropdown selection preserved)
     if (shouldChange) {
-        const temp = battingTeam.currentBatsman;
-        const nextBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] || battingTeam.battingOrder[0];
-        battingTeam.currentBatsman = nextBatsman;
-        battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] = temp;
-        this.strikeChanged = true;
-        this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-        this.striker = battingTeam.currentBatsman;
+        // Swap striker and non-striker
+        const tempStriker = this.striker;
+        const tempNonStriker = this.nonStriker;
+        
+        this.striker = tempNonStriker;
+        this.nonStriker = tempStriker;
+        
         this.matchState.striker = this.striker;
+        this.matchState.nonStriker = this.nonStriker;
+        this.matchState.currentBatsmanName = this.striker;
+        this.strikeChanged = true;
+        
+        // Update batting team's current batsman
+        battingTeam.currentBatsman = this.striker;
+        
+        console.log('🔄 Strike changed! New striker:', this.striker, 'New non-striker:', this.nonStriker);
     } else {
         this.strikeChanged = false;
         // ✅ If last ball OUT, set non-striker for next over
+        // Note: New batsman will be selected manually from dropdown
         if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut && isLastBall) {
-            const nextBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] || battingTeam.battingOrder[0];
-            this.matchState.nonStriker = nextBatsman;
-            this.nonStriker = nextBatsman;
+            // For last ball OUT, set non-striker for next over
+            // User will manually select new batsman from dropdown
+            this.matchState.nonStriker = this.nonStriker || 'Select Non-Striker';
         }
     }
     
     this.matchState.lastStrikeReason = reason;
-       console.log('🔍 updateStrike result:', { shouldChange, reason, newStriker: battingTeam.currentBatsman });
+    console.log('🔍 updateStrike result:', { shouldChange, reason, striker: this.striker, nonStriker: this.nonStriker });
     return { changed: shouldChange, reason: reason };
 }
     // ============================================
