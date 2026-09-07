@@ -736,25 +736,25 @@ class GCLEngine {
     }
 
     batsmanSetScore(data) {
-        const { name, score } = data;
-        console.log('🔍 batsmanSetScore called with:', data);
-        console.log('🔍 Current matchState.batsmanSet:', this.matchState.batsmanSet);
-        if (!this.matchState.isActive) return { error: 'Match not active' };
-        if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
-        
-        const validScores = [3, 4, 5, 6];
-        
-        if (!validScores.includes(parseInt(score))) {
-            return { error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` };
-        }
-        this.matchState.secretScore = parseInt(score);
-        this.matchState.batsmanSet = true;
-        this.matchState.bowlerGuessed = false;
-        this.matchState.currentBatsmanName = name || 'Batsman';
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        // ✅ ALWAYS update striker with selected name
+    const { name, score } = data;
+    if (!this.matchState.isActive) return { error: 'Match not active' };
+    if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
+    
+    const validScores = [3, 4, 5, 6];
+    if (!validScores.includes(parseInt(score))) {
+        return { error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` };
+    }
+    this.matchState.secretScore = parseInt(score);
+    this.matchState.batsmanSet = true;
+    this.matchState.bowlerGuessed = false;
+    this.matchState.currentBatsmanName = name || 'Batsman';
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    battingTeam.currentBatsman = name || battingTeam.currentBatsman;
+    
+    // ✅ ALWAYS update striker with selected name (even if already set)
     this.striker = name || battingTeam.currentBatsman;
     this.matchState.striker = this.striker;
+    this.matchState.currentBatsmanName = this.striker;
     
     // ✅ Update non-striker if not set
     if (!this.nonStriker) {
@@ -1129,7 +1129,7 @@ else {
         
         battingTeam.runs += result.runsScored || 0;
         if (result.isOut) battingTeam.wickets += 1;
-        battingTeam.balls += 1;
+      //  battingTeam.balls += 1;
         
        // ✅ Update batsman stats
     if (result.batsmanName) {
