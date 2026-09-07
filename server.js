@@ -897,6 +897,7 @@ if (this.matchState.currentBall >= 6) {
     const runsScored = result.runsScored;
     const isWide = result.isWide;
     const isNoBall = result.isNoBall;
+    console.log('🔴 OVER COMPLETE - Current bowler before reset:', this.matchState.currentBowlerName);
     
     this.updateStrike(
         this.matchState.currentBatsmanName,
@@ -913,6 +914,7 @@ if (this.matchState.currentBall >= 6) {
     // ✅ FIX 3: Reset current bowler
     this.matchState.currentBowlerName = '';
     this.currentBowler = null;
+    console.log('🔴 OVER COMPLETE - Bowler reset to:', this.matchState.currentBowlerName);
 }
 this.matchState.batsmanSet = false;
 this.matchState.bowlerGuessed = false;
