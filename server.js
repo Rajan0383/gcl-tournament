@@ -829,6 +829,9 @@ class GCLEngine {
                     result.message = `✅ Safe! ${batsmanScore} runs`;
                     result.ballResult = batsmanScore.toString();
                 }
+                   this.matchState.currentBall += 1;
+                   battingTeam.balls += 1;
+                
             } else {
                 result.isNoBall = true;
                 this.matchState.noBallUsed = true;
@@ -1150,7 +1153,6 @@ else {
         
         battingTeam.runs += result.runsScored || 0;
         if (result.isOut) battingTeam.wickets += 1;
-        if (result.isWide || result.isNoBall) battingTeam.extras += 1;
       //  battingTeam.balls += 1;
         
        // ✅ Update batsman stats
