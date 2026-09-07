@@ -810,7 +810,7 @@ class GCLEngine {
         // WIDE: 3 vs 6 OR 6 vs 3
         if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
             result.isWide = true;
-            result.runsScored = 0;
+            result.runsScored = batsmanScore;
             result.message = `📏 WIDE! (${batsmanScore}-${bowlerGuess}) Ball counts. No extra run.`;
             result.ballResult = 'WD';
         }
@@ -907,6 +907,9 @@ if (this.matchState.currentBall >= 6) {
     this.matchState.currentOver += 1;
     this.matchState.noBallUsed = false;
     this.matchState.lastStrikeReason = 'Over complete! Strike rule applied.';
+    // ✅ FIX 3: Reset current bowler
+    this.matchState.currentBowlerName = '';
+    this.currentBowler = null;
 }
 this.matchState.batsmanSet = false;
 this.matchState.bowlerGuessed = false;
