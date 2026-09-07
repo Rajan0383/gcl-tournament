@@ -847,7 +847,7 @@ else {
     result.ballResult = batsmanScore.toString();
 }
 if (!result.isWide && !result.isNoBall) {
-    
+  this.matchState.currentBall += 1;  
 }
 this.applyBallEffect({
     runsScored: result.runsScored,
@@ -969,6 +969,8 @@ else {
         battingTeam.battingOrder[battingTeam.currentBattingIndex + 1] = temp;
         this.strikeChanged = true;
         this.matchState.currentBatsmanName = battingTeam.currentBatsman;
+        this.striker = battingTeam.currentBatsman;
+        this.matchState.striker = this.striker;
     } else {
         this.strikeChanged = false;
         // ✅ If last ball OUT, set non-striker for next over
