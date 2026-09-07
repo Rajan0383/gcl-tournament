@@ -1210,6 +1210,7 @@ if (result.bowlerName) {
     const balls = bowler.balls % 6;
     bowler.overs = parseFloat(`${overs}.${balls}`);
 }
+    }
     // ============================================
     // ADMIN OVERRIDE — DELETE BALL
     // ============================================
