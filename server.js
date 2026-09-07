@@ -835,6 +835,14 @@ class GCLEngine {
                 result.runsScored = 0;
                 result.message = `❌ NO-BALL! (5-${bowlerGuess}) Ball counts. No extra run.`;
                 result.ballResult = 'NB';
+                 // ✅ ADD THIS - Strike change for NO-BALL
+        this.updateStrike(
+            this.matchState.currentBatsmanName,
+            5,     // runsScored for NO-BALL
+            false, // isWide
+            true,  // isNoBall ✅
+            false  // isLastBall
+        );
             }
         }
         // OUT: Exact match
@@ -850,6 +858,7 @@ else {
     result.ballResult = batsmanScore.toString();
   if (!result.isWide && !result.isNoBall) {
   this.matchState.currentBall += 1;  
+       battingTeam.balls += 1;
 }
 }    
 this.applyBallEffect({
@@ -861,7 +870,6 @@ this.applyBallEffect({
     bowlerName: this.matchState.currentBowlerName
 });
 if (result.isOut) {
-    battingTeam.wickets += 1;
     battingTeam.currentBattingIndex += 1;
     if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
         battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
@@ -1142,6 +1150,7 @@ else {
         
         battingTeam.runs += result.runsScored || 0;
         if (result.isOut) battingTeam.wickets += 1;
+        if (result.isWide || result.isNoBall) battingTeam.extras += 1;
       //  battingTeam.balls += 1;
         
        // ✅ Update batsman stats
@@ -1177,25 +1186,30 @@ else {
         // Non-striker ka ball count update (if strike changed)
         // Non-striker ke runs tab update honge jab wo striker banega
     }
-    // ✅ Update bowler stats
-    if (result.bowlerName) {
-        if (!this.currentMatchStats.bowlers[result.bowlerName]) {
-            this.currentMatchStats.bowlers[result.bowlerName] = {
-                name: result.bowlerName,
-                wickets: 0, 
-                balls: 0, 
-                runsConceded: 0,
-                overs: 0
-            };
-        }
-        const bowler = this.currentMatchStats.bowlers[result.bowlerName];
-        if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
-        bowler.balls = (bowler.balls || 0) + 1;
-        bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
-        bowler.overs = (bowler.balls / 6).toFixed(1);
+   // ✅ Update bowler stats
+if (result.bowlerName) {
+    if (!this.currentMatchStats.bowlers[result.bowlerName]) {
+        this.currentMatchStats.bowlers[result.bowlerName] = {
+            name: result.bowlerName,
+            wickets: 0, 
+            balls: 0, 
+            runsConceded: 0,
+            overs: 0
+        };
     }
+    const bowler = this.currentMatchStats.bowlers[result.bowlerName];
+    if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
+    
+    // ✅ ONLY count balls for normal balls (not wide, not no-ball)
+    if (!result.isWide && !result.isNoBall) {
+        bowler.balls = (bowler.balls || 0) + 1;
+    }
+    
+    bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
+    const overs = Math.floor(bowler.balls / 6);
+    const balls = bowler.balls % 6;
+    bowler.overs = parseFloat(`${overs}.${balls}`);
 }
-
     // ============================================
     // ADMIN OVERRIDE — DELETE BALL
     // ============================================
