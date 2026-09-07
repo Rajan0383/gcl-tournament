@@ -835,7 +835,7 @@ class GCLEngine {
             } else {
                 result.isNoBall = true;
                 this.matchState.noBallUsed = true;
-                result.runsScored = 0;
+                result.runsScored = batsmanScore;
                 result.message = `❌ NO-BALL! (5-${bowlerGuess}) Ball counts. No extra run.`;
                 result.ballResult = 'NB';
                  // ✅ ADD THIS - Strike change for NO-BALL
