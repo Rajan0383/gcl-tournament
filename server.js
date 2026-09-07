@@ -847,7 +847,7 @@ else {
     result.ballResult = batsmanScore.toString();
 }
 if (!result.isWide && !result.isNoBall) {
-    this.matchState.currentBall += 1;
+    
 }
 this.applyBallEffect({
     runsScored: result.runsScored,
