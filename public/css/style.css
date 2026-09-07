@@ -5447,3 +5447,42 @@ select option:hover {
     text-shadow: 0 0 30px rgba(255, 255, 255, 0.25), 0 0 60px rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
 }
+/* Striker/Non-Striker Layout */
+.striker-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1.05rem;
+    color: #ffd700;
+    font-weight: 700;
+}
+
+.non-striker-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+    color: #8aa3b8;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.striker-line .strike-arrow {
+    color: #ffd700;
+    font-size: 0.9rem;
+}
+
+.non-striker-line .strike-arrow {
+    color: #8aa3b8;
+    font-size: 0.8rem;
+}
+
+.striker-line .striker {
+    color: #ffd700;
+    font-weight: 700;
+}
+
+.non-striker-line .non-striker {
+    color: #8aa3b8;
+    font-weight: 600;
+}
