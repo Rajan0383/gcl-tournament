@@ -3949,9 +3949,7 @@ socket.on('stateUpdate', (state) => {
         if (state.battingTeam && state.bowlingTeam) {
             currentMatchTeams.team1 = state.battingTeam.name;
             currentMatchTeams.team2 = state.bowlingTeam.name;
-            if (window.teams) {
-                populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
-            }
+            
         }
         updateMatchState(state);
     }
