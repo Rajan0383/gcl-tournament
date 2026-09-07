@@ -5486,3 +5486,47 @@ select option:hover {
     color: #8aa3b8;
     font-weight: 600;
 }
+/* Striker/Non-Striker Layout */
+.batsmen-names {
+    display: flex;
+    flex-direction: column;  /* ✅ Vertical arrangement */
+    gap: 2px;
+}
+
+.striker-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1.05rem;
+    color: #ffd700;
+    font-weight: 700;
+}
+
+.non-striker-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+    color: #8aa3b8;
+    font-weight: 600;
+}
+
+.striker-line .strike-arrow {
+    color: #ffd700;
+    font-size: 0.9rem;
+}
+
+.non-striker-line .strike-arrow {
+    color: #8aa3b8;
+    font-size: 0.8rem;
+}
+
+.striker-line .striker {
+    color: #ffd700;
+    font-weight: 700;
+}
+
+.non-striker-line .non-striker {
+    color: #8aa3b8;
+    font-weight: 600;
+}
