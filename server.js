@@ -853,6 +853,9 @@ class GCLEngine {
             result.isOut = true;
             result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
             result.ballResult = 'W';
+            // ✅ OUT pe ball count karein
+              this.matchState.currentBall += 1;
+              battingTeam.balls += 1;
         }
         // SAFE: Runs added
 else {
