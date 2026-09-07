@@ -901,7 +901,7 @@ return {
     ...result,
     matchState: this.getMatchState()
 };
-    
+    }    
     // ============================================
     // STRIKE CHANGE — FULL LOGIC
     // ============================================
