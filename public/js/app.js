@@ -3725,16 +3725,27 @@ function populateDropdowns(teams, matchTeam1, matchTeam2) {
     }
     
     // Populate Bowler Dropdown
-    const bowlerSelect = document.getElementById('bowlerSelect');
-    if (bowlerSelect) {
-        bowlerSelect.innerHTML = '<option value="">Select Bowler...</option><option value="__manual__">✏️ Type manually...</option>';
-        players.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p;
-            option.textContent = p;
-            bowlerSelect.appendChild(option);
-        });
-    }
+   // Populate Bowler Dropdown - ✅ Disable bowlers who have bowled 1 over
+const bowlerSelect = document.getElementById('bowlerSelect');
+if (bowlerSelect) {
+    bowlerSelect.innerHTML = '<option value="">Select Bowler...</option><option value="__manual__">✏️ Type manually...</option>';
+    players.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p;
+        option.textContent = p;
+        
+        // ✅ Check if bowler has already bowled 1 over
+        if (currentMatchState?.bowlers) {
+            const bowlerStats = currentMatchState.bowlers.find(b => b.name === p);
+            const oversBowled = bowlerStats?.overs || 0;
+            if (oversBowled >= 1) {
+                option.textContent = `${p} (1 over done)`;
+                option.disabled = true;  // ❌ Disable - can't select again
+            }
+        }
+        bowlerSelect.appendChild(option);
+    });
+}
     
     // Populate Non-Striker Dropdown
     const nonStrikerSelect = document.getElementById('nonStrikerSelect');
