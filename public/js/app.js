@@ -3527,46 +3527,29 @@ function updateMatchState(state) {
     const bowlerSelect = document.getElementById('bowlerSelect');
     if (bowlerSelect && !state.currentBowlerName) {
         bowlerSelect.value = '';
-    }
-    // Update over info
-    const overDisplay = document.getElementById('currentOverDisplay');
-    if (overDisplay && state.currentOver !== undefined && state.currentBall !== undefined) {
-        overDisplay.textContent = `${state.currentOver}.${state.currentBall}`;
-    }
-    
-    const strikeDisplay = document.getElementById('strikeDisplay');
-    if (strikeDisplay) {
-        strikeDisplay.textContent = state.striker || '-';
-    }
-    
-    // Update last ball
-    const lastBallDisplay = document.getElementById('lastBallDisplay');
-    if (lastBallDisplay) {
-        if (state.lastBallResult) {
-            lastBallDisplay.textContent = `Last Ball: ${state.lastBallResult.message || '-'}`;
-        } else {
-            lastBallDisplay.textContent = 'Last Ball: -';
+        // Also update the display
+        const currentBowler = document.getElementById('currentBowler');
+        if (currentBowler) {
+            currentBowler.textContent = '-';
         }
-    }
-    
-    // Update no-ball status
-    if (state.noBallUsed !== undefined) {
-        const statusEl = document.getElementById('noBallStatus');
-        if (statusEl) {
-            if (state.noBallUsed) {
-                statusEl.textContent = '✅ YES (1/1)';
-                statusEl.className = 'noball-status yes';
-            } else {
-                statusEl.textContent = '❌ No';
-                statusEl.className = 'noball-status no';
+    } else if (state.currentBowlerName) {
+        // Show bowler with stats
+        const currentBowler = document.getElementById('currentBowler');
+        if (currentBowler) {
+            let bowlerStats = '';
+            if (state.bowlers) {
+                const bowler = state.bowlers.find(b => b.name === state.currentBowlerName);
+                if (bowler) {
+                    bowlerStats = ` ${bowler.wickets}/${bowler.runsConceded || 0} (${bowler.overs || 0} ov)`;
+                }
             }
+            currentBowler.textContent = state.currentBowlerName + bowlerStats;
         }
     }
     
-    // ✅ FIX 4: AUTO-UPDATE DROPDOWN ON STRIKE CHANGE
+    // ✅ FIX: Auto-update batsman dropdown on strike change
     const batsmanSelect = document.getElementById('batsmanSelect');
     if (batsmanSelect && state.striker) {
-        // Check if striker is in dropdown options
         let optionExists = false;
         for (let i = 0; i < batsmanSelect.options.length; i++) {
             if (batsmanSelect.options[i].value === state.striker) {
@@ -3586,9 +3569,9 @@ function updateMatchState(state) {
         }
     }
     
-    // ✅ AUTO-UPDATE NON-STRIKER DROPDOWN
+    // ✅ FIX: Auto-update non-striker dropdown
     const nonStrikerSelect = document.getElementById('nonStrikerSelect');
-    if (nonStrikerSelect && state.nonStriker) {
+    if (nonStrikerSelect && state.nonStriker && state.nonStriker !== 'undefined' && state.nonStriker !== 'Non-Striker') {
         let optionExists = false;
         for (let i = 0; i < nonStrikerSelect.options.length; i++) {
             if (nonStrikerSelect.options[i].value === state.nonStriker) {
@@ -3605,8 +3588,13 @@ function updateMatchState(state) {
             nonStrikerSelect.appendChild(option);
             nonStrikerSelect.value = state.nonStriker;
         }
-    }
-    
+        // Update status display
+        const nonStrikerStatus = document.getElementById('nonStrikerStatus');
+        if (nonStrikerStatus) {
+            nonStrikerStatus.textContent = `✅ ${state.nonStriker}`;
+            nonStrikerStatus.className = 'status-msg success';
+        }
+    }    
     // Update scorecard
     updateScorecard(state);
     
@@ -3696,6 +3684,7 @@ function updateBallByBall(state) {
 
 let currentMatchTeams = { team1: null, team2: null };
 
+// app.js - populateDropdowns() - Updated version
 function populateDropdowns(teams, matchTeam1, matchTeam2) {
     const players = [];
     
@@ -3728,28 +3717,27 @@ function populateDropdowns(teams, matchTeam1, matchTeam2) {
         });
     }
     
-    // Populate Bowler Dropdown
-   // Populate Bowler Dropdown - ✅ Disable bowlers who have bowled 1 over
-const bowlerSelect = document.getElementById('bowlerSelect');
-if (bowlerSelect) {
-    bowlerSelect.innerHTML = '<option value="">Select Bowler...</option><option value="__manual__">✏️ Type manually...</option>';
-    players.forEach(p => {
-        const option = document.createElement('option');
-        option.value = p;
-        option.textContent = p;
-        
-        // ✅ Check if bowler has already bowled 1 over
-        if (currentMatchState?.bowlers) {
-            const bowlerStats = currentMatchState.bowlers.find(b => b.name === p);
-            const oversBowled = bowlerStats?.overs || 0;
-            if (oversBowled >= 1) {
-                option.textContent = `${p} (1 over done)`;
-                option.disabled = true;  // ❌ Disable - can't select again
+    // Populate Bowler Dropdown - ✅ Disable bowlers who have bowled 1 over
+    const bowlerSelect = document.getElementById('bowlerSelect');
+    if (bowlerSelect) {
+        bowlerSelect.innerHTML = '<option value="">Select Bowler...</option><option value="__manual__">✏️ Type manually...</option>';
+        players.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            
+            // ✅ Check if bowler has already bowled 1 over
+            if (currentMatchState?.bowlers) {
+                const bowlerStats = currentMatchState.bowlers.find(b => b.name === p);
+                const oversBowled = bowlerStats?.overs || 0;
+                if (oversBowled >= 1) {
+                    option.textContent = `${p} (1 over done)`;
+                    option.disabled = true;
+                }
             }
-        }
-        bowlerSelect.appendChild(option);
-    });
-}
+            bowlerSelect.appendChild(option);
+        });
+    }
     
     // Populate Non-Striker Dropdown
     const nonStrikerSelect = document.getElementById('nonStrikerSelect');
@@ -3787,6 +3775,16 @@ if (bowlerSelect) {
     }
 }
 
+// ✅ NEW: Function to refresh dropdowns with current state
+function refreshDropdowns() {
+    if (window.teams && currentMatchState) {
+        const battingTeam = currentMatchState.battingTeam?.name;
+        const bowlingTeam = currentMatchState.bowlingTeam?.name;
+        if (battingTeam && bowlingTeam) {
+            populateDropdowns(window.teams, battingTeam, bowlingTeam);
+        }
+    }
+}
 // Override socket events
 socket.on('teamsList', (data) => {
     teams = data;          // ✅ Global teams update ho raha hai
@@ -3956,6 +3954,8 @@ socket.on('scoreUpdate', (data) => {
     if (data.state) updateMatchState(data.state);
 });
 
+// app.js - Socket event listeners - Update these
+
 socket.on('stateUpdate', (state) => {
     if (state) {
         // ✅ Always update scoreboard first
@@ -3964,9 +3964,25 @@ socket.on('stateUpdate', (state) => {
         if (state.battingTeam && state.bowlingTeam) {
             currentMatchTeams.team1 = state.battingTeam.name;
             currentMatchTeams.team2 = state.bowlingTeam.name;
-            
         }
+        
         updateMatchState(state);
+        
+        // ✅ Refresh dropdowns after state update
+        if (window.teams) {
+            populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
+        }
+    }
+});
+
+// ✅ New: Force refresh on strike change
+socket.on('strikeChanged', (data) => {
+    if (data.state) {
+        updateMatchState(data.state);
+        if (window.teams) {
+            populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
+        }
+        showNotification(`🔄 ${data.reason || 'Strike changed!'}`, 'warning');
     }
 });
 socket.on('ballUpdated', (data) => {
