@@ -901,6 +901,7 @@ if (result.isOut) {
             this.updateStrike(this.striker, result.runsScored);    
     }
 }
+}
 this.matchState.lastBallResult = result;
 // Check if over is complete
 // server.js - bowlerGuess() - Add state emit after over complete
@@ -942,7 +943,7 @@ return {
     ...result,
     matchState: this.getMatchState()
 };
-    }    
+}    
     // ============================================
     // STRIKE CHANGE — FULL LOGIC
     // ============================================
