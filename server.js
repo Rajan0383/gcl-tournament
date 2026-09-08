@@ -738,7 +738,8 @@ class GCLEngine {
     
     return this.matchState;
 }
-    batsmanSetScore(data) {
+    // server.js - batsmanSetScore()
+batsmanSetScore(data) {
     const { name, score } = data;
     if (!this.matchState.isActive) return { error: 'Match not active' };
     if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
@@ -747,21 +748,30 @@ class GCLEngine {
     if (!validScores.includes(parseInt(score))) {
         return { error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` };
     }
+    
     this.matchState.secretScore = parseInt(score);
     this.matchState.batsmanSet = true;
     this.matchState.bowlerGuessed = false;
     this.matchState.currentBatsmanName = name || 'Batsman';
+    
     const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
     battingTeam.currentBatsman = name || battingTeam.currentBatsman;
     
-    // ✅ ALWAYS update striker with selected name (even if already set)
+    // ✅ ALWAYS update striker with selected name
     this.striker = name || battingTeam.currentBatsman;
     this.matchState.striker = this.striker;
     this.matchState.currentBatsmanName = this.striker;
     
-    // ✅ Update non-striker if not set
-    if (!this.nonStriker) {
-        this.nonStriker = battingTeam.battingOrder[1] || 'Non-Striker';
+    // ✅ CRITICAL FIX: Set non-striker with validation
+    if (!this.nonStriker || this.nonStriker === 'undefined' || this.nonStriker === 'Non-Striker') {
+        const battingOrder = battingTeam.battingOrder || [];
+        const strikerIndex = battingOrder.indexOf(this.striker);
+        if (strikerIndex !== -1 && strikerIndex + 1 < battingOrder.length) {
+            this.nonStriker = battingOrder[strikerIndex + 1];
+        } else {
+            // If striker not found in order, use first player as fallback
+            this.nonStriker = battingOrder[0] !== this.striker ? battingOrder[0] : (battingOrder[1] || 'Non-Striker');
+        }
         this.matchState.nonStriker = this.nonStriker;
     }
     
@@ -892,6 +902,10 @@ if (result.isOut) {
 }
 this.matchState.lastBallResult = result;
 // Check if over is complete
+// server.js - bowlerGuess() - Add state emit after over complete
+// Around line 320 - Over Complete section
+
+// Check if over is complete
 if (this.matchState.currentBall >= 6) {
     const isLastBall = true;
     const runsScored = result.runsScored;
@@ -911,10 +925,14 @@ if (this.matchState.currentBall >= 6) {
     this.matchState.currentOver += 1;
     this.matchState.noBallUsed = false;
     this.matchState.lastStrikeReason = 'Over complete! Strike rule applied.';
-    // ✅ FIX 3: Reset current bowler
+    
+    // ✅ Reset current bowler
     this.matchState.currentBowlerName = '';
     this.currentBowler = null;
     console.log('🔴 OVER COMPLETE - Bowler reset to:', this.matchState.currentBowlerName);
+    
+    // ✅ CRITICAL: Emit state update to refresh UI
+    io.emit('stateUpdate', this.getMatchState());
 }
 this.matchState.batsmanSet = false;
 this.matchState.bowlerGuessed = false;
@@ -928,8 +946,10 @@ return {
     // STRIKE CHANGE — FULL LOGIC
     // ============================================
 
-   updateStrike(batsmanName, runsScored, isWide, isNoBall, isLastBall) {
-        console.log('🔍 updateStrike called with:', { batsmanName, runsScored, isWide, isNoBall, isLastBall });
+   // server.js - updateStrike() - Complete rewrite for clarity
+updateStrike(batsmanName, runsScored, isWide, isNoBall, isLastBall) {
+    console.log('🔍 updateStrike called with:', { batsmanName, runsScored, isWide, isNoBall, isLastBall });
+    
     const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
     
     let shouldChange = false;
@@ -950,72 +970,84 @@ return {
         shouldChange = true;
         reason = 'NO-BALL 5 → Strike CHANGES';
     }
-  // 3. OUT Case - MANUAL batsman selection
-else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
-    // ✅ OUT ke baad, batsman ko manually select karna hoga
-    // System sirf strike change karega, new batsman nahi laayega
-    if (isLastBall) {
-        shouldChange = false;
-        reason = 'OUT on last ball → New batsman NON-STRIKE next over (select manually)';
-    } else {
-        shouldChange = true;
-        reason = 'OUT → Strike CHANGES (select new batsman manually)';
+    // 3. OUT Case - MANUAL batsman selection
+    else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
+        if (isLastBall) {
+            shouldChange = false;
+            reason = 'OUT on last ball → New batsman NON-STRIKE next over (select manually)';
+        } else {
+            shouldChange = true;
+            reason = 'OUT → Strike CHANGES (select new batsman manually)';
+        }
     }
-}
     // 4. Normal Ball
-else {
-    if (isLastBall) {
-        // Over last ball rule
-        if (runsScored % 2 === 0) {
-            shouldChange = true;
-            reason = 'Last Ball EVEN (4/6) → Strike CHANGES (next over)';
+    else {
+        if (isLastBall) {
+            // ✅ CORRECTED: Last ball rule
+            // ODD (3,5) → Strike REMAINS
+            // EVEN (4,6) → Strike CHANGES
+            if (runsScored % 2 === 0) {
+                shouldChange = true;   // EVEN → CHANGE
+                reason = 'Last Ball EVEN (4/6) → Strike CHANGES (next over)';
+            } else {
+                shouldChange = false;  // ODD → REMAIN
+                reason = 'Last Ball ODD (3/5) → Strike REMAINS (next over)';
+            }
         } else {
-            shouldChange = false;
-            reason = 'Last Ball ODD (3/5) → Strike REMAINS (next over)';
-        }
-    } else {
-        // Normal ball rule
-        if (runsScored % 2 !== 0) {
-            shouldChange = true;
-            reason = 'ODD (3/5) → Strike CHANGES';
-        } else {
-            shouldChange = false;
-            reason = 'EVEN (4/6) → Strike REMAINS';
+            // Normal ball rule
+            if (runsScored % 2 !== 0) {
+                shouldChange = true;
+                reason = 'ODD (3/5) → Strike CHANGES';
+            } else {
+                shouldChange = false;
+                reason = 'EVEN (4/6) → Strike REMAINS';
+            }
         }
     }
-}
     
-    // ✅ Apply strike change - SWAP striker and non-striker (dropdown selection preserved)
+    // ✅ Apply strike change
     if (shouldChange) {
-        // Swap striker and non-striker
         const tempStriker = this.striker;
         const tempNonStriker = this.nonStriker;
         
-        this.striker = tempNonStriker;
-        this.nonStriker = tempStriker;
+        // ✅ Swap with validation
+        if (tempNonStriker && tempNonStriker !== 'Non-Striker' && tempNonStriker !== 'undefined') {
+            this.striker = tempNonStriker;
+            this.nonStriker = tempStriker;
+        } else {
+            // ✅ Fallback: If non-striker is invalid, get from batting order
+            const battingOrder = battingTeam.battingOrder || [];
+            const strikerIndex = battingOrder.indexOf(tempStriker);
+            if (strikerIndex !== -1 && strikerIndex + 1 < battingOrder.length) {
+                this.striker = battingOrder[strikerIndex + 1];
+                this.nonStriker = tempStriker;
+                reason += ' (fallback from batting order)';
+            } else {
+                // Last resort: keep striker same
+                this.striker = tempStriker;
+                this.nonStriker = 'Non-Striker';
+                reason += ' (fallback - set default)';
+            }
+        }
         
         this.matchState.striker = this.striker;
         this.matchState.nonStriker = this.nonStriker;
         this.matchState.currentBatsmanName = this.striker;
         this.strikeChanged = true;
         
-        // Update batting team's current batsman
         battingTeam.currentBatsman = this.striker;
         
         console.log('🔄 Strike changed! New striker:', this.striker, 'New non-striker:', this.nonStriker);
     } else {
         this.strikeChanged = false;
-        // ✅ If last ball OUT, set non-striker for next over
-        // Note: New batsman will be selected manually from dropdown
-        if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut && isLastBall) {
-            // For last ball OUT, set non-striker for next over
-            // User will manually select new batsman from dropdown
-            this.matchState.nonStriker = this.nonStriker || 'Select Non-Striker';
-        }
     }
     
     this.matchState.lastStrikeReason = reason;
     console.log('🔍 updateStrike result:', { shouldChange, reason, striker: this.striker, nonStriker: this.nonStriker });
+    
+    // ✅ Emit state update to trigger UI refresh
+    io.emit('stateUpdate', this.getMatchState());
+    
     return { changed: shouldChange, reason: reason };
 }
     // ============================================
@@ -1156,14 +1188,14 @@ else {
         }
     }
 
-    applyBallEffect(result) {
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        
-        battingTeam.runs += result.runsScored || 0;
-        if (result.isOut) battingTeam.wickets += 1;
-      //  battingTeam.balls += 1;
-        
-       // ✅ Update batsman stats
+    // server.js - applyBallEffect()
+applyBallEffect(result) {
+    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
+    
+    battingTeam.runs += result.runsScored || 0;
+    if (result.isOut) battingTeam.wickets += 1;
+    
+    // ✅ Update batsman stats
     if (result.batsmanName) {
         if (!this.currentMatchStats.batsmen[result.batsmanName]) {
             this.currentMatchStats.batsmen[result.batsmanName] = { 
@@ -1176,51 +1208,42 @@ else {
         }
         const batsman = this.currentMatchStats.batsmen[result.batsmanName];
         batsman.runs = (batsman.runs || 0) + (result.runsScored || 0);
-        batsman.balls = (batsman.balls || 0) + 1;
+        
+        // ✅ ONLY count balls for normal balls (not wide, not no-ball)
+        if (!result.isWide && !result.isNoBall) {
+            batsman.balls = (batsman.balls || 0) + 1;
+        }
+        
         // Update fours/sixes
         if (result.runsScored === 4) batsman.fours = (batsman.fours || 0) + 1;
         if (result.runsScored === 6) batsman.sixes = (batsman.sixes || 0) + 1;
     }
-    // ✅ ADD - Non-Striker stats (if exists)
-    if (this.matchState.nonStriker) {
-        const nonStrikerName = this.matchState.nonStriker;
-        if (!this.currentMatchStats.batsmen[nonStrikerName]) {
-            this.currentMatchStats.batsmen[nonStrikerName] = { 
-                name: nonStrikerName,
-                runs: 0, 
+    
+    // ✅ Update bowler stats - ONLY count balls for normal balls
+    if (result.bowlerName) {
+        if (!this.currentMatchStats.bowlers[result.bowlerName]) {
+            this.currentMatchStats.bowlers[result.bowlerName] = {
+                name: result.bowlerName,
+                wickets: 0, 
                 balls: 0, 
-                fours: 0, 
-                sixes: 0 
+                runsConceded: 0,
+                overs: 0
             };
         }
-        // Non-striker ka ball count update (if strike changed)
-        // Non-striker ke runs tab update honge jab wo striker banega
+        const bowler = this.currentMatchStats.bowlers[result.bowlerName];
+        if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
+        
+        // ✅ ONLY count balls for normal balls
+        if (!result.isWide && !result.isNoBall) {
+            bowler.balls = (bowler.balls || 0) + 1;
+        }
+        
+        bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
+        const overs = Math.floor(bowler.balls / 6);
+        const balls = bowler.balls % 6;
+        bowler.overs = parseFloat(`${overs}.${balls}`);
     }
-   // ✅ Update bowler stats
-if (result.bowlerName) {
-    if (!this.currentMatchStats.bowlers[result.bowlerName]) {
-        this.currentMatchStats.bowlers[result.bowlerName] = {
-            name: result.bowlerName,
-            wickets: 0, 
-            balls: 0, 
-            runsConceded: 0,
-            overs: 0
-        };
-    }
-    const bowler = this.currentMatchStats.bowlers[result.bowlerName];
-    if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
-    
-    // ✅ ONLY count balls for normal balls (not wide, not no-ball)
-    if (!result.isWide && !result.isNoBall) {
-        bowler.balls = (bowler.balls || 0) + 1;
-    }
-    
-    bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
-    const overs = Math.floor(bowler.balls / 6);
-    const balls = bowler.balls % 6;
-    bowler.overs = parseFloat(`${overs}.${balls}`);
 }
-    }
     // ============================================
     // ADMIN OVERRIDE — DELETE BALL
     // ============================================
