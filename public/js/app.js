@@ -401,21 +401,17 @@ function updateFixtures(fixtures) {
     const completedContainer = document.getElementById('completedFixtures');
 
     if (upcomingContainer) {
-        const upcoming = fixtures.matches.filter(m => fixtures.upcoming.includes(m.id));
-        if (upcoming.length === 0) {
-            upcomingContainer.innerHTML = '<p class="empty-message">No upcoming fixtures</p>';
-        } else {
-            upcomingContainer.innerHTML = upcoming.map(f => createFixtureCard(f)).join('');
-        }
+        let upcoming = fixtures.matches.filter(m => fixtures.upcoming.includes(m.id));
+        // ✅ DATE WISE SORT KAREIN (Oldest first)
+        upcoming = upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
+        upcomingContainer.innerHTML = upcoming.map(f => createFixtureCard(f)).join('');
     }
 
     if (completedContainer) {
-        const completed = fixtures.matches.filter(m => fixtures.completed.includes(m.id));
-        if (completed.length === 0) {
-            completedContainer.innerHTML = '<p class="empty-message">No completed matches</p>';
-        } else {
-            completedContainer.innerHTML = completed.map(f => createFixtureCard(f)).join('');
-        }
+        let completed = fixtures.matches.filter(m => fixtures.completed.includes(m.id));
+        // ✅ DATE WISE SORT KAREIN (Oldest first)
+        completed = completed.sort((a, b) => new Date(a.date) - new Date(b.date));
+        completedContainer.innerHTML = completed.map(f => createFixtureCard(f)).join('');
     }
 
     updateCompleteFixtureSelect(fixtures);
@@ -432,24 +428,25 @@ function createFixtureCard(fixture) {
     const team2Name = getTeamNameById(fixture.team2);
     
     let dateDisplay = 'Date not set';
-    let timeDisplay = '';
-    try {
-        const dateObj = new Date(fixture.date);
-        if (!isNaN(dateObj.getTime())) {
-            dateDisplay = dateObj.toLocaleDateString('en-IN', { 
-                day: '2-digit', 
-                month: 'short', 
-                year: 'numeric' 
-            });
-            timeDisplay = dateObj.toLocaleTimeString('en-IN', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: true 
-            });
-        }
-    } catch (e) {
-        dateDisplay = fixture.date || 'Date not set';
+let timeDisplay = '';
+try {
+    const dateObj = new Date(fixture.date);
+    if (!isNaN(dateObj.getTime())) {
+        const dayName = dateObj.toLocaleDateString('en-IN', { weekday: 'long' });
+        dateDisplay = dateObj.toLocaleDateString('en-IN', { 
+            day: '2-digit', 
+            month: 'short', 
+            year: 'numeric' 
+        }) + ` (${dayName})`;
+        timeDisplay = dateObj.toLocaleTimeString('en-IN', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+        });
     }
+} catch (e) {
+    dateDisplay = fixture.date || 'Date not set';
+}
     
     // Admin actions (Edit + Delete)
     const adminActions = fixtureAdminMode ? `
@@ -459,8 +456,9 @@ function createFixtureCard(fixture) {
         </div>
     ` : '';
     
-    // Match actions (Start/Complete)
-    let matchActions = '';
+    // Match actions (Start/Complete) - SIRF ADMIN MODE MEIN
+let matchActions = '';
+if (fixtureAdminMode) {
     if (fixture.status === 'scheduled') {
         matchActions = `
             <button class="start-btn" onclick="startFixture('${fixture.id}')">▶ Start Match</button>
@@ -470,6 +468,7 @@ function createFixtureCard(fixture) {
             <button class="complete-btn" onclick="completeMatchFromFixture('${fixture.id}')">🏆 Complete Match</button>
         `;
     }
+}
     
     return `
         <div class="fixture-card ${fixture.status === 'completed' ? 'completed-card' : ''}">
