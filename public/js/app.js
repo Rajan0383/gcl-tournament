@@ -3523,7 +3523,11 @@ function updateMatchState(state) {
             currentBowler.textContent = '-';
         }
     }
-    
+     // ✅ ADD THIS - Reset bowler dropdown when no bowler selected
+    const bowlerSelect = document.getElementById('bowlerSelect');
+    if (bowlerSelect && !state.currentBowlerName) {
+        bowlerSelect.value = '';
+    }
     // Update over info
     const overDisplay = document.getElementById('currentOverDisplay');
     if (overDisplay && state.currentOver !== undefined && state.currentBall !== undefined) {
