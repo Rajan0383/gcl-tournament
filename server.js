@@ -897,7 +897,8 @@ if (result.isOut) {
 } else {
     // ✅ FIX: Use striker variable
     if (result.runsScored > 0) {
-        this.updateStrike(this.striker, result.runsScored);
+        if (!result.isWide && !result.isNoBall) {
+            this.updateStrike(this.striker, result.runsScored);    
     }
 }
 this.matchState.lastBallResult = result;
@@ -928,7 +929,7 @@ if (this.matchState.currentBall >= 6) {
     
     // ✅ Reset current bowler
     this.matchState.currentBowlerName = '';
-    this.currentBowler = null;
+   
     console.log('🔴 OVER COMPLETE - Bowler reset to:', this.matchState.currentBowlerName);
     
     // ✅ CRITICAL: Emit state update to refresh UI
