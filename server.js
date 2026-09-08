@@ -840,7 +840,7 @@ class GCLEngine {
                 result.ballResult = 'NB';
                  // ✅ ADD THIS - Strike change for NO-BALL
         this.updateStrike(
-            this.matchState.currentBatsmanName,
+            this.striker,
             5,     // runsScored for NO-BALL
             false, // isWide
             true,  // isNoBall ✅
