@@ -3592,6 +3592,23 @@ function updateMatchState(state) {
             nonStrikerStatus.className = 'status-msg success';
         }
     }
+    // ✅ FIX: If strike pending (last ball OUT), clear batsman dropdown
+if (state.strikePending) {
+    const batsmanSelect = document.getElementById('batsmanSelect');
+    if (batsmanSelect) {
+        batsmanSelect.value = '';
+    }
+    // Also clear non-striker dropdown
+    
+    if (nonStrikerSelect) {
+        nonStrikerSelect.value = '';
+    }
+    const nonStrikerStatus = document.getElementById('nonStrikerStatus');
+    if (nonStrikerStatus) {
+        nonStrikerStatus.textContent = '⏳ Not set';
+        nonStrikerStatus.className = 'status-msg waiting';
+    }
+}
     
     // Update scorecard
     updateScorecard(state);
