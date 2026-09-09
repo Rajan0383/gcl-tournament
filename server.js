@@ -703,7 +703,7 @@ class GCLEngine {
             target: null,
             winner: null,
             isComplete: false,
-            ballLog: []
+            ballLog: [],
         strikePending: false,
         pendingStriker: null,
         pendingNonStriker: null
