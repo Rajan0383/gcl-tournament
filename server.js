@@ -952,6 +952,7 @@ batsmanSetScore(data) {
         
         // ✅ FIX 2: Reset current bowler (ONLY on over complete)
         this.matchState.currentBowlerName = '';
+        this.matchState.bowlerGuessed = false;
         
         console.log('🔴 OVER COMPLETE - Bowler reset to:', this.matchState.currentBowlerName);
         
