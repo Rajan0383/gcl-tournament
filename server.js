@@ -704,6 +704,9 @@ class GCLEngine {
             winner: null,
             isComplete: false,
             ballLog: []
+        strikePending: false,
+        pendingStriker: null,
+        pendingNonStriker: null
         };
         this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
         this.striker = null;
@@ -851,6 +854,14 @@ batsmanSetScore(data) {
                 result.runsScored = batsmanScore;
                 result.message = `✅ Safe! ${batsmanScore} runs`;
                 result.ballResult = batsmanScore.toString();
+                // ✅ FIX: SUCCESSFUL 5 (ODD) → Strike CHANGE
+        this.updateStrike(
+            this.matchState.currentBatsmanName,
+            result.runsScored,  // 5 (ODD)
+            false,              // not wide
+            false,              // not no-ball
+            false               // not last ball
+        );
             }
             this.matchState.currentBall += 1;
             battingTeam.balls += 1;
@@ -930,35 +941,44 @@ batsmanSetScore(data) {
     this.matchState.lastBallResult = result;
     
     // Check if over is complete
-    if (this.matchState.currentBall >= 6) {
-        const isLastBall = true;
-        const runsScored = result.runsScored;
-        const isWide = result.isWide;
-        const isNoBall = result.isNoBall;
-        console.log('🔴 OVER COMPLETE - Current bowler before reset:', this.matchState.currentBowlerName);
-        
-        this.updateStrike(
-            this.matchState.currentBatsmanName,
-            runsScored,
-            isWide,
-            isNoBall,
-            true
-        );
-        
-        this.matchState.currentBall = 0;
-        this.matchState.currentOver += 1;
-        this.matchState.noBallUsed = false;
-        this.matchState.lastStrikeReason = 'Over complete! Strike rule applied.';
-        
-        // ✅ FIX 2: Reset current bowler (ONLY on over complete)
-        this.matchState.currentBowlerName = '';
-        this.matchState.bowlerGuessed = false;
-        
-        console.log('🔴 OVER COMPLETE - Bowler reset to:', this.matchState.currentBowlerName);
-        
-        // ✅ CRITICAL: Emit state update to refresh UI
-        io.emit('stateUpdate', this.getMatchState());
+   // Check if over is complete
+if (this.matchState.currentBall >= 6) {
+    const isLastBall = true;
+    const runsScored = result.runsScored;
+    const isWide = result.isWide;
+    const isNoBall = result.isNoBall;
+    
+    this.updateStrike(
+        this.matchState.currentBatsmanName,
+        runsScored,
+        isWide,
+        isNoBall,
+        true
+    );
+    
+    this.matchState.currentBall = 0;
+    this.matchState.currentOver += 1;
+    this.matchState.noBallUsed = false;
+    this.matchState.lastStrikeReason = 'Over complete! Strike rule applied.';
+    
+    // ✅ Apply pending strike if any (from last ball OUT)
+    if (this.matchState.strikePending) {
+        this.striker = this.matchState.pendingStriker;
+        this.nonStriker = this.matchState.pendingNonStriker;
+        this.matchState.striker = this.striker;
+        this.matchState.nonStriker = this.nonStriker;
+        this.matchState.currentBatsmanName = this.striker;
+        this.matchState.strikePending = false;
+        this.matchState.pendingStriker = null;
+        this.matchState.pendingNonStriker = null;
     }
+    
+    // ✅ Reset bowler for next over
+    this.matchState.currentBowlerName = '';
+    this.matchState.bowlerGuessed = false;
+    
+    io.emit('stateUpdate', this.getMatchState());
+}
     
     this.matchState.batsmanSet = false;
     this.matchState.bowlerGuessed = false;
@@ -1001,10 +1021,14 @@ updateStrike(batsmanName, runsScored, isWide, isNoBall, isLastBall) {
     else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
         if (isLastBall) {
             shouldChange = false;
-            reason = 'OUT on last ball → New batsman NON-STRIKE next over (select manually)';
-        } else {
-            shouldChange = true;
-            reason = 'OUT → Strike CHANGES (select new batsman manually)';
+            reason = 'OUT on last ball → Setup for next over';
+        // Store pending change for next over
+        this.matchState.strikePending = true;
+        this.matchState.pendingStriker = this.nonStriker;        // Non-striker → Strike
+        this.matchState.pendingNonStriker = battingTeam.currentBatsman;  // New batsman → Non-strike
+    } else {
+        shouldChange = true;
+        reason = 'OUT → Strike CHANGES (new batsman on strike)';
         }
     }
     // 4. Normal Ball
