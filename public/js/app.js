@@ -3506,43 +3506,43 @@ function updateMatchState(state) {
     const nonStrikerName = document.getElementById('nonStrikerName');
     if (nonStrikerName) nonStrikerName.textContent = state.nonStriker || '-';
     
-    // Update bowler - WITH STATS
+    // ✅ FIXED: Update bowler - WITH STATS AND DROPDOWN
     const currentBowler = document.getElementById('currentBowler');
-    if (currentBowler) {
-        if (state.currentBowlerName) {
-            let bowlerStats = '';
-            if (state.bowlers) {
-                const bowler = state.bowlers.find(b => b.name === state.currentBowlerName);
-                if (bowler) {
-                    bowlerStats = ` ${bowler.wickets}/${bowler.runsConceded || 0} (${bowler.overs || 0} ov)`;
-                }
-            }
-            currentBowler.textContent = state.currentBowlerName + bowlerStats;
-        } else {
-            currentBowler.textContent = '-';
-        }
-    }
-     // ✅ ADD THIS - Reset bowler dropdown when no bowler selected
     const bowlerSelect = document.getElementById('bowlerSelect');
-    if (bowlerSelect && !state.currentBowlerName) {
-        bowlerSelect.value = '';
-        // Also update the display
-        const currentBowler = document.getElementById('currentBowler');
+    
+    if (state.currentBowlerName) {
+        // Update display with stats
+        let bowlerStats = '';
+        if (state.bowlers) {
+            const bowler = state.bowlers.find(b => b.name === state.currentBowlerName);
+            if (bowler) {
+                bowlerStats = ` ${bowler.wickets}/${bowler.runsConceded || 0} (${bowler.overs || 0} ov)`;
+            }
+        }
+        if (currentBowler) {
+            currentBowler.textContent = state.currentBowlerName + bowlerStats;
+        }
+        
+        // Select bowler in dropdown
+        if (bowlerSelect) {
+            let optionExists = false;
+            for (let i = 0; i < bowlerSelect.options.length; i++) {
+                if (bowlerSelect.options[i].value === state.currentBowlerName) {
+                    optionExists = true;
+                    break;
+                }
+            }
+            if (optionExists) {
+                bowlerSelect.value = state.currentBowlerName;
+            }
+        }
+    } else {
+        // No bowler - clear display and dropdown
         if (currentBowler) {
             currentBowler.textContent = '-';
         }
-    } else if (state.currentBowlerName) {
-        // Show bowler with stats
-        const currentBowler = document.getElementById('currentBowler');
-        if (currentBowler) {
-            let bowlerStats = '';
-            if (state.bowlers) {
-                const bowler = state.bowlers.find(b => b.name === state.currentBowlerName);
-                if (bowler) {
-                    bowlerStats = ` ${bowler.wickets}/${bowler.runsConceded || 0} (${bowler.overs || 0} ov)`;
-                }
-            }
-            currentBowler.textContent = state.currentBowlerName + bowlerStats;
+        if (bowlerSelect) {
+            bowlerSelect.value = '';
         }
     }
     
@@ -3559,7 +3559,6 @@ function updateMatchState(state) {
         if (optionExists) {
             batsmanSelect.value = state.striker;
         } else {
-            // Add striker to dropdown if not present
             const option = document.createElement('option');
             option.value = state.striker;
             option.textContent = state.striker;
@@ -3570,7 +3569,7 @@ function updateMatchState(state) {
     
     // ✅ FIX: Auto-update non-striker dropdown
     const nonStrikerSelect = document.getElementById('nonStrikerSelect');
-    if (nonStrikerSelect && state.nonStriker && state.nonStriker !== 'undefined' && state.nonStriker !== 'Non-Striker') {
+    if (nonStrikerSelect && state.nonStriker && state.nonStriker !== 'Non-Striker') {
         let optionExists = false;
         for (let i = 0; i < nonStrikerSelect.options.length; i++) {
             if (nonStrikerSelect.options[i].value === state.nonStriker) {
@@ -3587,13 +3586,13 @@ function updateMatchState(state) {
             nonStrikerSelect.appendChild(option);
             nonStrikerSelect.value = state.nonStriker;
         }
-        // Update status display
         const nonStrikerStatus = document.getElementById('nonStrikerStatus');
         if (nonStrikerStatus) {
             nonStrikerStatus.textContent = `✅ ${state.nonStriker}`;
             nonStrikerStatus.className = 'status-msg success';
         }
-    }    
+    }
+    
     // Update scorecard
     updateScorecard(state);
     
