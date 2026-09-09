@@ -3593,19 +3593,28 @@ function updateMatchState(state) {
         }
     }
     // ✅ FIX: If strike pending (last ball OUT), clear batsman dropdown
-if (state.strikePending) {
+// ✅ SCENARIO 1: OUT before last ball (strikePending = false)
+// Strike dropdown empty - user selects new batsman
+if (state.lastBallResult && state.lastBallResult.isOut && !state.strikePending) {
     const batsmanSelect = document.getElementById('batsmanSelect');
     if (batsmanSelect) {
-        batsmanSelect.value = '';
+        batsmanSelect.value = '';  // ✅ Strike dropdown empty
     }
-    // Also clear non-striker dropdown
-    
+    // Non-striker dropdown remains as is (previous non-striker)
+}
+
+// ✅ SCENARIO 2: OUT on last ball (strikePending = true)
+// Non-striker becomes striker, user selects new non-striker
+if (state.strikePending) {
+    // ✅ Strike dropdown already set (non-striker became striker) - no need to clear
+    // ✅ Non-striker dropdown clear - user selects new batsman for non-strike
+    const nonStrikerSelect = document.getElementById('nonStrikerSelect');
     if (nonStrikerSelect) {
         nonStrikerSelect.value = '';
     }
     const nonStrikerStatus = document.getElementById('nonStrikerStatus');
     if (nonStrikerStatus) {
-        nonStrikerStatus.textContent = '⏳ Not set';
+        nonStrikerStatus.textContent = '⏳ Select new non-striker';
         nonStrikerStatus.className = 'status-msg waiting';
     }
 }
