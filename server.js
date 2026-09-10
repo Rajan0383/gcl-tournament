@@ -740,191 +740,225 @@ class GCLEngine {
     // PENALTIES
     // ============================================
 
-    applyPenalty(data) {
-        const { type, player, offence } = data;
-        if (!this.matchState.isActive) return { error: 'Match not active' };
+   applyPenalty(data) {
+    const { type, player, offence } = data;
+    if (!this.matchState.isActive) return { error: 'Match not active' };
 
-        if (!this.penaltyTracker[player]) {
-            this.penaltyTracker[player] = { batsman: 0, bowler: 0 };
+    // Initialize per-player, per-offence counters
+    if (!this.penaltyTracker[player]) {
+        this.penaltyTracker[player] = {
+            batsman: {
+                score_without_permission: 0,
+                text_instead_of_score: 0,
+                double_score: 0,
+                edit_delete_score: 0
+            },
+            bowler: {
+                guess_before_permission: 0
+            }
+        };
+    }
+
+    // Safety: ensure nested structure exists (for players tracked before this fix)
+    if (!this.penaltyTracker[player].batsman || typeof this.penaltyTracker[player].batsman !== 'object') {
+        this.penaltyTracker[player].batsman = {
+            score_without_permission: 0,
+            text_instead_of_score: 0,
+            double_score: 0,
+            edit_delete_score: 0
+        };
+    }
+    if (!this.penaltyTracker[player].bowler || typeof this.penaltyTracker[player].bowler !== 'object') {
+        this.penaltyTracker[player].bowler = {
+            guess_before_permission: 0
+        };
+    }
+
+    const battingTeam = this.matchState.battingTeam === 1
+        ? this.matchState.team1 : this.matchState.team2;
+
+    let message = '';
+    let teamRunsChange = 0;
+    let batsmanRunsChange = 0;
+    let isOut = false;
+    let countsAsBall = false;
+    let offenderFacesBall = false;
+    let bowlerRemoved = false;
+
+    if (type === 'batsman') {
+        // Ensure this specific offence counter exists
+        if (typeof this.penaltyTracker[player].batsman[offence] !== 'number') {
+            this.penaltyTracker[player].batsman[offence] = 0;
         }
+        const count = this.penaltyTracker[player].batsman[offence] + 1;
+        this.penaltyTracker[player].batsman[offence] = count;
 
-        const battingTeam = this.matchState.battingTeam === 1
-            ? this.matchState.team1 : this.matchState.team2;
+        switch (offence) {
+            case 'score_without_permission':
+                if (count === 1) {
+                    teamRunsChange = -3;
+                    batsmanRunsChange = -3;
+                    message = `${player} - Score without permission (1st): -3 team, -3 batsman`;
+                } else if (count === 2) {
+                    teamRunsChange = -6;
+                    batsmanRunsChange = -6;
+                    message = `${player} - Score without permission (2nd): -6 team, -6 batsman`;
+                } else {
+                    isOut = true;
+                    message = `${player} - Score without permission (3rd): DISMISSED!`;
+                }
+                break;
 
-        let message = '';
-        let teamRunsChange = 0;
-        let batsmanRunsChange = 0;
-        let isOut = false;
-        let countsAsBall = false;
-        let offenderFacesBall = false;
-        let bowlerRemoved = false;
-
-        if (type === 'batsman') {
-            const count = (this.penaltyTracker[player].batsman || 0) + 1;
-            this.penaltyTracker[player].batsman = count;
-
-            switch (offence) {
-                case 'score_without_permission':
-                    if (count === 1) {
-                        teamRunsChange = -3;
-                        batsmanRunsChange = -3;
-                        message = `${player} - Score without permission (1st): -3 team, -3 batsman`;
-                    } else if (count === 2) {
-                        teamRunsChange = -6;
-                        batsmanRunsChange = -6;
-                        message = `${player} - Score without permission (2nd): -6 team, -6 batsman`;
-                    } else {
-                        isOut = true;
-                        message = `${player} - Score without permission (3rd): DISMISSED!`;
-                    }
-                    break;
-
-                case 'text_instead_of_score':
-                    if (count === 1) {
-                        countsAsBall = true;
-                        offenderFacesBall = true;
-                        message = `${player} - Text instead of score (1st): DOT ball`;
-                    } else {
-                        isOut = true;
-                        countsAsBall = true;
-                        offenderFacesBall = true;
-                        message = `${player} - Text instead of score (2nd): DISMISSED!`;
-                    }
-                    break;
-
-                case 'double_score':
-                    if (count === 1) {
-                        teamRunsChange = -3;
-                        batsmanRunsChange = -3;
-                        countsAsBall = true;
-                        offenderFacesBall = true;
-                        message = `${player} - Double score (1st): -3 team, -3 batsman`;
-                    } else {
-                        teamRunsChange = -6;
-                        batsmanRunsChange = -6;
-                        isOut = true;
-                        countsAsBall = true;
-                        offenderFacesBall = true;
-                        message = `${player} - Double score (2nd): -6 + DISMISSED!`;
-                    }
-                    break;
-
-                case 'edit_delete_score':
+            case 'text_instead_of_score':
+                if (count === 1) {
+                    countsAsBall = true;
+                    offenderFacesBall = true;
+                    message = `${player} - Text instead of score (1st): DOT ball`;
+                } else {
                     isOut = true;
                     countsAsBall = true;
                     offenderFacesBall = true;
-                    message = `${player} - Edit/delete score in PM: DISMISSED!`;
-                    break;
+                    message = `${player} - Text instead of score (2nd): DISMISSED!`;
+                }
+                break;
 
-                default:
-                    return { error: 'Invalid offence' };
-            }
-        } else if (type === 'bowler') {
-            const count = (this.penaltyTracker[player].bowler || 0) + 1;
-            this.penaltyTracker[player].bowler = count;
+            case 'double_score':
+                if (count === 1) {
+                    teamRunsChange = -3;
+                    batsmanRunsChange = -3;
+                    countsAsBall = true;
+                    offenderFacesBall = true;
+                    message = `${player} - Double score (1st): -3 team, -3 batsman`;
+                } else {
+                    teamRunsChange = -6;
+                    batsmanRunsChange = -6;
+                    isOut = true;
+                    countsAsBall = true;
+                    offenderFacesBall = true;
+                    message = `${player} - Double score (2nd): -6 + DISMISSED!`;
+                }
+                break;
 
-            switch (offence) {
-                case 'guess_before_permission':
-                    if (count === 1) {
-                        teamRunsChange = 3;
-                        message = `${player} - Guess before permission (1st): +3`;
-                    } else if (count === 2) {
-                        teamRunsChange = 6;
-                        message = `${player} - Guess before permission (2nd): +6`;
-                    } else {
-                        teamRunsChange = 6;
-                        bowlerRemoved = true;
-                        message = `${player} - Guess before permission (3rd): +6 + BOWLER REMOVED!`;
-                    }
-                    break;
+            case 'edit_delete_score':
+                isOut = true;
+                countsAsBall = true;
+                offenderFacesBall = true;
+                message = `${player} - Edit/delete score in PM: DISMISSED!`;
+                break;
 
-                default:
-                    return { error: 'Invalid offence' };
-            }
-        } else {
-            return { error: 'Invalid penalty type' };
+            default:
+                return { error: 'Invalid offence' };
         }
-
-        if (teamRunsChange !== 0) {
-            battingTeam.runs += teamRunsChange;
+    } else if (type === 'bowler') {
+        if (typeof this.penaltyTracker[player].bowler[offence] !== 'number') {
+            this.penaltyTracker[player].bowler[offence] = 0;
         }
+        const count = this.penaltyTracker[player].bowler[offence] + 1;
+        this.penaltyTracker[player].bowler[offence] = count;
 
-        if (batsmanRunsChange !== 0) {
+        switch (offence) {
+            case 'guess_before_permission':
+                if (count === 1) {
+                    teamRunsChange = 3;
+                    message = `${player} - Guess before permission (1st): +3`;
+                } else if (count === 2) {
+                    teamRunsChange = 6;
+                    message = `${player} - Guess before permission (2nd): +6`;
+                } else {
+                    teamRunsChange = 6;
+                    bowlerRemoved = true;
+                    message = `${player} - Guess before permission (3rd): +6 + BOWLER REMOVED!`;
+                }
+                break;
+
+            default:
+                return { error: 'Invalid offence' };
+        }
+    } else {
+        return { error: 'Invalid penalty type' };
+    }
+
+    // ---- APPLY CHANGES ----
+    if (teamRunsChange !== 0) {
+        battingTeam.runs += teamRunsChange;
+    }
+
+    if (batsmanRunsChange !== 0) {
+        this._ensureBatsmanExists(player);
+        const batsman = this.currentMatchStats.batsmen[player];
+        batsman.runs = (batsman.runs || 0) + batsmanRunsChange;
+        if (batsman.runs < 0) batsman.runs = 0;
+    }
+
+    if (countsAsBall) {
+        this.matchState.currentBall += 1;
+        battingTeam.balls += 1;
+
+        if (offenderFacesBall) {
             this._ensureBatsmanExists(player);
             const batsman = this.currentMatchStats.batsmen[player];
-            batsman.runs = (batsman.runs || 0) + batsmanRunsChange;
-            if (batsman.runs < 0) batsman.runs = 0;
-        }
+            batsman.balls = (batsman.balls || 0) + 1;
 
-        if (countsAsBall) {
-            this.matchState.currentBall += 1;
-            battingTeam.balls += 1;
-
-            if (offenderFacesBall) {
-                this._ensureBatsmanExists(player);
-                const batsman = this.currentMatchStats.batsmen[player];
-                batsman.balls = (batsman.balls || 0) + 1;
-
-                if (this.matchState.currentBowlerName) {
-                    this._ensureBowlerExists(this.matchState.currentBowlerName);
-                    const bowler = this.currentMatchStats.bowlers[this.matchState.currentBowlerName];
-                    bowler.balls = (bowler.balls || 0) + 1;
-                    const overs = Math.floor(bowler.balls / 6);
-                    const balls = bowler.balls % 6;
-                    bowler.overs = parseFloat(`${overs}.${balls}`);
-                }
+            if (this.matchState.currentBowlerName) {
+                this._ensureBowlerExists(this.matchState.currentBowlerName);
+                const bowler = this.currentMatchStats.bowlers[this.matchState.currentBowlerName];
+                bowler.balls = (bowler.balls || 0) + 1;
+                const overs = Math.floor(bowler.balls / 6);
+                const balls = bowler.balls % 6;
+                bowler.overs = parseFloat(`${overs}.${balls}`);
             }
         }
-
-        if (isOut) {
-            battingTeam.wickets += 1;
-            const isLastBall = (this.matchState.currentBall >= 6);
-            this._handleOut(player, isLastBall, true);
-        }
-
-        if (bowlerRemoved) {
-            if (!this.matchState.removedBowlers) {
-                this.matchState.removedBowlers = [];
-            }
-            this.matchState.removedBowlers.push(player);
-            this.matchState.currentBowlerName = '';
-        }
-
-        if (!this.matchState.ballLog) this.matchState.ballLog = [];
-        this.matchState.ballLog.push({
-            index: this.matchState.ballLog.length,
-            over: `${this.matchState.currentOver}.${this.matchState.currentBall}`,
-            batsman: type === 'batsman' ? player : '',
-            bowler: type === 'bowler' ? player : '',
-            ballType: 'penalty',
-            result: message,
-            resultClass: 'penalty',
-            runs: teamRunsChange,
-            isOut: isOut,
-            isWide: false,
-            isNoBall: false,
-            countsAsBall: countsAsBall,
-            batsmanRuns: batsmanRunsChange,
-            batsmanBalls: (countsAsBall && offenderFacesBall) ? 1 : 0,
-            bowlerRuns: 0,
-            bowlerBalls: 0,
-            bowlerWickets: 0,
-            isPenalty: true,
-            corrected: false
-        });
-
-        if (this.matchState.currentBall >= 6) {
-            this.matchState.currentBall = 0;
-            this.matchState.currentOver += 1;
-            this.matchState.noBallUsed = false;
-            this.matchState.currentBowlerName = '';
-            this.matchState.bowlerGuessed = false;
-        }
-
-        this.saveAllData();
-
-        return { message, teamRunsChange, batsmanRunsChange, isOut, bowlerRemoved };
     }
+
+    if (isOut) {
+        battingTeam.wickets += 1;
+        const isLastBall = (this.matchState.currentBall >= 6);
+        this._handleOut(player, isLastBall, true);
+    }
+
+    if (bowlerRemoved) {
+        if (!this.matchState.removedBowlers) {
+            this.matchState.removedBowlers = [];
+        }
+        this.matchState.removedBowlers.push(player);
+        this.matchState.currentBowlerName = '';
+    }
+
+    if (!this.matchState.ballLog) this.matchState.ballLog = [];
+    this.matchState.ballLog.push({
+        index: this.matchState.ballLog.length,
+        over: `${this.matchState.currentOver}.${this.matchState.currentBall}`,
+        batsman: type === 'batsman' ? player : '',
+        bowler: type === 'bowler' ? player : '',
+        ballType: 'penalty',
+        result: message,
+        resultClass: 'penalty',
+        runs: teamRunsChange,
+        isOut: isOut,
+        isWide: false,
+        isNoBall: false,
+        countsAsBall: countsAsBall,
+        batsmanRuns: batsmanRunsChange,
+        batsmanBalls: (countsAsBall && offenderFacesBall) ? 1 : 0,
+        bowlerRuns: 0,
+        bowlerBalls: 0,
+        bowlerWickets: 0,
+        isPenalty: true,
+        corrected: false
+    });
+
+    if (this.matchState.currentBall >= 6) {
+        this.matchState.currentBall = 0;
+        this.matchState.currentOver += 1;
+        this.matchState.noBallUsed = false;
+        this.matchState.currentBowlerName = '';
+        this.matchState.bowlerGuessed = false;
+    }
+
+    this.saveAllData();
+
+    return { message, teamRunsChange, batsmanRunsChange, isOut, bowlerRemoved };
+}
 
     // ============================================
     // EDIT SCORECARD STATS (Admin override)
