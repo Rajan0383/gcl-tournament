@@ -231,7 +231,15 @@ socket.on('penaltyError', (data) => {
     }
     showNotification(`⚠️ ${data.message}`, 'danger');
 });
-
+socket.on('matchFinished', (data) => {
+    if (data && data.message) {
+        showNotification(`🏆 ${data.message}`, 'success');
+    }
+    // Explicitly re-request the updated data
+    socket.emit('getPointsTable');
+    socket.emit('getTopStats');
+    socket.emit('getFixtures');
+});
 socket.on('teamsSet', (data) => {
     const teamSelectionStatus = document.getElementById('teamSelectionStatus');
     if (teamSelectionStatus) {
@@ -1661,6 +1669,8 @@ function checkLiveScorePassword() {
         document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'inline-block');
         const resetBtn = document.getElementById('resetMatchBtn');
         if (resetBtn) resetBtn.style.display = 'inline-block';
+        const finishBtn = document.getElementById('finishMatchBtn');
+        if (finishBtn) finishBtn.style.display = 'inline-block';
         populateTeamDropdowns();
         showNotification('✅ Admin Mode Activated!', 'success');
     } else {
@@ -1693,6 +1703,8 @@ function logoutAdmin() {
     document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'none');
     const resetBtn = document.getElementById('resetMatchBtn');
     if (resetBtn) resetBtn.style.display = 'none';
+     const finishBtn = document.getElementById('finishMatchBtn');
+    if (finishBtn) finishBtn.style.display = 'none';
     const teamSelection = document.querySelector('.team-selection');
     if (teamSelection) teamSelection.style.display = 'none';
 
@@ -2291,7 +2303,52 @@ function resetMatch() {
         socket.emit('resetMatch');
     }
 }
+/**
+ * Finish Match — Admin only.
+ * Sends the finishMatch event to server. Server merges player stats,
+ * updates points table, syncs Google Sheet, and marks match complete.
+ */
+function finishMatch() {
+    if (!isAdminMode) {
+        return showNotification('⚠️ Admin login required!', 'danger');
+    }
 
+    const state = currentMatchState;
+    if (!state) {
+        return showNotification('⚠️ No match state available', 'danger');
+    }
+
+    if (!state.isActive) {
+        return showNotification('⚠️ No active match to finish', 'warning');
+    }
+
+    if (state.isComplete) {
+        return showNotification('⚠️ Match already finished', 'warning');
+    }
+
+    // Confirm with details
+    const team1 = state.battingTeam?.name || 'Team 1';
+    const team2 = state.bowlingTeam?.name || 'Team 2';
+    const runs = state.battingTeam?.runs || 0;
+
+    const confirmMsg =
+        `🏁 FINISH MATCH?\n\n` +
+        `${team1} vs ${team2}\n` +
+        `Current score: ${runs}\n\n` +
+        `This will:\n` +
+        `• Finalize the match\n` +
+        `• Update the Points Table\n` +
+        `• Update Top Batsmen / Top Bowlers\n` +
+        `• Sync to Google Sheet\n` +
+        `• Make Live Score read-only\n\n` +
+        `This cannot be undone from here. Use Admin page to correct results.\n\n` +
+        `Continue?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    socket.emit('finishMatch');
+    showNotification('⏳ Finishing match...', 'warning');
+}
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
