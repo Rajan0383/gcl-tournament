@@ -13,7 +13,9 @@ let batsmanScoreSet = false;
 let currentMatchState = null;
 let currentMatchTeams = { team1: null, team2: null };
 let editBallIndex = null;
-
+let isEditStatsMode = false;
+let lastPopulatedTeam1 = null;
+let lastPopulatedTeam2 = null;
 // Teams Grouping state
 let teamsGroupingData = { available: [], groupA: [], groupB: [] };
 let lastAssignedGroup = 'A';
@@ -96,7 +98,17 @@ socket.on('error', (data) => {
         showNotification(`❌ ${data.message}`, 'danger');
     }
 });
+socket.on('strikerError', (data) => {
+    if (data && data.message) {
+        showInlineError('batsmanSelect', data.message);
+    }
+});
 
+socket.on('nonStrikerError', (data) => {
+    if (data && data.message) {
+        showInlineError('nonStrikerSelect', data.message);
+    }
+});
 socket.on('teamsList', (data) => {
     teams = data;
     window.teams = data;
@@ -141,9 +153,13 @@ socket.on('stateUpdate', (state) => {
     updateScoreboard(state);
     updateMatchState(state);
 
-    // Refresh dropdowns with match team players
-    if (window.teams) {
-        populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
+       // Only repopulate dropdowns when match teams actually change
+    const t1 = currentMatchTeams.team1;
+    const t2 = currentMatchTeams.team2;
+    if (window.teams && (t1 !== lastPopulatedTeam1 || t2 !== lastPopulatedTeam2)) {
+        populateDropdowns(window.teams, t1, t2);
+        lastPopulatedTeam1 = t1;
+        lastPopulatedTeam2 = t2;
     }
 });
 
@@ -240,6 +256,25 @@ socket.on('matchFinished', (data) => {
     socket.emit('getTopStats');
     socket.emit('getFixtures');
 });
+socket.on('scorecardUpdated', (data) => {
+    // Exit edit mode (success path)
+    isEditStatsMode = false;
+    const editBtn = document.getElementById('editStatsBtn');
+    const saveBtn = document.getElementById('saveStatsBtn');
+    const cancelBtn = document.getElementById('cancelStatsBtn');
+    const notice = document.getElementById('editStatsNotice');
+    if (editBtn) editBtn.style.display = 'inline-block';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (notice) notice.style.display = 'none';
+
+    if (data && data.message) {
+        showNotification(`✅ ${data.message}`, 'success');
+    }
+    if (data && data.state) {
+        updateMatchState(data.state);
+    }
+});
 socket.on('teamsSet', (data) => {
     const teamSelectionStatus = document.getElementById('teamSelectionStatus');
     if (teamSelectionStatus) {
@@ -250,6 +285,8 @@ socket.on('teamsSet', (data) => {
 
     if (window.teams) {
         populateDropdowns(window.teams, data.battingTeam, data.bowlingTeam);
+        lastPopulatedTeam1 = data.battingTeam;
+        lastPopulatedTeam2 = data.bowlingTeam;
     }
 });
 
@@ -1671,6 +1708,8 @@ function checkLiveScorePassword() {
         if (resetBtn) resetBtn.style.display = 'inline-block';
         const finishBtn = document.getElementById('finishMatchBtn');
         if (finishBtn) finishBtn.style.display = 'inline-block';
+        const editStatsBtn = document.getElementById('editStatsBtn');
+        if (editStatsBtn) editStatsBtn.style.display = 'inline-block';
         populateTeamDropdowns();
         showNotification('✅ Admin Mode Activated!', 'success');
     } else {
@@ -1703,8 +1742,14 @@ function logoutAdmin() {
     document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'none');
     const resetBtn = document.getElementById('resetMatchBtn');
     if (resetBtn) resetBtn.style.display = 'none';
-     const finishBtn = document.getElementById('finishMatchBtn');
+    const finishBtn = document.getElementById('finishMatchBtn');
     if (finishBtn) finishBtn.style.display = 'none';
+    const editStatsBtn = document.getElementById('editStatsBtn');
+    if (editStatsBtn) editStatsBtn.style.display = 'none';
+    // Exit edit mode if active
+    if (isEditStatsMode) {
+        cancelEditStats();
+    }
     const teamSelection = document.querySelector('.team-selection');
     if (teamSelection) teamSelection.style.display = 'none';
 
@@ -1718,7 +1763,32 @@ function logoutAdmin() {
 
     showNotification('🔒 Logged out from Admin Mode', 'warning');
 }
+// ============================================
+// INLINE ERRORS
+// ============================================
 
+function showInlineError(fieldId, message) {
+    const errEl = document.getElementById(fieldId + 'Error');
+    if (!errEl) {
+        // Fallback: show in global bar if span doesn't exist
+        showNotification(`⚠️ ${message}`, 'danger');
+        return;
+    }
+    errEl.textContent = '⚠️ ' + message;
+    errEl.style.display = 'block';
+}
+
+function clearInlineError(fieldId) {
+    const errEl = document.getElementById(fieldId + 'Error');
+    if (errEl) {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+    }
+}
+
+function clearAllInlineErrors() {
+    ['batsmanSelect', 'bowlerSelect', 'nonStrikerSelect'].forEach(id => clearInlineError(id));
+}
 // ============================================
 // LIVE SCORE - DROPDOWNS
 // ============================================
@@ -1930,61 +2000,47 @@ function updateMatchState(state) {
         if (bowlerSelect) bowlerSelect.value = '';
     }
 
-    // Batsman dropdown auto-select
    // Batsman dropdown auto-select / clear
-const batsmanSelect = document.getElementById('batsmanSelect');
-if (batsmanSelect) {
-    if (state.striker) {
-        let exists = false;
-        for (let i = 0; i < batsmanSelect.options.length; i++) {
-            if (batsmanSelect.options[i].value === state.striker) { exists = true; break; }
-        }
-        if (exists) {
-            batsmanSelect.value = state.striker;
+    // Batsman dropdown auto-select / clear + prompt
+    const batsmanSelect = document.getElementById('batsmanSelect');
+    const batsmanStatusEl = document.getElementById('batsmanStatus');
+    if (batsmanSelect) {
+        if (state.striker) {
+            let exists = false;
+            for (let i = 0; i < batsmanSelect.options.length; i++) {
+                if (batsmanSelect.options[i].value === state.striker) { exists = true; break; }
+            }
+            if (exists) {
+                batsmanSelect.value = state.striker;
+            } else {
+                const opt = document.createElement('option');
+                opt.value = state.striker;
+                opt.textContent = state.striker;
+                batsmanSelect.appendChild(opt);
+                batsmanSelect.value = state.striker;
+            }
         } else {
-            const opt = document.createElement('option');
-            opt.value = state.striker;
-            opt.textContent = state.striker;
-            batsmanSelect.appendChild(opt);
-            batsmanSelect.value = state.striker;
+            batsmanSelect.value = '';
+            // Prompt admin if match is active
+            if (batsmanStatusEl && state.isActive && !state.batsmanSet) {
+                batsmanStatusEl.textContent = '⏳ Select new striker';
+                batsmanStatusEl.className = 'status-msg waiting';
+            }
         }
-    } else {
-        batsmanSelect.value = '';
     }
-}
-
-    // Non-striker dropdown auto-select
    // Non-striker dropdown auto-select / clear
-const nonStrikerSelect = document.getElementById('nonStrikerSelect');
-if (nonStrikerSelect) {
-    if (state.nonStriker && state.nonStriker !== 'Non-Striker') {
-        let exists = false;
-        for (let i = 0; i < nonStrikerSelect.options.length; i++) {
-            if (nonStrikerSelect.options[i].value === state.nonStriker) { exists = true; break; }
-        }
-        if (exists) {
-            nonStrikerSelect.value = state.nonStriker;
         } else {
-            const opt = document.createElement('option');
-            opt.value = state.nonStriker;
-            opt.textContent = state.nonStriker;
-            nonStrikerSelect.appendChild(opt);
-            nonStrikerSelect.value = state.nonStriker;
+            nonStrikerSelect.value = '';
+            const nonStrikerStatus = document.getElementById('nonStrikerStatus');
+            if (nonStrikerStatus) {
+                if (state.isActive) {
+                    nonStrikerStatus.textContent = '⏳ Select non-striker';
+                } else {
+                    nonStrikerStatus.textContent = '⏳ Not set';
+                }
+                nonStrikerStatus.className = 'status-msg waiting';
+            }
         }
-        const nonStrikerStatus = document.getElementById('nonStrikerStatus');
-        if (nonStrikerStatus) {
-            nonStrikerStatus.textContent = `✅ ${state.nonStriker}`;
-            nonStrikerStatus.className = 'status-msg success';
-        }
-    } else {
-        nonStrikerSelect.value = '';
-        const nonStrikerStatus = document.getElementById('nonStrikerStatus');
-        if (nonStrikerStatus) {
-            nonStrikerStatus.textContent = '⏳ Not set';
-            nonStrikerStatus.className = 'status-msg waiting';
-        }
-    }
-}
 
     // NO strikePending block (removed - server no longer sends it)
 
@@ -1995,7 +2051,7 @@ if (nonStrikerSelect) {
 
 function updateScorecard(state) {
     if (!state) return;
-
+    if (isEditStatsMode) return; // Pause rendering during edit mode
     const batsmen = state.batsmen || [];
     const batsmenContainer = document.getElementById('batsmenScorecard');
     if (batsmenContainer) {
@@ -2053,6 +2109,134 @@ function updateBallByBall(state) {
         `;
     }).join('');
 }
+// ============================================
+// EDIT STATS MODE
+// ============================================
+
+function enterEditStatsMode() {
+    if (!isAdminMode) return showNotification('⚠️ Admin login required!', 'danger');
+    if (!currentMatchState) return showNotification('⚠️ No match state', 'danger');
+
+    isEditStatsMode = true;
+
+    // Toggle buttons
+    const editBtn = document.getElementById('editStatsBtn');
+    const saveBtn = document.getElementById('saveStatsBtn');
+    const cancelBtn = document.getElementById('cancelStatsBtn');
+    const notice = document.getElementById('editStatsNotice');
+    if (editBtn) editBtn.style.display = 'none';
+    if (saveBtn) saveBtn.style.display = 'inline-block';
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    if (notice) notice.style.display = 'block';
+
+    // Re-render scorecard in edit mode
+    renderScorecardEditMode();
+}
+
+function cancelEditStats() {
+    isEditStatsMode = false;
+
+    const editBtn = document.getElementById('editStatsBtn');
+    const saveBtn = document.getElementById('saveStatsBtn');
+    const cancelBtn = document.getElementById('cancelStatsBtn');
+    const notice = document.getElementById('editStatsNotice');
+    if (editBtn) editBtn.style.display = 'inline-block';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (notice) notice.style.display = 'none';
+
+    // Re-render scorecard in readonly mode
+    if (currentMatchState) {
+        updateScorecard(currentMatchState);
+    }
+    showNotification('❌ Edit cancelled', 'warning');
+}
+
+function saveEditStats() {
+    if (!isEditStatsMode) return;
+    if (!currentMatchState) return;
+
+    // Read all edit fields
+    const teamRuns = document.getElementById('editTeamRuns');
+    const teamWickets = document.getElementById('editTeamWickets');
+    const teamBalls = document.getElementById('editTeamBalls');
+    const teamExtras = document.getElementById('editTeamExtras');
+
+    const team = {
+        runs: parseInt(teamRuns?.value) || 0,
+        wickets: parseInt(teamWickets?.value) || 0,
+        balls: parseInt(teamBalls?.value) || 0,
+        extras: parseInt(teamExtras?.value) || 0
+    };
+
+    const batsmen = [];
+    document.querySelectorAll('[data-edit-type="batsman"]').forEach(row => {
+        const name = row.dataset.player;
+        const runs = parseInt(row.querySelector('[data-field="runs"]')?.value) || 0;
+        const balls = parseInt(row.querySelector('[data-field="balls"]')?.value) || 0;
+        const fours = parseInt(row.querySelector('[data-field="fours"]')?.value) || 0;
+        const sixes = parseInt(row.querySelector('[data-field="sixes"]')?.value) || 0;
+        batsmen.push({ name, runs, balls, fours, sixes });
+    });
+
+    const bowlers = [];
+    document.querySelectorAll('[data-edit-type="bowler"]').forEach(row => {
+        const name = row.dataset.player;
+        const wickets = parseInt(row.querySelector('[data-field="wickets"]')?.value) || 0;
+        const balls = parseInt(row.querySelector('[data-field="balls"]')?.value) || 0;
+        const runsConceded = parseInt(row.querySelector('[data-field="runsConceded"]')?.value) || 0;
+        bowlers.push({ name, wickets, balls, runsConceded });
+    });
+
+    socket.emit('editScorecardStats', { team, batsmen, bowlers });
+    showNotification('⏳ Saving scorecard stats...', 'warning');
+}
+
+function renderScorecardEditMode() {
+    const state = currentMatchState;
+    if (!state) return;
+
+    // Team stats editor
+    const batsmenContainer = document.getElementById('batsmenScorecard');
+    const bowlersContainer = document.getElementById('bowlersScorecard');
+
+    // Team total editor — prepend into batsmen container
+    if (batsmenContainer) {
+        const teamHtml = `
+            <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,215,0,0.05); border-radius: 6px;">
+                <strong>🏏 Team Total</strong>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+                    <label>Runs: <input type="number" id="editTeamRuns" value="${state.battingTeam?.runs || 0}" style="width: 60px; margin-left: 4px;"></label>
+                    <label>Wickets: <input type="number" id="editTeamWickets" value="${state.battingTeam?.wickets || 0}" style="width: 60px; margin-left: 4px;"></label>
+                    <label>Balls: <input type="number" id="editTeamBalls" value="${state.battingTeam?.balls || 0}" style="width: 60px; margin-left: 4px;"></label>
+                    <label>Extras: <input type="number" id="editTeamExtras" value="${state.battingTeam?.extras || 0}" style="width: 60px; margin-left: 4px;"></label>
+                </div>
+            </div>
+        `;
+        const batsmenList = (state.batsmen || []).map(b => `
+            <div class="scorecard-player" data-edit-type="batsman" data-player="${b.name}" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                <span class="sc-name" style="min-width: 100px;">${b.name}</span>
+                <label style="font-size: 0.85rem;">R: <input type="number" data-field="runs" value="${b.runs || 0}" style="width: 50px;"></label>
+                <label style="font-size: 0.85rem;">B: <input type="number" data-field="balls" value="${b.balls || 0}" style="width: 50px;"></label>
+                <label style="font-size: 0.85rem;">4s: <input type="number" data-field="fours" value="${b.fours || 0}" style="width: 50px;"></label>
+                <label style="font-size: 0.85rem;">6s: <input type="number" data-field="sixes" value="${b.sixes || 0}" style="width: 50px;"></label>
+            </div>
+        `).join('');
+        batsmenContainer.innerHTML = teamHtml + (batsmenList || '<p class="empty-message">No batsmen yet</p>');
+    }
+
+    if (bowlersContainer) {
+        const bowlersList = (state.bowlers || []).map(b => `
+            <div class="scorecard-player" data-edit-type="bowler" data-player="${b.name}" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                <span class="sc-name" style="min-width: 100px;">${b.name}</span>
+                <label style="font-size: 0.85rem;">Wk: <input type="number" data-field="wickets" value="${b.wickets || 0}" style="width: 50px;"></label>
+                <label style="font-size: 0.85rem;">B: <input type="number" data-field="balls" value="${b.balls || 0}" style="width: 50px;"></label>
+                <label style="font-size: 0.85rem;">R: <input type="number" data-field="runsConceded" value="${b.runsConceded || 0}" style="width: 50px;"></label>
+            </div>
+        `).join('');
+        bowlersContainer.innerHTML = bowlersList || '<p class="empty-message">No bowlers yet</p>';
+    }
+}
 
 // ============================================
 // LIVE SCORE - SUBMIT FUNCTIONS
@@ -2060,20 +2244,29 @@ function updateBallByBall(state) {
 
 function submitBatScore() {
     if (!isAdminMode) return showNotification('⚠️ Admin login required!', 'danger');
+    clearInlineError('batsmanSelect');
 
     const select = document.getElementById('batsmanSelect');
     let name = select.value;
 
     if (name === '__manual__') {
         name = document.getElementById('batsmanManualName').value.trim();
-        if (!name) return showNotification('⚠️ Please enter batsman name!', 'danger');
+        if (!name) return showInlineError('batsmanSelect', 'Please enter batsman name');
     }
 
-    if (!name) return showNotification('⚠️ Please select batsman!', 'danger');
+    if (!name) return showInlineError('batsmanSelect', 'Please select batsman');
 
     const score = parseInt(document.getElementById('batsmanScoreInput').value);
     if (isNaN(score) || score < 3 || score > 6) {
-        return showNotification('⚠️ Score must be 3, 4, 5, or 6!', 'danger');
+        return showInlineError('batsmanSelect', 'Score must be 3, 4, 5, or 6');
+    }
+
+    // Local validation
+    if (currentMatchState && name === currentMatchState.nonStriker) {
+        return showInlineError('batsmanSelect', 'Striker cannot be the current non-striker');
+    }
+    if (currentMatchState && Array.isArray(currentMatchState.dismissedBatsmen) && currentMatchState.dismissedBatsmen.includes(name)) {
+        return showInlineError('batsmanSelect', 'Cannot select a dismissed batsman');
     }
 
     const batsmanStatus = document.getElementById('batsmanStatus');
@@ -2085,11 +2278,12 @@ function submitBatScore() {
     socket.emit('batsmanSetScore', { name, score });
     document.getElementById('batsmanScoreInput').value = '';
 }
-
 function submitBowlGuess() {
     if (!isAdminMode) return showNotification('⚠️ Admin login required!', 'danger');
+    clearInlineError('bowlerSelect');
+
     if (!batsmanScoreSet) {
-        return showNotification('⚠️ Batsman has not set score yet! Bowler cannot guess first.', 'danger');
+        return showInlineError('bowlerSelect', 'Batsman has not set score yet');
     }
 
     const select = document.getElementById('bowlerSelect');
@@ -2097,14 +2291,14 @@ function submitBowlGuess() {
 
     if (name === '__manual__') {
         name = document.getElementById('bowlerManualName').value.trim();
-        if (!name) return showNotification('⚠️ Please enter bowler name!', 'danger');
+        if (!name) return showInlineError('bowlerSelect', 'Please enter bowler name');
     }
 
-    if (!name) return showNotification('⚠️ Please select bowler!', 'danger');
+    if (!name) return showInlineError('bowlerSelect', 'Please select bowler');
 
     const guess = parseInt(document.getElementById('bowlerGuessInput').value);
     if (isNaN(guess) || guess < 3 || guess > 6) {
-        return showNotification('⚠️ Guess must be 3, 4, 5, or 6!', 'danger');
+        return showInlineError('bowlerSelect', 'Guess must be 3, 4, 5, or 6');
     }
 
     const bowlerStatus = document.getElementById('bowlerStatus');
@@ -2116,19 +2310,29 @@ function submitBowlGuess() {
     socket.emit('bowlerGuess', { name, guess });
     document.getElementById('bowlerGuessInput').value = '';
 }
-
 function setNonStriker() {
     if (!isAdminMode) return showNotification('⚠️ Admin login required!', 'danger');
+    clearInlineError('nonStrikerSelect');
 
     const select = document.getElementById('nonStrikerSelect');
     let name = select.value;
 
     if (name === '__manual__') {
         name = document.getElementById('nonStrikerManualName').value.trim();
-        if (!name) return showNotification('⚠️ Please enter non-striker name!', 'danger');
+        if (!name) return showInlineError('nonStrikerSelect', 'Please enter non-striker name');
     }
 
-    if (!name) return showNotification('⚠️ Please select non-striker!', 'danger');
+    if (!name) return showInlineError('nonStrikerSelect', 'Please select non-striker');
+
+    // Local validation
+    if (currentMatchState) {
+        if (currentMatchState.striker === name) {
+            return showInlineError('nonStrikerSelect', 'Non-striker cannot be the striker');
+        }
+        if (Array.isArray(currentMatchState.dismissedBatsmen) && currentMatchState.dismissedBatsmen.includes(name)) {
+            return showInlineError('nonStrikerSelect', 'Cannot set a dismissed batsman as non-striker');
+        }
+    }
 
     socket.emit('setNonStriker', { name });
 
@@ -2139,7 +2343,6 @@ function setNonStriker() {
     }
     showNotification(`🔄 Non-Striker set: ${name}`, 'success');
 }
-
 function applyPenalty(type) {
     if (!isAdminMode) return showNotification('⚠️ Admin login required!', 'danger');
 
