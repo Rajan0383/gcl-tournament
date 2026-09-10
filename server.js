@@ -107,7 +107,7 @@ async function saveData(collectionName, data) {
 }
 
 // ============================================
-// GAME ENGINE - COMPLETE
+// GAME ENGINE
 // ============================================
 
 class GCLEngine {
@@ -118,11 +118,8 @@ class GCLEngine {
         this.fixtures = { matches: [], upcoming: [], completed: [] };
         this.playerStats = { batsmen: {}, bowlers: {}, manOfMatch: [] };
         this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
+        this.penaltyTracker = {};
         this.isLoaded = false;
-        this.ballLog = [];
     }
 
     async loadAllData() {
@@ -151,31 +148,1075 @@ class GCLEngine {
     }
 
     // ============================================
-    // GAME ENGINE - MATCH COMPLETE WITH SCORE
+    // HELPERS
+    // ============================================
+
+    _ensureBatsmanExists(name) {
+        if (!name || name === '' || name === 'Non-Striker') return;
+        if (!this.currentMatchStats.batsmen[name]) {
+            this.currentMatchStats.batsmen[name] = {
+                name: name,
+                runs: 0,
+                balls: 0,
+                fours: 0,
+                sixes: 0
+            };
+        }
+    }
+
+    _ensureBowlerExists(name) {
+        if (!name || name === '') return;
+        if (!this.currentMatchStats.bowlers[name]) {
+            this.currentMatchStats.bowlers[name] = {
+                name: name,
+                wickets: 0,
+                balls: 0,
+                runsConceded: 0,
+                overs: 0
+            };
+        }
+    }
+
+    _syncStrikerFields() {
+        const battingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team1
+            : this.matchState.team2;
+
+        this.matchState.currentBatsmanName = this.matchState.striker || '';
+        battingTeam.currentBatsman = this.matchState.striker || '';
+
+        this._ensureBatsmanExists(this.matchState.striker);
+        this._ensureBatsmanExists(this.matchState.nonStriker);
+    }
+
+    _computeBallResult(batsmanScore, bowlerGuess, noBallUsed) {
+        // Rule 1: OUT is unconditional and highest priority
+        if (batsmanScore === bowlerGuess) {
+            return {
+                ballType: 'out',
+                runsScored: 0,
+                isOut: true,
+                isWide: false,
+                isNoBall: false,
+                countsAsBall: true,
+                consumesNoBall: batsmanScore === 5,
+                message: `🎯 OUT! ${bowlerGuess} guessed correctly!` +
+                         (batsmanScore === 5 ? ' (No-ball slot used)' : ''),
+                resultClass: 'wicket'
+            };
+        }
+
+        // Rule 2: Wide (3,6) or (6,3)
+        if ((batsmanScore === 3 && bowlerGuess === 6) ||
+            (batsmanScore === 6 && bowlerGuess === 3)) {
+            return {
+                ballType: 'wide',
+                runsScored: batsmanScore,
+                isOut: false,
+                isWide: true,
+                isNoBall: false,
+                countsAsBall: false,
+                consumesNoBall: false,
+                message: `📏 WIDE! (${batsmanScore}-${bowlerGuess})`,
+                resultClass: 'wide'
+            };
+        }
+
+        // Rule 3: No-ball (first 5 this over)
+        if (batsmanScore === 5 && bowlerGuess !== 5 && !noBallUsed) {
+            return {
+                ballType: 'noball',
+                runsScored: 5,
+                isOut: false,
+                isWide: false,
+                isNoBall: true,
+                countsAsBall: false,
+                consumesNoBall: true,
+                message: `❌ NO-BALL! (5-${bowlerGuess})`,
+                resultClass: 'noball'
+            };
+        }
+
+        // Rule 4: 2nd 5 after no-ball used (normal ball)
+        if (batsmanScore === 5 && bowlerGuess !== 5 && noBallUsed) {
+            return {
+                ballType: 'normal5',
+                runsScored: 5,
+                isOut: false,
+                isWide: false,
+                isNoBall: false,
+                countsAsBall: true,
+                consumesNoBall: false,
+                message: `✅ Safe! 5 runs`,
+                resultClass: 'runs'
+            };
+        }
+
+        // Rule 5: Normal safe
+        return {
+            ballType: 'safe',
+            runsScored: batsmanScore,
+            isOut: false,
+            isWide: false,
+            isNoBall: false,
+            countsAsBall: true,
+            consumesNoBall: false,
+            message: `✅ Safe! ${batsmanScore} runs`,
+            resultClass: 'runs'
+        };
+    }
+
+    _handleOut(dismissedName, isLastBall, isPenalty) {
+        if (!this.matchState.dismissedBatsmen) {
+            this.matchState.dismissedBatsmen = [];
+        }
+        this.matchState.dismissedBatsmen.push(dismissedName);
+
+        if (isPenalty) {
+            if (isLastBall) {
+                // Penalty OUT on last ball: clear both
+                this.matchState.striker = '';
+                this.matchState.nonStriker = '';
+            } else {
+                // Penalty OUT mid-over: only striker cleared
+                this.matchState.striker = '';
+                // nonStriker unchanged
+            }
+        } else {
+            if (isLastBall) {
+                // Normal OUT on last ball: promote non-striker
+                this.matchState.striker = this.matchState.nonStriker;
+                this.matchState.nonStriker = '';
+            } else {
+                // Normal OUT mid-over: only striker cleared
+                this.matchState.striker = '';
+                // nonStriker unchanged
+            }
+        }
+
+        this._syncStrikerFields();
+    }
+
+    // ============================================
+    // MATCH RESET & SETUP
+    // ============================================
+
+    resetMatch() {
+        this.matchState = {
+            isActive: false,
+            currentOver: 0,
+            currentBall: 0,
+            totalOvers: 4,
+            team1: {
+                name: '', runs: 0, wickets: 0, balls: 0, extras: 0,
+                currentBatsman: null, currentBowler: null,
+                battingOrder: [], bowlingOrder: [],
+                currentBattingIndex: 0, currentBowlingIndex: 0,
+                partnership: 0, lastBalls: []
+            },
+            team2: {
+                name: '', runs: 0, wickets: 0, balls: 0, extras: 0,
+                currentBatsman: null, currentBowler: null,
+                battingOrder: [], bowlingOrder: [],
+                currentBattingIndex: 0, currentBowlingIndex: 0,
+                partnership: 0, lastBalls: []
+            },
+            battingTeam: 1,
+            bowlingTeam: 2,
+            overType: 'normal',
+            isFreeHit: false,
+            isWide: false,
+            isNoBall: false,
+            noBallUsed: false,
+            lastBallResult: null,
+            secretScore: null,
+            batsmanSet: false,
+            bowlerGuessed: false,
+            currentBatsmanName: '',
+            currentBowlerName: '',
+            matchId: null,
+            inning: 1,
+            target: null,
+            winner: null,
+            isComplete: false,
+            ballLog: [],
+            striker: '',
+            nonStriker: '',
+            dismissedBatsmen: [],
+            removedBowlers: []
+        };
+
+        this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
+        this.penaltyTracker = {};
+    }
+
+    setupMatch(team1Id, team2Id, team1BattingOrder, team2BattingOrder) {
+        const team1 = this.getTeam(team1Id);
+        const team2 = this.getTeam(team2Id);
+        if (!team1 || !team2) throw new Error('Team not found');
+
+        this.resetMatch();
+        this.matchState.isActive = true;
+        this.matchState.matchId = `MATCH-${Date.now()}`;
+        this.matchState.team1.name = team1.name;
+        this.matchState.team2.name = team2.name;
+        this.matchState.team1.battingOrder = team1BattingOrder || team1.squad || [];
+        this.matchState.team2.battingOrder = team2BattingOrder || team2.squad || [];
+        this.matchState.battingTeam = 1;
+        this.matchState.bowlingTeam = 2;
+        this.matchState.currentOver = 0;
+        this.matchState.currentBall = 0;
+        this.matchState.striker = '';
+        this.matchState.nonStriker = '';
+
+        return this.matchState;
+    }
+
+    // ============================================
+    // BATTING
+    // ============================================
+
+    batsmanSetScore(data) {
+        const { name, score } = data;
+        if (!this.matchState.isActive) return { error: 'Match not active' };
+        if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
+
+        const validScores = [3, 4, 5, 6];
+        if (!validScores.includes(parseInt(score))) {
+            return { error: `Invalid score! Allowed: ${validScores.join(', ')}` };
+        }
+
+        this.matchState.secretScore = parseInt(score);
+        this.matchState.batsmanSet = true;
+        this.matchState.bowlerGuessed = false;
+
+        const chosenName = name || this.matchState.striker;
+        if (chosenName) {
+            this.matchState.striker = chosenName;
+        }
+
+        if (!this.matchState.nonStriker || this.matchState.nonStriker === 'undefined') {
+            const battingTeam = this.matchState.battingTeam === 1
+                ? this.matchState.team1 : this.matchState.team2;
+            const order = battingTeam.battingOrder || [];
+            const strikerIndex = order.indexOf(this.matchState.striker);
+            if (strikerIndex !== -1 && strikerIndex + 1 < order.length) {
+                this.matchState.nonStriker = order[strikerIndex + 1];
+            } else {
+                this.matchState.nonStriker = order.find(p => p !== this.matchState.striker) || '';
+            }
+        }
+
+        this._syncStrikerFields();
+
+        return {
+            success: true,
+            message: `${chosenName || 'Batsman'} set score ${score}`,
+            batsman: chosenName || 'Batsman',
+            score: score
+        };
+    }
+
+    // ============================================
+    // BOWLER GUESS — CORE LOGIC
+    // ============================================
+
+    bowlerGuess(data) {
+        console.log('🔍 bowlerGuess called with:', data);
+        const { name, guess } = data;
+
+        if (!this.matchState.isActive) return { error: 'Match not active' };
+        if (!this.matchState.batsmanSet) return { error: 'Batsman has not set score yet!' };
+        if (this.matchState.bowlerGuessed) return { error: 'Bowler already guessed for this ball' };
+
+        const batsmanScore = this.matchState.secretScore;
+        const bowlerGuess = parseInt(guess);
+        const validGuesses = [3, 4, 5, 6];
+        if (!validGuesses.includes(bowlerGuess)) {
+            return { error: `Invalid guess! Allowed: ${validGuesses.join(', ')}` };
+        }
+
+        // Snapshot
+        const snapshot = {
+            strikerAtBallStart: this.matchState.striker,
+            nonStrikerAtBallStart: this.matchState.nonStriker,
+            batsmanName: this.matchState.striker,
+            bowlerName: name || this.matchState.currentBowlerName || 'Bowler',
+            overAtStart: this.matchState.currentOver,
+            ballAtStart: this.matchState.currentBall
+        };
+
+        this.matchState.currentBowlerName = snapshot.bowlerName;
+        this.matchState.bowlerGuessed = true;
+        this._ensureBowlerExists(snapshot.bowlerName);
+
+        const result = this._computeBallResult(
+            batsmanScore,
+            bowlerGuess,
+            this.matchState.noBallUsed
+        );
+
+        if (result.consumesNoBall) {
+            this.matchState.noBallUsed = true;
+        }
+
+        const battingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team1 : this.matchState.team2;
+
+        if (result.countsAsBall) {
+            this.matchState.currentBall += 1;
+            battingTeam.balls += 1;
+        }
+
+        this.applyBallEffect({
+            runsScored: result.runsScored,
+            isOut: result.isOut,
+            isWide: result.isWide,
+            isNoBall: result.isNoBall,
+            countsAsBall: result.countsAsBall,
+            batsmanName: snapshot.batsmanName,
+            bowlerName: snapshot.bowlerName
+        });
+
+        // Strike handling
+        if (result.isOut) {
+            const isLastBall = (this.matchState.currentBall >= 6);
+            this._handleOut(snapshot.strikerAtBallStart, isLastBall, false);
+        } else {
+            let shouldChange = false;
+            if (result.isWide) {
+                shouldChange = (result.runsScored === 3);
+            } else if (result.isNoBall) {
+                shouldChange = true;
+            } else if (result.ballType === 'normal5') {
+                shouldChange = true;
+            } else if (result.ballType === 'safe') {
+                shouldChange = (result.runsScored % 2 !== 0);
+            }
+
+            if (shouldChange) {
+                const temp = this.matchState.striker;
+                this.matchState.striker = this.matchState.nonStriker;
+                this.matchState.nonStriker = temp;
+            }
+            this._syncStrikerFields();
+        }
+
+        // BallLog
+        if (!this.matchState.ballLog) this.matchState.ballLog = [];
+        this.matchState.ballLog.push({
+            index: this.matchState.ballLog.length,
+            over: `${snapshot.overAtStart}.${snapshot.ballAtStart}`,
+            batsman: snapshot.batsmanName,
+            batsmanScore: batsmanScore,
+            bowler: snapshot.bowlerName,
+            bowlerGuess: bowlerGuess,
+            ballType: result.ballType,
+            result: result.message,
+            resultClass: result.resultClass,
+            runs: result.runsScored,
+            isOut: result.isOut,
+            isWide: result.isWide,
+            isNoBall: result.isNoBall,
+            countsAsBall: result.countsAsBall,
+            batsmanRuns: result.runsScored,
+            batsmanBalls: result.countsAsBall ? 1 : 0,
+            bowlerRuns: result.runsScored,
+            bowlerBalls: result.countsAsBall ? 1 : 0,
+            bowlerWickets: result.isOut ? 1 : 0,
+            corrected: false
+        });
+
+        // Over complete
+        if (this.matchState.currentBall >= 6) {
+            if (!result.isOut) {
+                const shouldChange = (result.runsScored % 2 === 0);
+                if (shouldChange) {
+                    const temp = this.matchState.striker;
+                    this.matchState.striker = this.matchState.nonStriker;
+                    this.matchState.nonStriker = temp;
+                    this._syncStrikerFields();
+                }
+            }
+            this.matchState.currentBall = 0;
+            this.matchState.currentOver += 1;
+            this.matchState.noBallUsed = false;
+            this.matchState.currentBowlerName = '';
+            this.matchState.bowlerGuessed = false;
+        }
+
+        this.matchState.batsmanSet = false;
+        this.matchState.bowlerGuessed = false;
+        this.matchState.secretScore = null;
+        this.matchState.lastBallResult = result;
+
+        io.emit('stateUpdate', this.getMatchState());
+
+        return { ...result, matchState: this.getMatchState() };
+    }
+
+    applyBallEffect(result) {
+        const battingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team1 : this.matchState.team2;
+
+        battingTeam.runs += result.runsScored || 0;
+        if (result.isOut) battingTeam.wickets += 1;
+
+        if (result.batsmanName) {
+            this._ensureBatsmanExists(result.batsmanName);
+            const batsman = this.currentMatchStats.batsmen[result.batsmanName];
+            batsman.runs = (batsman.runs || 0) + (result.runsScored || 0);
+            if (result.countsAsBall) {
+                batsman.balls = (batsman.balls || 0) + 1;
+            }
+            if (result.runsScored === 4) batsman.fours = (batsman.fours || 0) + 1;
+            if (result.runsScored === 6) batsman.sixes = (batsman.sixes || 0) + 1;
+        }
+
+        if (result.bowlerName) {
+            this._ensureBowlerExists(result.bowlerName);
+            const bowler = this.currentMatchStats.bowlers[result.bowlerName];
+            if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
+            if (result.countsAsBall) {
+                bowler.balls = (bowler.balls || 0) + 1;
+            }
+            bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
+            const overs = Math.floor(bowler.balls / 6);
+            const balls = bowler.balls % 6;
+            bowler.overs = parseFloat(`${overs}.${balls}`);
+        }
+    }
+
+    reverseBallEffect(ballData) {
+        const battingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team1 : this.matchState.team2;
+
+        battingTeam.runs -= ballData.runs || 0;
+        if (ballData.isOut) battingTeam.wickets = Math.max(0, battingTeam.wickets - 1);
+        if (ballData.countsAsBall) {
+            battingTeam.balls = Math.max(0, battingTeam.balls - 1);
+        }
+
+        if (ballData.batsman && this.currentMatchStats.batsmen[ballData.batsman]) {
+            const batsman = this.currentMatchStats.batsmen[ballData.batsman];
+            batsman.runs = Math.max(0, (batsman.runs || 0) - (ballData.batsmanRuns || 0));
+            if (ballData.countsAsBall) {
+                batsman.balls = Math.max(0, (batsman.balls || 0) - 1);
+            }
+            if (ballData.batsmanRuns === 4) batsman.fours = Math.max(0, (batsman.fours || 0) - 1);
+            if (ballData.batsmanRuns === 6) batsman.sixes = Math.max(0, (batsman.sixes || 0) - 1);
+        }
+
+        if (ballData.bowler && this.currentMatchStats.bowlers[ballData.bowler]) {
+            const bowler = this.currentMatchStats.bowlers[ballData.bowler];
+            bowler.wickets = Math.max(0, (bowler.wickets || 0) - (ballData.bowlerWickets || 0));
+            bowler.runsConceded = Math.max(0, (bowler.runsConceded || 0) - (ballData.bowlerRuns || 0));
+            if (ballData.countsAsBall) {
+                bowler.balls = Math.max(0, (bowler.balls || 0) - 1);
+            }
+            const overs = Math.floor(bowler.balls / 6);
+            const balls = bowler.balls % 6;
+            bowler.overs = parseFloat(`${overs}.${balls}`);
+        }
+    }
+
+    // ============================================
+    // STRIKER / NON-STRIKER SET
+    // ============================================
+
+    setStriker(name) {
+        if (!name || name === '') {
+            return { error: 'Striker name required' };
+        }
+        if (name === this.matchState.nonStriker) {
+            return { error: 'Striker cannot be the current non-striker' };
+        }
+        if ((this.matchState.dismissedBatsmen || []).includes(name)) {
+            return { error: 'Cannot set a dismissed batsman as striker' };
+        }
+        this.matchState.striker = name;
+        this._syncStrikerFields();
+        return { message: `Striker set: ${name}` };
+    }
+
+    setNonStriker(name) {
+        if (!name || name === '') {
+            return { error: 'Non-striker name required' };
+        }
+        if (name === this.matchState.striker) {
+            return { error: 'Non-striker cannot be the current striker' };
+        }
+        if ((this.matchState.dismissedBatsmen || []).includes(name)) {
+            return { error: 'Cannot set a dismissed batsman as non-striker' };
+        }
+        this.matchState.nonStriker = name;
+        this._syncStrikerFields();
+        return { message: `Non-Striker set: ${name}` };
+    }
+
+    // ============================================
+    // EDIT / DELETE BALL
+    // ============================================
+
+    editBall(data) {
+        const { index, batsman, score, bowler, guess } = data;
+
+        if (!this.matchState.isActive && !this.matchState.isComplete) {
+            return { error: 'Match not active' };
+        }
+        if (!this.matchState.ballLog || !this.matchState.ballLog[index]) {
+            return { error: 'Ball not found' };
+        }
+
+        const oldBall = this.matchState.ballLog[index];
+        this.reverseBallEffect(oldBall);
+
+        const newResult = this._computeBallResult(
+            parseInt(score),
+            parseInt(guess),
+            false
+        );
+
+        oldBall.batsman = batsman;
+        oldBall.batsmanScore = parseInt(score);
+        oldBall.bowler = bowler;
+        oldBall.bowlerGuess = parseInt(guess);
+        oldBall.result = newResult.message;
+        oldBall.resultClass = newResult.resultClass;
+        oldBall.ballType = newResult.ballType;
+        oldBall.runs = newResult.runsScored;
+        oldBall.isOut = newResult.isOut;
+        oldBall.isWide = newResult.isWide;
+        oldBall.isNoBall = newResult.isNoBall;
+        oldBall.countsAsBall = newResult.countsAsBall;
+        oldBall.batsmanRuns = newResult.runsScored;
+        oldBall.batsmanBalls = newResult.countsAsBall ? 1 : 0;
+        oldBall.bowlerRuns = newResult.runsScored;
+        oldBall.bowlerBalls = newResult.countsAsBall ? 1 : 0;
+        oldBall.bowlerWickets = newResult.isOut ? 1 : 0;
+        oldBall.corrected = true;
+
+        this.applyBallEffect({
+            runsScored: newResult.runsScored,
+            isOut: newResult.isOut,
+            isWide: newResult.isWide,
+            isNoBall: newResult.isNoBall,
+            countsAsBall: newResult.countsAsBall,
+            batsmanName: batsman,
+            bowlerName: bowler
+        });
+
+        // Reset both strikers
+        this.matchState.striker = '';
+        this.matchState.nonStriker = '';
+        this._syncStrikerFields();
+
+        this.saveAllData();
+        return { message: `Ball ${index + 1} updated: ${oldBall.result}` };
+    }
+
+    deleteBall(index) {
+        if (!this.matchState.isActive && !this.matchState.isComplete) {
+            return { error: 'Match not active' };
+        }
+        if (!this.matchState.ballLog || !this.matchState.ballLog[index]) {
+            return { error: 'Ball not found' };
+        }
+
+        const ball = this.matchState.ballLog[index];
+        this.reverseBallEffect(ball);
+        this.matchState.ballLog.splice(index, 1);
+        this.matchState.ballLog.forEach((b, i) => { b.index = i; });
+
+        this.matchState.striker = '';
+        this.matchState.nonStriker = '';
+        this._syncStrikerFields();
+
+        this.saveAllData();
+        return { message: `Ball ${index + 1} deleted successfully` };
+    }
+
+    // ============================================
+    // PENALTIES
+    // ============================================
+
+    applyPenalty(data) {
+        const { type, player, offence } = data;
+        if (!this.matchState.isActive) return { error: 'Match not active' };
+
+        if (!this.penaltyTracker[player]) {
+            this.penaltyTracker[player] = { batsman: 0, bowler: 0 };
+        }
+
+        const battingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team1 : this.matchState.team2;
+
+        let message = '';
+        let teamRunsChange = 0;
+        let batsmanRunsChange = 0;
+        let isOut = false;
+        let countsAsBall = false;
+        let offenderFacesBall = false;
+        let bowlerRemoved = false;
+
+        if (type === 'batsman') {
+            const count = (this.penaltyTracker[player].batsman || 0) + 1;
+            this.penaltyTracker[player].batsman = count;
+
+            switch (offence) {
+                case 'score_without_permission':
+                    if (count === 1) {
+                        teamRunsChange = -3;
+                        batsmanRunsChange = -3;
+                        message = `${player} - Score without permission (1st): -3 team, -3 batsman`;
+                    } else if (count === 2) {
+                        teamRunsChange = -6;
+                        batsmanRunsChange = -6;
+                        message = `${player} - Score without permission (2nd): -6 team, -6 batsman`;
+                    } else {
+                        isOut = true;
+                        message = `${player} - Score without permission (3rd): DISMISSED!`;
+                    }
+                    break;
+
+                case 'text_instead_of_score':
+                    if (count === 1) {
+                        countsAsBall = true;
+                        offenderFacesBall = true;
+                        message = `${player} - Text instead of score (1st): DOT ball`;
+                    } else {
+                        isOut = true;
+                        countsAsBall = true;
+                        offenderFacesBall = true;
+                        message = `${player} - Text instead of score (2nd): DISMISSED!`;
+                    }
+                    break;
+
+                case 'double_score':
+                    if (count === 1) {
+                        teamRunsChange = -3;
+                        batsmanRunsChange = -3;
+                        countsAsBall = true;
+                        offenderFacesBall = true;
+                        message = `${player} - Double score (1st): -3 team, -3 batsman`;
+                    } else {
+                        teamRunsChange = -6;
+                        batsmanRunsChange = -6;
+                        isOut = true;
+                        countsAsBall = true;
+                        offenderFacesBall = true;
+                        message = `${player} - Double score (2nd): -6 + DISMISSED!`;
+                    }
+                    break;
+
+                case 'edit_delete_score':
+                    isOut = true;
+                    countsAsBall = true;
+                    offenderFacesBall = true;
+                    message = `${player} - Edit/delete score in PM: DISMISSED!`;
+                    break;
+
+                default:
+                    return { error: 'Invalid offence' };
+            }
+        } else if (type === 'bowler') {
+            const count = (this.penaltyTracker[player].bowler || 0) + 1;
+            this.penaltyTracker[player].bowler = count;
+
+            switch (offence) {
+                case 'guess_before_permission':
+                    if (count === 1) {
+                        teamRunsChange = 3;
+                        message = `${player} - Guess before permission (1st): +3`;
+                    } else if (count === 2) {
+                        teamRunsChange = 6;
+                        message = `${player} - Guess before permission (2nd): +6`;
+                    } else {
+                        teamRunsChange = 6;
+                        bowlerRemoved = true;
+                        message = `${player} - Guess before permission (3rd): +6 + BOWLER REMOVED!`;
+                    }
+                    break;
+
+                default:
+                    return { error: 'Invalid offence' };
+            }
+        } else {
+            return { error: 'Invalid penalty type' };
+        }
+
+        if (teamRunsChange !== 0) {
+            battingTeam.runs += teamRunsChange;
+        }
+
+        if (batsmanRunsChange !== 0) {
+            this._ensureBatsmanExists(player);
+            const batsman = this.currentMatchStats.batsmen[player];
+            batsman.runs = (batsman.runs || 0) + batsmanRunsChange;
+            if (batsman.runs < 0) batsman.runs = 0;
+        }
+
+        if (countsAsBall) {
+            this.matchState.currentBall += 1;
+            battingTeam.balls += 1;
+
+            if (offenderFacesBall) {
+                this._ensureBatsmanExists(player);
+                const batsman = this.currentMatchStats.batsmen[player];
+                batsman.balls = (batsman.balls || 0) + 1;
+
+                if (this.matchState.currentBowlerName) {
+                    this._ensureBowlerExists(this.matchState.currentBowlerName);
+                    const bowler = this.currentMatchStats.bowlers[this.matchState.currentBowlerName];
+                    bowler.balls = (bowler.balls || 0) + 1;
+                    const overs = Math.floor(bowler.balls / 6);
+                    const balls = bowler.balls % 6;
+                    bowler.overs = parseFloat(`${overs}.${balls}`);
+                }
+            }
+        }
+
+        if (isOut) {
+            battingTeam.wickets += 1;
+            const isLastBall = (this.matchState.currentBall >= 6);
+            this._handleOut(player, isLastBall, true);
+        }
+
+        if (bowlerRemoved) {
+            if (!this.matchState.removedBowlers) {
+                this.matchState.removedBowlers = [];
+            }
+            this.matchState.removedBowlers.push(player);
+            this.matchState.currentBowlerName = '';
+        }
+
+        if (!this.matchState.ballLog) this.matchState.ballLog = [];
+        this.matchState.ballLog.push({
+            index: this.matchState.ballLog.length,
+            over: `${this.matchState.currentOver}.${this.matchState.currentBall}`,
+            batsman: type === 'batsman' ? player : '',
+            bowler: type === 'bowler' ? player : '',
+            ballType: 'penalty',
+            result: message,
+            resultClass: 'penalty',
+            runs: teamRunsChange,
+            isOut: isOut,
+            isWide: false,
+            isNoBall: false,
+            countsAsBall: countsAsBall,
+            batsmanRuns: batsmanRunsChange,
+            batsmanBalls: (countsAsBall && offenderFacesBall) ? 1 : 0,
+            bowlerRuns: 0,
+            bowlerBalls: 0,
+            bowlerWickets: 0,
+            isPenalty: true,
+            corrected: false
+        });
+
+        if (this.matchState.currentBall >= 6) {
+            this.matchState.currentBall = 0;
+            this.matchState.currentOver += 1;
+            this.matchState.noBallUsed = false;
+            this.matchState.currentBowlerName = '';
+            this.matchState.bowlerGuessed = false;
+        }
+
+        this.saveAllData();
+
+        return { message, teamRunsChange, batsmanRunsChange, isOut, bowlerRemoved };
+    }
+
+    // ============================================
+    // EDIT SCORECARD STATS (Admin override)
+    // ============================================
+
+    editScorecardStats(data) {
+        if (!this.matchState.isActive && !this.matchState.isComplete) {
+            return { error: 'Match not active' };
+        }
+
+        const { team, batsmen, bowlers } = data;
+
+        if (team) {
+            const battingTeam = this.matchState.battingTeam === 1
+                ? this.matchState.team1 : this.matchState.team2;
+            if (team.runs !== undefined) battingTeam.runs = parseInt(team.runs) || 0;
+            if (team.wickets !== undefined) battingTeam.wickets = parseInt(team.wickets) || 0;
+            if (team.balls !== undefined) battingTeam.balls = parseInt(team.balls) || 0;
+            if (team.extras !== undefined) battingTeam.extras = parseInt(team.extras) || 0;
+        }
+
+        if (batsmen && Array.isArray(batsmen)) {
+            batsmen.forEach(b => {
+                if (!b.name) return;
+                this._ensureBatsmanExists(b.name);
+                const target = this.currentMatchStats.batsmen[b.name];
+                if (b.runs !== undefined) target.runs = parseInt(b.runs) || 0;
+                if (b.balls !== undefined) target.balls = parseInt(b.balls) || 0;
+                if (b.fours !== undefined) target.fours = parseInt(b.fours) || 0;
+                if (b.sixes !== undefined) target.sixes = parseInt(b.sixes) || 0;
+            });
+        }
+
+        if (bowlers && Array.isArray(bowlers)) {
+            bowlers.forEach(b => {
+                if (!b.name) return;
+                this._ensureBowlerExists(b.name);
+                const target = this.currentMatchStats.bowlers[b.name];
+                if (b.wickets !== undefined) target.wickets = parseInt(b.wickets) || 0;
+                if (b.balls !== undefined) {
+                    target.balls = parseInt(b.balls) || 0;
+                    const ov = Math.floor(target.balls / 6);
+                    const bl = target.balls % 6;
+                    target.overs = parseFloat(`${ov}.${bl}`);
+                }
+                if (b.runsConceded !== undefined) target.runsConceded = parseInt(b.runsConceded) || 0;
+            });
+        }
+
+        this.saveAllData();
+        return { message: 'Scorecard stats updated' };
+    }
+
+    // ============================================
+    // FINISH MATCH
+    // ============================================
+
+    async finishMatch() {
+        if (!this.matchState.isActive && !this.matchState.isComplete) {
+            return { error: 'No active match' };
+        }
+        if (this.matchState.isComplete) {
+            return { error: 'Match already finished' };
+        }
+
+        const team1Score = this.matchState.team1.runs;
+        const team2Score = this.matchState.team2.runs;
+        let winner = 'TIE';
+        if (team2Score > team1Score) winner = this.matchState.team2.name;
+        else if (team1Score > team2Score) winner = this.matchState.team1.name;
+
+        this.matchState.winner = winner;
+        this.matchState.isComplete = true;
+        this.matchState.isActive = false;
+
+        // Update team stats
+        this.updateTeamStats({
+            team1: this.matchState.team1.name,
+            team2: this.matchState.team2.name,
+            winner: winner,
+            runs1: team1Score,
+            runs2: team2Score,
+            overs1: this.matchState.currentOver + (this.matchState.currentBall / 6),
+            overs2: 4
+        });
+
+        // Merge player stats (batsmen + bowlers)
+        this._mergePlayerStats();
+
+        // Mark fixture complete if applicable
+        if (this.matchState.matchId && this.matchState.matchId.startsWith('FIX-')) {
+            const fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
+            if (fixture) {
+                fixture.status = 'completed';
+                fixture.result = winner;
+                fixture.completedAt = new Date().toISOString();
+                fixture.team1Runs = this.matchState.team1.runs;
+                fixture.team2Runs = this.matchState.team2.runs;
+                fixture.team1Overs = this.matchState.battingTeam === 1
+                    ? (this.matchState.currentOver + this.matchState.currentBall / 6)
+                    : 4;
+                fixture.team2Overs = this.matchState.battingTeam === 2
+                    ? (this.matchState.currentOver + this.matchState.currentBall / 6)
+                    : 4;
+                if (!this.fixtures.completed.includes(fixture.id)) {
+                    this.fixtures.completed.push(fixture.id);
+                }
+            }
+        }
+
+        this.tournamentStats.matches = (this.tournamentStats.matches || 0) + 1;
+
+        await this.saveAllData();
+
+        // Sync to Google Sheets (async, non-blocking)
+        this.syncToGoogleSheet().catch(err => console.error('Sheet sync error:', err));
+
+        return {
+            message: `🏆 Match Complete! Winner: ${winner}`,
+            winner: winner,
+            team1Score: team1Score,
+            team2Score: team2Score
+        };
+    }
+
+    _mergePlayerStats() {
+        // Merge batsmen
+        for (const [name, stats] of Object.entries(this.currentMatchStats.batsmen || {})) {
+            if (!this.playerStats.batsmen[name]) {
+                this.playerStats.batsmen[name] = {
+                    runs: 0, balls: 0, fours: 0, sixes: 0,
+                    innings: 0, notOut: 0, highest: 0, average: 0, strikeRate: 0
+                };
+            }
+            const bat = this.playerStats.batsmen[name];
+            bat.runs += stats.runs || 0;
+            bat.balls += stats.balls || 0;
+            bat.fours += stats.fours || 0;
+            bat.sixes += stats.sixes || 0;
+            bat.innings += 1;
+            if ((stats.runs || 0) > bat.highest) bat.highest = stats.runs || 0;
+            bat.average = bat.innings > 0 ? bat.runs / bat.innings : 0;
+            bat.strikeRate = bat.balls > 0 ? (bat.runs / bat.balls) * 100 : 0;
+        }
+
+        // Merge bowlers
+        for (const [name, stats] of Object.entries(this.currentMatchStats.bowlers || {})) {
+            if (!this.playerStats.bowlers[name]) {
+                this.playerStats.bowlers[name] = {
+                    wickets: 0, balls: 0, runsConceded: 0,
+                    economy: 0, best: 0, matches: 0
+                };
+            }
+            const bowl = this.playerStats.bowlers[name];
+            bowl.wickets += stats.wickets || 0;
+            bowl.balls += stats.balls || 0;
+            bowl.runsConceded += stats.runsConceded || 0;
+            bowl.matches += 1;
+            bowl.economy = bowl.balls > 0 ? (bowl.runsConceded / bowl.balls) * 6 : 0;
+            if ((stats.wickets || 0) > bowl.best) bowl.best = stats.wickets || 0;
+        }
+    }
+
+    // ============================================
+    // GET MATCH STATE
+    // ============================================
+
+    getMatchState() {
+        const battingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team1 : this.matchState.team2;
+        const bowlingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team2 : this.matchState.team1;
+
+        return {
+            matchId: this.matchState.matchId,
+            isActive: this.matchState.isActive,
+            isComplete: this.matchState.isComplete,
+            inning: this.matchState.inning,
+            currentOver: this.matchState.currentOver,
+            currentBall: this.matchState.currentBall,
+            totalOvers: this.matchState.totalOvers,
+            overType: this.matchState.overType,
+            battingTeam: {
+                name: battingTeam.name,
+                runs: battingTeam.runs,
+                wickets: battingTeam.wickets,
+                balls: battingTeam.balls,
+                extras: battingTeam.extras,
+                currentBatsman: battingTeam.currentBatsman,
+                battingOrder: battingTeam.battingOrder
+            },
+            bowlingTeam: {
+                name: bowlingTeam.name,
+                currentBowler: bowlingTeam.currentBowler
+            },
+            target: this.matchState.target,
+            winner: this.matchState.winner,
+            isFreeHit: this.matchState.isFreeHit,
+            lastBallResult: this.matchState.lastBallResult,
+            batsmanSet: this.matchState.batsmanSet,
+            bowlerGuessed: this.matchState.bowlerGuessed,
+            currentBowlerName: this.matchState.currentBowlerName,
+            noBallUsed: this.matchState.noBallUsed || false,
+            striker: this.matchState.striker || '',
+            nonStriker: this.matchState.nonStriker || '',
+            currentBatsmanName: this.matchState.striker || '',
+            dismissedBatsmen: this.matchState.dismissedBatsmen || [],
+            removedBowlers: this.matchState.removedBowlers || [],
+            ballLog: this.matchState.ballLog || [],
+            batsmen: Object.values(this.currentMatchStats.batsmen || {}),
+            bowlers: Object.values(this.currentMatchStats.bowlers || {})
+        };
+    }
+
+    resetMatchAdmin() {
+        this.resetMatch();
+        return { message: 'Match reset successfully' };
+    }
+
+    // ============================================
+    // END INNINGS (simplified — no stats merge, no sheet sync)
+    // ============================================
+
+    async endInnings() {
+        const battingTeam = this.matchState.battingTeam === 1
+            ? this.matchState.team1 : this.matchState.team2;
+
+        if (this.matchState.inning === 1) {
+            this.matchState.target = battingTeam.runs + 1;
+            this.matchState.inning = 2;
+            this.matchState.battingTeam = 2;
+            this.matchState.bowlingTeam = 1;
+            this.matchState.currentOver = 1;
+            this.matchState.currentBall = 0;
+            this.matchState.isFreeHit = false;
+            this.matchState.noBallUsed = false;
+            this.matchState.dismissedBatsmen = [];
+
+            this.matchState.striker = '';
+            this.matchState.nonStriker = '';
+            this._syncStrikerFields();
+
+            return {
+                message: `🏏 Innings complete! Target: ${this.matchState.target}`,
+                target: this.matchState.target
+            };
+        } else {
+            this.matchState.isComplete = true;
+            this.matchState.isActive = false;
+            const team1Score = this.matchState.team1.runs;
+            const team2Score = this.matchState.team2.runs;
+            if (team2Score > team1Score) this.matchState.winner = this.matchState.team2.name;
+            else if (team1Score > team2Score) this.matchState.winner = this.matchState.team1.name;
+            else this.matchState.winner = 'TIE';
+
+            this.tournamentStats.matches = (this.tournamentStats.matches || 0) + 1;
+            this.saveAllData();
+
+            this.matchState.striker = '';
+            this.matchState.nonStriker = '';
+
+            return {
+                message: `🏆 Match Complete! Winner: ${this.matchState.winner}`,
+                winner: this.matchState.winner,
+                team1Score: team1Score,
+                team2Score: team2Score
+            };
+        }
+    }
+
+    // ============================================
+    // FIXTURE MANAGEMENT (unchanged)
     // ============================================
 
     async completeFixtureWithScore(fixtureId, winner, team1Runs, team1Overs, team2Runs, team2Overs, manOfMatch, round) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
-        
+
         const team1Name = fixture.team1;
         const team2Name = fixture.team2;
-        
+
         let runs1, runs2, overs1, overs2;
         if (winner === team1Name) {
-            runs1 = team1Runs;
-            runs2 = team2Runs;
-            overs1 = team1Overs;
-            overs2 = team2Overs;
+            runs1 = team1Runs; runs2 = team2Runs;
+            overs1 = team1Overs; overs2 = team2Overs;
         } else if (winner === team2Name) {
-            runs1 = team2Runs;
-            runs2 = team1Runs;
-            overs1 = team2Overs;
-            overs2 = team1Overs;
+            runs1 = team2Runs; runs2 = team1Runs;
+            overs1 = team2Overs; overs2 = team1Overs;
         } else {
             throw new Error('Winner must be one of the teams');
         }
-        
+
         fixture.status = 'completed';
         fixture.result = winner;
         fixture.manOfMatch = manOfMatch || 'Not Applicable';
@@ -185,82 +1226,56 @@ class GCLEngine {
         fixture.team2Runs = runs2;
         fixture.team2Overs = overs2;
         fixture.round = round || 1;
-        
+
         if (!this.fixtures.completed.includes(fixtureId)) {
             this.fixtures.completed.push(fixtureId);
         }
-        
-        const matchResult = {
-            team1: team1Name,
-            team2: team2Name,
-            winner: winner,
-            runs1: runs1,
-            runs2: runs2,
-            overs1: overs1,
-            overs2: overs2
-        };
-        this.updateTeamStats(matchResult);
-        
+
+        this.updateTeamStats({
+            team1: team1Name, team2: team2Name, winner,
+            runs1, runs2, overs1, overs2
+        });
+
         await this.saveAllData();
         return fixture;
     }
 
-    // ============================================
-    // UPDATE MATCH RESULT
-    // ============================================
-
     updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner) {
         const fixture = this.fixtures.matches.find(m => m.id === id);
         if (!fixture) return { success: false, error: 'Match not found' };
-        
+
         fixture.team1Runs = team1Runs;
         fixture.team1Overs = team1Overs;
         fixture.team2Runs = team2Runs;
         fixture.team2Overs = team2Overs;
         fixture.result = winner;
-        
-        const matchResult = {
-            team1: fixture.team1,
-            team2: fixture.team2,
-            winner: winner,
-            runs1: team1Runs,
-            runs2: team2Runs,
-            overs1: team1Overs,
-            overs2: team2Overs
-        };
-        this.updateTeamStats(matchResult);
-        
+
+        this.updateTeamStats({
+            team1: fixture.team1, team2: fixture.team2, winner,
+            runs1: team1Runs, runs2: team2Runs,
+            overs1: team1Overs, overs2: team2Overs
+        });
         this.saveAllData();
         return { success: true };
     }
 
-    // ============================================
-    // EDIT/DELETE - RECALCULATE
-    // ============================================
-
     async editMatchResult(fixtureId, newTeam1Runs, newTeam1Overs, newTeam2Runs, newTeam2Overs, newWinner) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
-        
+
         this.removeMatchStats(fixture);
-        
+
         fixture.team1Runs = newTeam1Runs;
         fixture.team1Overs = newTeam1Overs;
         fixture.team2Runs = newTeam2Runs;
         fixture.team2Overs = newTeam2Overs;
         fixture.result = newWinner;
-        
-        const matchResult = {
-            team1: fixture.team1,
-            team2: fixture.team2,
-            winner: newWinner,
-            runs1: newTeam1Runs,
-            runs2: newTeam2Runs,
-            overs1: newTeam1Overs,
-            overs2: newTeam2Overs
-        };
-        this.updateTeamStats(matchResult);
-        
+
+        this.updateTeamStats({
+            team1: fixture.team1, team2: fixture.team2, winner: newWinner,
+            runs1: newTeam1Runs, runs2: newTeam2Runs,
+            overs1: newTeam1Overs, overs2: newTeam2Overs
+        });
         await this.saveAllData();
         return fixture;
     }
@@ -268,7 +1283,7 @@ class GCLEngine {
     removeMatchStats(fixture) {
         const team1 = this.teams.find(t => t.name === fixture.team1);
         const team2 = this.teams.find(t => t.name === fixture.team2);
-        
+
         if (team1) {
             team1.matchesPlayed = Math.max(0, (team1.matchesPlayed || 0) - 1);
             team1.runsScored = Math.max(0, (team1.runsScored || 0) - (fixture.team1Runs || 0));
@@ -282,7 +1297,7 @@ class GCLEngine {
                 team1.losses = Math.max(0, (team1.losses || 0) - 1);
             }
         }
-        
+
         if (team2) {
             team2.matchesPlayed = Math.max(0, (team2.matchesPlayed || 0) - 1);
             team2.runsScored = Math.max(0, (team2.runsScored || 0) - (fixture.team2Runs || 0));
@@ -301,15 +1316,11 @@ class GCLEngine {
     async deleteMatchResult(fixtureId) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
-        
+
         this.removeMatchStats(fixture);
-        
         const index = this.fixtures.matches.findIndex(m => m.id === fixtureId);
-        if (index !== -1) {
-            this.fixtures.matches.splice(index, 1);
-        }
+        if (index !== -1) this.fixtures.matches.splice(index, 1);
         this.fixtures.completed = this.fixtures.completed.filter(id => id !== fixtureId);
-        
         await this.saveAllData();
         return { success: true };
     }
@@ -317,7 +1328,6 @@ class GCLEngine {
     getMatchResult(id) {
         const fixture = this.fixtures.matches.find(m => m.id === id);
         if (!fixture) return null;
-        
         return {
             id: fixture.id,
             team1: fixture.team1,
@@ -344,26 +1354,22 @@ class GCLEngine {
             team.oversBowled = 0;
             team.netRunRate = 0;
         });
-        
+
         const completedMatches = this.fixtures.matches.filter(f => f.status === 'completed');
         completedMatches.forEach(f => {
             if (f.team1Runs !== undefined && f.team2Runs !== undefined) {
-                const matchResult = {
-                    team1: f.team1,
-                    team2: f.team2,
+                this.updateTeamStats({
+                    team1: f.team1, team2: f.team2,
                     winner: f.result || f.winner,
-                    runs1: f.team1Runs || 0,
-                    runs2: f.team2Runs || 0,
-                    overs1: f.team1Overs || 4,
-                    overs2: f.team2Overs || 4
-                };
-                this.updateTeamStats(matchResult);
+                    runs1: f.team1Runs || 0, runs2: f.team2Runs || 0,
+                    overs1: f.team1Overs || 4, overs2: f.team2Overs || 4
+                });
             }
         });
     }
 
     // ============================================
-    // TEAM MANAGEMENT
+    // TEAMS
     // ============================================
 
     async createTeam(teamData) {
@@ -373,15 +1379,9 @@ class GCLEngine {
             captain: teamData.captain,
             viceCaptain: teamData.viceCaptain,
             squad: teamData.squad || [],
-            points: 0,
-            matchesPlayed: 0,
-            wins: 0,
-            losses: 0,
-            netRunRate: 0,
-            runsScored: 0,
-            runsConceded: 0,
-            oversPlayed: 0,
-            oversBowled: 0,
+            points: 0, matchesPlayed: 0, wins: 0, losses: 0,
+            netRunRate: 0, runsScored: 0, runsConceded: 0,
+            oversPlayed: 0, oversBowled: 0,
             createdAt: new Date().toISOString()
         };
         this.teams.push(team);
@@ -389,16 +1389,11 @@ class GCLEngine {
         return team;
     }
 
-    getTeam(id) {
-        return this.teams.find(t => t.id === id);
-    }
-
-    getAllTeams() {
-        return this.teams;
-    }
+    getTeam(id) { return this.teams.find(t => t.id === id); }
+    getAllTeams() { return this.teams; }
 
     // ============================================
-    // FIXTURE MANAGEMENT
+    // FIXTURES
     // ============================================
 
     async createFixture(matchData) {
@@ -410,9 +1405,7 @@ class GCLEngine {
             venue: matchData.venue || 'PalTalk Room',
             host: matchData.host || '',
             status: 'scheduled',
-            result: null,
-            matchId: null,
-            manOfMatch: null,
+            result: null, matchId: null, manOfMatch: null,
             createdAt: new Date().toISOString()
         };
         this.fixtures.matches.push(fixture);
@@ -421,9 +1414,7 @@ class GCLEngine {
         return fixture;
     }
 
-    getFixtures() {
-        return this.fixtures;
-    }
+    getFixtures() { return this.fixtures; }
 
     async startFixture(fixtureId) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
@@ -434,8 +1425,8 @@ class GCLEngine {
         const team2 = this.teams.find(t => t.name === fixture.team2);
         if (team1 && team2) {
             this.setupMatch(team1.id, team2.id,
-                team1.squad || [team1.captain, team1.viceCaptain, ...team1.squad],
-                team2.squad || [team2.captain, team2.viceCaptain, ...team2.squad]
+                team1.squad || [team1.captain, team1.viceCaptain, ...(team1.squad || [])],
+                team2.squad || [team2.captain, team2.viceCaptain, ...(team2.squad || [])]
             );
             this.matchState.matchId = fixtureId;
             fixture.matchId = fixtureId;
@@ -464,20 +1455,13 @@ class GCLEngine {
         const team1 = this.teams.find(t => t.name === fixture.team1);
         const team2 = this.teams.find(t => t.name === fixture.team2);
         if (team1 && team2) {
-            const matchResult = {
-                team1: fixture.team1,
-                team2: fixture.team2,
-                winner: winner,
+            this.updateTeamStats({
+                team1: fixture.team1, team2: fixture.team2, winner,
                 runs1: this.matchState?.team1?.runs || 0,
                 runs2: this.matchState?.team2?.runs || 0,
-                overs1: 4,
-                overs2: 4
-            };
-            this.updateTeamStats(matchResult);
+                overs1: 4, overs2: 4
+            });
         }
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
         await this.saveAllData();
         return fixture;
     }
@@ -488,10 +1472,8 @@ class GCLEngine {
 
     getPointsTable(group) {
         let teams = this.teams;
-        if (group) {
-            teams = teams.filter(t => t.group === group);
-        }
-        
+        if (group) teams = teams.filter(t => t.group === group);
+
         const table = teams.map(team => ({
             rank: 0,
             name: team.name,
@@ -506,14 +1488,14 @@ class GCLEngine {
             oversPlayed: team.oversPlayed || 4,
             oversBowled: team.oversBowled || 4
         }));
-        
+
         table.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
             return b.netRunRate - a.netRunRate;
         });
-        
+
         table.forEach((team, index) => { team.rank = index + 1; });
-        
+
         table.forEach(team => {
             if (team.oversPlayed > 0 && team.oversBowled > 0) {
                 const runRate = team.runsScored / team.oversPlayed;
@@ -521,19 +1503,18 @@ class GCLEngine {
                 team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
             }
         });
-        
+
         return table;
     }
 
     updateTeamStats(matchResult) {
         const team1 = this.teams.find(t => t.name === matchResult.team1);
         const team2 = this.teams.find(t => t.name === matchResult.team2);
-        
         if (!team1 || !team2) {
             console.error('❌ Team not found:', matchResult.team1, matchResult.team2);
             return;
         }
-        
+
         const parseOvers = (overs) => {
             if (typeof overs === 'string' && overs.includes('.')) {
                 const parts = overs.split('.');
@@ -541,10 +1522,10 @@ class GCLEngine {
             }
             return parseFloat(overs) || 0;
         };
-        
+
         const overs1 = parseOvers(matchResult.overs1);
         const overs2 = parseOvers(matchResult.overs2);
-        
+
         if (team1) {
             team1.matchesPlayed = (team1.matchesPlayed || 0) + 1;
             team1.runsScored = (team1.runsScored || 0) + (matchResult.runs1 || 0);
@@ -554,11 +1535,11 @@ class GCLEngine {
             if (matchResult.winner === team1.name) {
                 team1.wins = (team1.wins || 0) + 1;
                 team1.points = (team1.points || 0) + 2;
-            } else {
+            } else if (matchResult.winner !== 'TIE') {
                 team1.losses = (team1.losses || 0) + 1;
             }
         }
-        
+
         if (team2) {
             team2.matchesPlayed = (team2.matchesPlayed || 0) + 1;
             team2.runsScored = (team2.runsScored || 0) + (matchResult.runs2 || 0);
@@ -568,28 +1549,30 @@ class GCLEngine {
             if (matchResult.winner === team2.name) {
                 team2.wins = (team2.wins || 0) + 1;
                 team2.points = (team2.points || 0) + 2;
-            } else {
+            } else if (matchResult.winner !== 'TIE') {
                 team2.losses = (team2.losses || 0) + 1;
             }
         }
-        
+
         this.saveAllData();
     }
 
     // ============================================
-    // PLAYER STATISTICS
+    // PLAYER STATS
     // ============================================
 
     updatePlayerStats(stats) {
         for (const [player, data] of Object.entries(stats)) {
             if (!this.playerStats.batsmen[player]) {
                 this.playerStats.batsmen[player] = {
-                    runs: 0, balls: 0, fours: 0, sixes: 0, innings: 0, notOut: 0, highest: 0, average: 0, strikeRate: 0
+                    runs: 0, balls: 0, fours: 0, sixes: 0,
+                    innings: 0, notOut: 0, highest: 0, average: 0, strikeRate: 0
                 };
             }
             if (!this.playerStats.bowlers[player]) {
                 this.playerStats.bowlers[player] = {
-                    wickets: 0, balls: 0, runsConceded: 0, economy: 0, best: 0, matches: 0
+                    wickets: 0, balls: 0, runsConceded: 0,
+                    economy: 0, best: 0, matches: 0
                 };
             }
             const bat = this.playerStats.batsmen[player];
@@ -602,6 +1585,7 @@ class GCLEngine {
             if (data.runs > bat.highest) bat.highest = data.runs;
             bat.average = bat.innings > 0 ? bat.runs / bat.innings : 0;
             bat.strikeRate = bat.balls > 0 ? (bat.runs / bat.balls) * 100 : 0;
+
             const bowl = this.playerStats.bowlers[player];
             bowl.wickets += data.wickets || 0;
             bowl.balls += data.balls || 0;
@@ -646,794 +1630,7 @@ class GCLEngine {
     }
 
     // ============================================
-    // MATCH SETUP AND GAME LOGIC
-    // ============================================
-
-    resetMatch() {
-        this.matchState = {
-            isActive: false,
-            currentOver: 0,
-            currentBall: 0,
-            totalOvers: 4,
-            team1: {
-                name: '',
-                runs: 0,
-                wickets: 0,
-                balls: 0,
-                extras: 0,
-                currentBatsman: null,
-                currentBowler: null,
-                battingOrder: [],
-                bowlingOrder: [],
-                currentBattingIndex: 0,
-                currentBowlingIndex: 0,
-                partnership: 0,
-                lastBalls: []
-            },
-            team2: {
-                name: '',
-                runs: 0,
-                wickets: 0,
-                balls: 0,
-                extras: 0,
-                currentBatsman: null,
-                currentBowler: null,
-                battingOrder: [],
-                bowlingOrder: [],
-                currentBattingIndex: 0,
-                currentBowlingIndex: 0,
-                partnership: 0,
-                lastBalls: []
-            },
-            battingTeam: 1,
-            bowlingTeam: 2,
-            overType: 'normal',
-            isFreeHit: false,
-            isWide: false,
-            isNoBall: false,
-            noBallUsed: false,
-            lastBallResult: null,
-            secretScore: null,
-            batsmanSet: false,
-            bowlerGuessed: false,
-            currentBatsmanName: '',
-            currentBowlerName: '',
-            matchId: null,
-            inning: 1,
-            target: null,
-            winner: null,
-            isComplete: false,
-            ballLog: [],
-        strikePending: false,
-        pendingStriker: null,
-        pendingNonStriker: null
-        };
-        this.currentMatchStats = { batsmen: {}, bowlers: {}, manOfMatchCandidates: [] };
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
-    }
-
-    setupMatch(team1Id, team2Id, team1BattingOrder, team2BattingOrder) {
-    const team1 = this.getTeam(team1Id);
-    const team2 = this.getTeam(team2Id);
-    if (!team1 || !team2) throw new Error('Team not found');
-    this.resetMatch();
-    this.matchState.isActive = true;
-    this.matchState.matchId = `MATCH-${Date.now()}`;
-    this.matchState.team1.name = team1.name;
-    this.matchState.team2.name = team2.name;
-    this.matchState.team1.battingOrder = team1BattingOrder || team1.squad;
-    this.matchState.team2.battingOrder = team2BattingOrder || team2.squad;
-    this.matchState.team1.currentBatsman = null;
-    this.matchState.team2.currentBatsman = null;
-    this.matchState.battingTeam = 1;
-    this.matchState.bowlingTeam = 2;
-    this.matchState.currentOver = 0.0;
-    this.matchState.currentBall = 0;
-    this.matchState.overType = 'normal';
-    // ✅ Match start pe striker/non-striker EMPTY rakhein
-    this.matchState.currentBatsmanName = '';
-    this.striker = null;
-    this.nonStriker = null;
-    this.matchState.striker = null;
-    this.matchState.nonStriker = null;
-    
-    return this.matchState;
-}
-    // server.js - batsmanSetScore()
-batsmanSetScore(data) {
-    const { name, score } = data;
-    if (!this.matchState.isActive) return { error: 'Match not active' };
-    if (this.matchState.batsmanSet) return { error: 'Batsman already set score for this ball' };
-    
-    const validScores = [3, 4, 5, 6];
-    if (!validScores.includes(parseInt(score))) {
-        return { error: `Invalid score! Allowed numbers: ${validScores.join(', ')}` };
-    }
-    
-    this.matchState.secretScore = parseInt(score);
-    this.matchState.batsmanSet = true;
-    this.matchState.bowlerGuessed = false;
-    this.matchState.currentBatsmanName = name || 'Batsman';
-    
-    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-    battingTeam.currentBatsman = name || battingTeam.currentBatsman;
-    
-    // ✅ ALWAYS update striker with selected name
-    this.striker = name || battingTeam.currentBatsman;
-    this.matchState.striker = this.striker;
-    this.matchState.currentBatsmanName = this.striker;
-    
-    // ✅ CRITICAL FIX: Set non-striker with validation
-    if (!this.nonStriker || this.nonStriker === 'undefined' || this.nonStriker === 'Non-Striker') {
-        const battingOrder = battingTeam.battingOrder || [];
-        const strikerIndex = battingOrder.indexOf(this.striker);
-        if (strikerIndex !== -1 && strikerIndex + 1 < battingOrder.length) {
-            this.nonStriker = battingOrder[strikerIndex + 1];
-        } else {
-            // If striker not found in order, use first player as fallback
-            this.nonStriker = battingOrder[0] !== this.striker ? battingOrder[0] : (battingOrder[1] || 'Non-Striker');
-        }
-        this.matchState.nonStriker = this.nonStriker;
-    }
-    
-    return {
-        success: true,
-        message: `${name || 'Batsman'} set score ${score}`,
-        batsman: name || 'Batsman',
-        score: score
-    };
-}
- bowlerGuess(data) {
-    console.log('🔍 bowlerGuess called with:', data);
-    console.log('🔍 matchState.batsmanSet:', this.matchState.batsmanSet);
-    console.log('🔍 matchState.secretScore:', this.matchState.secretScore);
-    const { name, guess } = data;
-    if (!this.matchState.isActive) return { error: 'Match not active' };
-    if (!this.matchState.batsmanSet) return { error: 'Batsman has not set score yet!' };
-    if (this.matchState.bowlerGuessed) return { error: 'Bowler already guessed for this ball' };
-    const batsmanScore = this.matchState.secretScore;
-    const bowlerGuess = parseInt(guess);
-    
-    const validGuesses = [3, 4, 5, 6];
-    
-    if (!validGuesses.includes(bowlerGuess)) {
-        return { error: `Invalid guess! Allowed numbers: ${validGuesses.join(', ')}` };
-    }
-    this.matchState.bowlerGuessed = true;
-    this.matchState.currentBowlerName = name || 'Bowler';
-    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-    let result = {
-        batsmanScore: batsmanScore,
-        bowlerGuess: bowlerGuess,
-        isOut: false,
-        runsScored: 0,
-        isWide: false,
-        isNoBall: false,
-        isFreeHit: false,
-        isLBW: false,
-        isPowerplay: false,
-        message: '',
-        ballResult: '',
-        batsmanName: this.matchState.currentBatsmanName,
-        bowlerName: this.matchState.currentBowlerName,
-        originalStriker: this.striker  // ✅ FIX 1: Store original striker
-    };
-
-    // WIDE: 3 vs 6 OR 6 vs 3
-    if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
-        result.isWide = true;
-        result.runsScored = batsmanScore;
-        result.message = `📏 WIDE! (${batsmanScore}-${bowlerGuess}) Ball counts. No extra run.`;
-        result.ballResult = 'WD';
-        
-        // ✅ FIX 1: Save original striker for WIDE
-        result.originalStriker = this.striker;
-        
-        // ✅ Strike change for WIDE
-        this.updateStrike(
-            this.striker,
-            batsmanScore,
-            true,
-            false,
-            false
-        );
-    }
-    // NO-BALL: Batsman 5 with any guess other than 5
-    else if (batsmanScore === 5 && bowlerGuess !== 5) {
-        if (this.matchState.noBallUsed) {
-            result.isNoBall = false;
-            result.message = `⚠️ No-Ball already used! Treating as normal ball.`;
-            result.ballResult = 'N';
-            if (batsmanScore === bowlerGuess) {
-                result.isOut = true;
-                result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-                result.ballResult = 'W';
-            } else {
-                result.runsScored = batsmanScore;
-                result.message = `✅ Safe! ${batsmanScore} runs`;
-                result.ballResult = batsmanScore.toString();
-                // ✅ FIX: SUCCESSFUL 5 (ODD) → Strike CHANGE
-        this.updateStrike(
-            this.matchState.currentBatsmanName,
-            result.runsScored,  // 5 (ODD)
-            false,              // not wide
-            false,              // not no-ball
-            false               // not last ball
-        );
-            }
-            this.matchState.currentBall += 1;
-            battingTeam.balls += 1;
-        } else {
-            result.isNoBall = true;
-            this.matchState.noBallUsed = true;
-            result.runsScored = batsmanScore;
-            result.message = `❌ NO-BALL! (5-${bowlerGuess}) Ball counts. No extra run.`;
-            result.ballResult = 'NB';
-            
-            // ✅ FIX 1: Save original striker for NO-BALL
-            result.originalStriker = this.striker;
-            
-            // ✅ Strike change for NO-BALL
-            this.updateStrike(
-                this.striker,
-                5,
-                false,
-                true,
-                false
-            );
-        }
-    }
-    // OUT: Exact match
-    else if (batsmanScore === bowlerGuess) {
-        result.isOut = true;
-        result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-        result.ballResult = 'W';
-        this.matchState.currentBall += 1;
-        battingTeam.balls += 1;
-    }
-    // SAFE: Runs added
-    else {
-        result.runsScored = batsmanScore;
-        result.message = `✅ Safe! ${batsmanScore} runs`;
-        result.ballResult = batsmanScore.toString();
-        
-        // ✅ FIX 3: Check if this is the last ball BEFORE incrementing
-        const isLastBall = (this.matchState.currentBall + 1) >= 6;
-        
-        if (!result.isWide && !result.isNoBall) {
-            this.matchState.currentBall += 1;
-            battingTeam.balls += 1;
-        }
-        
-        // ✅ FIX 3: Only apply normal strike change if NOT the last ball
-        if (result.runsScored > 0 && !result.isWide && !result.isNoBall && !isLastBall) {
-            this.updateStrike(this.striker, result.runsScored);
-        }
-    }
-    
-    // ✅ FIX 1: Use original striker for WIDE/NO-BALL, otherwise current batsman
-    const batsmanNameForScore = (result.isWide || result.isNoBall) 
-        ? result.originalStriker 
-        : this.matchState.currentBatsmanName;
-    
-    this.applyBallEffect({
-        runsScored: result.runsScored,
-        isOut: result.isOut,
-        isWide: result.isWide,
-        isNoBall: result.isNoBall,
-        batsmanName: batsmanNameForScore,
-        bowlerName: this.matchState.currentBowlerName
-    });
-    
-    if (result.isOut) {
-        battingTeam.currentBattingIndex += 1;
-        if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
-            battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
-            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-        } else {
-            result.message += ' 🏏 All out!';
-            this.endInnings();
-        }
-    }
-    
-    this.matchState.lastBallResult = result;
-    
-    // Check if over is complete
-   // Check if over is complete
-if (this.matchState.currentBall >= 6) {
-    const isLastBall = true;
-    const runsScored = result.runsScored;
-    const isWide = result.isWide;
-    const isNoBall = result.isNoBall;
-    
-    this.updateStrike(
-        this.matchState.currentBatsmanName,
-        runsScored,
-        isWide,
-        isNoBall,
-        true
-    );
-    
-    this.matchState.currentBall = 0;
-    this.matchState.currentOver += 1;
-    this.matchState.noBallUsed = false;
-    this.matchState.lastStrikeReason = 'Over complete! Strike rule applied.';
-    
-    // ✅ Apply pending strike if any (from last ball OUT)
-    if (this.matchState.strikePending) {
-        this.striker = this.matchState.pendingStriker;
-        this.nonStriker = this.matchState.pendingNonStriker;
-        this.matchState.striker = this.striker;
-        this.matchState.nonStriker = this.nonStriker;
-        this.matchState.currentBatsmanName = this.striker;
-        this.matchState.strikePending = false;
-        this.matchState.pendingStriker = null;
-        this.matchState.pendingNonStriker = null;
-    }
-    
-    // ✅ Reset bowler for next over
-    this.matchState.currentBowlerName = '';
-    this.matchState.bowlerGuessed = false;
-    
-    io.emit('stateUpdate', this.getMatchState());
-}
-    
-    this.matchState.batsmanSet = false;
-    this.matchState.bowlerGuessed = false;
-    this.matchState.secretScore = null;
-    
-    return {
-        ...result,
-        matchState: this.getMatchState()
-    };
-}
-    // ============================================
-    // STRIKE CHANGE — FULL LOGIC
-    // ============================================
-
-   // server.js - updateStrike() - Complete rewrite for clarity
-updateStrike(batsmanName, runsScored, isWide, isNoBall, isLastBall) {
-    console.log('🔍 updateStrike called with:', { batsmanName, runsScored, isWide, isNoBall, isLastBall });
-    
-    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-    
-    let shouldChange = false;
-    let reason = '';
-    
-    // 1. WIDE Case
-    if (isWide) {
-        if (runsScored === 3) {
-            shouldChange = true;
-            reason = 'WIDE 3 → Strike CHANGES';
-        } else if (runsScored === 6) {
-            shouldChange = false;
-            reason = 'WIDE 6 → Strike REMAINS';
-        }
-    }
-    // 2. NO-BALL Case
-    else if (isNoBall) {
-        shouldChange = true;
-        reason = 'NO-BALL 5 → Strike CHANGES';
-    }
-    // 3. OUT Case - MANUAL batsman selection
-    else if (this.matchState.lastBallResult && this.matchState.lastBallResult.isOut) {
-        if (isLastBall) {
-            shouldChange = false;
-            reason = 'OUT on last ball → Setup for next over';
-        // Store pending change for next over
-        this.matchState.strikePending = true;
-        this.matchState.pendingStriker = this.nonStriker;        // Non-striker → Strike
-        this.matchState.pendingNonStriker = battingTeam.currentBatsman;  // New batsman → Non-strike
-    } else {
-        shouldChange = true;
-        reason = 'OUT → Strike CHANGES (new batsman on strike)';
-        }
-    }
-    // 4. Normal Ball
-    else {
-        if (isLastBall) {
-            // ✅ CORRECTED: Last ball rule
-            // ODD (3,5) → Strike REMAINS
-            // EVEN (4,6) → Strike CHANGES
-            if (runsScored % 2 === 0) {
-                shouldChange = true;   // EVEN → CHANGE
-                reason = 'Last Ball EVEN (4/6) → Strike CHANGES (next over)';
-            } else {
-                shouldChange = false;  // ODD → REMAIN
-                reason = 'Last Ball ODD (3/5) → Strike REMAINS (next over)';
-            }
-        } else {
-            // Normal ball rule
-            if (runsScored % 2 !== 0) {
-                shouldChange = true;
-                reason = 'ODD (3/5) → Strike CHANGES';
-            } else {
-                shouldChange = false;
-                reason = 'EVEN (4/6) → Strike REMAINS';
-            }
-        }
-    }
-    
-    // ✅ Apply strike change
-    if (shouldChange) {
-        const tempStriker = this.striker;
-        const tempNonStriker = this.nonStriker;
-        
-        // ✅ Swap with validation
-        if (tempNonStriker && tempNonStriker !== 'Non-Striker' && tempNonStriker !== 'undefined') {
-            this.striker = tempNonStriker;
-            this.nonStriker = tempStriker;
-        } else {
-            // ✅ Fallback: If non-striker is invalid, get from batting order
-            const battingOrder = battingTeam.battingOrder || [];
-            const strikerIndex = battingOrder.indexOf(tempStriker);
-            if (strikerIndex !== -1 && strikerIndex + 1 < battingOrder.length) {
-                this.striker = battingOrder[strikerIndex + 1];
-                this.nonStriker = tempStriker;
-                reason += ' (fallback from batting order)';
-            } else {
-                // Last resort: keep striker same
-                this.striker = tempStriker;
-                this.nonStriker = 'Non-Striker';
-                reason += ' (fallback - set default)';
-            }
-        }
-        
-        this.matchState.striker = this.striker;
-        this.matchState.nonStriker = this.nonStriker;
-        this.matchState.currentBatsmanName = this.striker;
-        this.strikeChanged = true;
-        
-        battingTeam.currentBatsman = this.striker;
-        
-        console.log('🔄 Strike changed! New striker:', this.striker, 'New non-striker:', this.nonStriker);
-    } else {
-        this.strikeChanged = false;
-    }
-    
-    this.matchState.lastStrikeReason = reason;
-    console.log('🔍 updateStrike result:', { shouldChange, reason, striker: this.striker, nonStriker: this.nonStriker });
-    
-    // ✅ Emit state update to trigger UI refresh
-    io.emit('stateUpdate', this.getMatchState());
-    
-    return { changed: shouldChange, reason: reason };
-}
-    // ============================================
-    // CALCULATE BALL RESULT (For Edit/Delete)
-    // ============================================
-
-    calculateBallResult(batsmanScore, bowlerGuess) {
-        let result = {
-            isOut: false,
-            runsScored: 0,
-            isWide: false,
-            isNoBall: false,
-            message: '',
-            resultClass: ''
-        };
-
-        // WIDE: 3 vs 6 OR 6 vs 3
-        if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
-            result.isWide = true;
-            result.runsScored = 0;
-            result.message = `📏 WIDE! (${batsmanScore}-${bowlerGuess}) Ball counts. No extra run.`;
-            result.resultClass = 'wide';
-        }
-        // NO-BALL: Batsman 5 with any guess other than 5
-        else if (batsmanScore === 5 && bowlerGuess !== 5) {
-            result.isNoBall = true;
-            result.runsScored = 0;
-            result.message = `❌ NO-BALL! (5-${bowlerGuess}) Ball counts. No extra run.`;
-            result.resultClass = 'noball';
-        }
-        // OUT: Exact match
-        else if (batsmanScore === bowlerGuess) {
-            result.isOut = true;
-            result.runsScored = 0;
-            result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-            result.resultClass = 'wicket';
-        }
-        // SAFE: Runs added
-        else {
-            result.runsScored = batsmanScore;
-            result.message = `✅ Safe! ${batsmanScore} runs`;
-            result.resultClass = 'runs';
-        }
-
-        return result;
-    }
-
-    // ============================================
-    // ADMIN OVERRIDE — EDIT BALL
-    // ============================================
-
-    editBall(data) {
-        const { index, batsman, score, bowler, guess } = data;
-        
-        if (!this.matchState.isActive && !this.matchState.isComplete) {
-            return { error: 'Match not active' };
-        }
-        
-        if (!this.matchState.ballLog || !this.matchState.ballLog[index]) {
-            return { error: 'Ball not found' };
-        }
-        
-        const oldBall = this.matchState.ballLog[index];
-        const oldResult = oldBall.result;
-        
-        // Store old ball data for reversal
-        const oldBallData = {
-            runs: oldBall.runs || 0,
-            wickets: oldBall.wickets || 0,
-            extras: oldBall.extras || 0,
-            batsmanRuns: oldBall.batsmanRuns || 0,
-            batsmanBalls: oldBall.batsmanBalls || 0,
-            bowlerWickets: oldBall.bowlerWickets || 0,
-            bowlerBalls: oldBall.bowlerBalls || 0,
-            bowlerRuns: oldBall.bowlerRuns || 0,
-            batsmanName: oldBall.batsman || '',
-            bowlerName: oldBall.bowler || ''
-        };
-        
-        // Reverse the old ball's effect
-        this.reverseBallEffect(oldBallData);
-        
-        // Update ball data
-        oldBall.batsman = batsman;
-        oldBall.batsmanScore = score;
-        oldBall.bowler = bowler;
-        oldBall.bowlerGuess = guess;
-        oldBall.corrected = true;
-        
-        // Recalculate result
-        const newResult = this.calculateBallResult(score, guess);
-        oldBall.result = newResult.message;
-        oldBall.resultClass = newResult.resultClass;
-        oldBall.runs = newResult.runsScored || 0;
-        oldBall.wickets = newResult.isOut ? 1 : 0;
-        oldBall.extras = newResult.isWide || newResult.isNoBall ? 1 : 0;
-        oldBall.batsmanRuns = newResult.runsScored || 0;
-        oldBall.batsmanBalls = 1;
-        oldBall.bowlerWickets = newResult.isOut ? 1 : 0;
-        oldBall.bowlerBalls = 1;
-        oldBall.bowlerRuns = newResult.runsScored || 0;
-        
-        // Apply new ball's effect
-        this.applyBallEffect({
-            runsScored: newResult.runsScored || 0,
-            isOut: newResult.isOut || false,
-            isWide: newResult.isWide || false,
-            isNoBall: newResult.isNoBall || false,
-            batsmanName: batsman,
-            bowlerName: bowler
-        });
-        
-        this.saveAllData();
-        return { message: `Ball ${index + 1} updated: ${oldResult} → ${newResult.message}` };
-    }
-
-    reverseBallEffect(ballData) {
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        
-        battingTeam.runs -= ballData.runs || 0;
-        battingTeam.wickets -= ballData.wickets || 0;
-        battingTeam.extras -= ballData.extras || 0;
-        battingTeam.balls -= 1;
-        
-        // Reverse batsman stats
-        if (ballData.batsmanName && this.currentMatchStats.batsmen[ballData.batsmanName]) {
-            const batsman = this.currentMatchStats.batsmen[ballData.batsmanName];
-            batsman.runs = Math.max(0, (batsman.runs || 0) - (ballData.batsmanRuns || 0));
-            batsman.balls = Math.max(0, (batsman.balls || 0) - (ballData.batsmanBalls || 0));
-        }
-        
-        // Reverse bowler stats
-        if (ballData.bowlerName && this.currentMatchStats.bowlers[ballData.bowlerName]) {
-            const bowler = this.currentMatchStats.bowlers[ballData.bowlerName];
-            bowler.wickets = Math.max(0, (bowler.wickets || 0) - (ballData.bowlerWickets || 0));
-            bowler.balls = Math.max(0, (bowler.balls || 0) - (ballData.bowlerBalls || 0));
-            bowler.runsConceded = Math.max(0, (bowler.runsConceded || 0) - (ballData.bowlerRuns || 0));
-        }
-    }
-
-    // server.js - applyBallEffect()
-applyBallEffect(result) {
-    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-    
-    battingTeam.runs += result.runsScored || 0;
-    if (result.isOut) battingTeam.wickets += 1;
-    
-    // ✅ Update batsman stats
-    if (result.batsmanName) {
-        if (!this.currentMatchStats.batsmen[result.batsmanName]) {
-            this.currentMatchStats.batsmen[result.batsmanName] = { 
-                name: result.batsmanName,
-                runs: 0, 
-                balls: 0, 
-                fours: 0, 
-                sixes: 0 
-            };
-        }
-        const batsman = this.currentMatchStats.batsmen[result.batsmanName];
-        batsman.runs = (batsman.runs || 0) + (result.runsScored || 0);
-        
-        // ✅ ONLY count balls for normal balls (not wide, not no-ball)
-        if (!result.isWide && !result.isNoBall) {
-            batsman.balls = (batsman.balls || 0) + 1;
-        }
-        
-        // Update fours/sixes
-        if (result.runsScored === 4) batsman.fours = (batsman.fours || 0) + 1;
-        if (result.runsScored === 6) batsman.sixes = (batsman.sixes || 0) + 1;
-    }
-    
-    // ✅ Update bowler stats - ONLY count balls for normal balls
-    if (result.bowlerName) {
-        if (!this.currentMatchStats.bowlers[result.bowlerName]) {
-            this.currentMatchStats.bowlers[result.bowlerName] = {
-                name: result.bowlerName,
-                wickets: 0, 
-                balls: 0, 
-                runsConceded: 0,
-                overs: 0
-            };
-        }
-        const bowler = this.currentMatchStats.bowlers[result.bowlerName];
-        if (result.isOut) bowler.wickets = (bowler.wickets || 0) + 1;
-        
-        // ✅ ONLY count balls for normal balls
-        if (!result.isWide && !result.isNoBall) {
-            bowler.balls = (bowler.balls || 0) + 1;
-        }
-        
-        bowler.runsConceded = (bowler.runsConceded || 0) + (result.runsScored || 0);
-        const overs = Math.floor(bowler.balls / 6);
-        const balls = bowler.balls % 6;
-        bowler.overs = parseFloat(`${overs}.${balls}`);
-    }
-}
-    // ============================================
-    // ADMIN OVERRIDE — DELETE BALL
-    // ============================================
-
-    deleteBall(index) {
-        if (!this.matchState.isActive && !this.matchState.isComplete) {
-            return { error: 'Match not active' };
-        }
-        
-        if (!this.matchState.ballLog || !this.matchState.ballLog[index]) {
-            return { error: 'Ball not found' };
-        }
-        
-        const ball = this.matchState.ballLog[index];
-        
-        // Reverse ball's effect
-        this.reverseBallEffect({
-            runs: ball.runs || 0,
-            wickets: ball.wickets || 0,
-            extras: ball.extras || 0,
-            batsmanRuns: ball.batsmanRuns || 0,
-            batsmanBalls: ball.batsmanBalls || 0,
-            bowlerWickets: ball.bowlerWickets || 0,
-            bowlerBalls: ball.bowlerBalls || 0,
-            bowlerRuns: ball.bowlerRuns || 0,
-            batsmanName: ball.batsman || '',
-            bowlerName: ball.bowler || ''
-        });
-        
-        // Remove ball from log
-        this.matchState.ballLog.splice(index, 1);
-        
-        this.saveAllData();
-        return { message: `Ball ${index + 1} deleted successfully` };
-    }
-
-    async endInnings() {
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        if (this.matchState.inning === 1) {
-            this.matchState.target = battingTeam.runs + 1;
-            this.matchState.inning = 2;
-            this.matchState.battingTeam = 2;
-            this.matchState.bowlingTeam = 1;
-            this.matchState.currentOver = 1;
-            this.matchState.currentBall = 0;
-            this.matchState.overType = 'normal';
-            this.matchState.isFreeHit = false;
-            const newBattingTeam = this.matchState.team2;
-            newBattingTeam.currentBatsman = newBattingTeam.battingOrder[0] || newBattingTeam.squad[0];
-            this.matchState.currentBatsmanName = newBattingTeam.currentBatsman;
-            this.striker = newBattingTeam.currentBatsman;
-            this.nonStriker = newBattingTeam.battingOrder[1] || 'Non-Striker';
-            return {
-                message: `🏏 Innings complete! Target: ${this.matchState.target}`,
-                target: this.matchState.target
-            };
-        } else {
-            this.matchState.isComplete = true;
-            this.matchState.isActive = false;
-            const team1Score = this.matchState.team1.runs;
-            const team2Score = this.matchState.team2.runs;
-            if (team2Score > team1Score) this.matchState.winner = this.matchState.team2.name;
-            else if (team1Score > team2Score) this.matchState.winner = this.matchState.team1.name;
-            else this.matchState.winner = 'TIE';
-            this.tournamentStats.matches += 1;
-            if (this.matchState.matchId && this.matchState.matchId.startsWith('FIX-')) {
-                const fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
-                if (fixture && fixture.status === 'ongoing') {
-                    this.completeFixture(fixture.id, this.matchState.winner, null, this.currentMatchStats.batsmen);
-                }
-            }
-            this.saveAllData();
-            await this.syncToGoogleSheet();
-            this.striker = null;
-            this.nonStriker = null;
-            this.strikeChanged = false;
-            return {
-                message: `🏆 Match Complete! Winner: ${this.matchState.winner}`,
-                winner: this.matchState.winner,
-                team1Score: team1Score,
-                team2Score: team2Score
-            };
-        }
-    }
-
-    getMatchState() {
-        const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-        const bowlingTeam = this.matchState.battingTeam === 1 ? this.matchState.team2 : this.matchState.team1;
-        return {
-            matchId: this.matchState.matchId,
-            isActive: this.matchState.isActive,
-            isComplete: this.matchState.isComplete,
-            inning: this.matchState.inning,
-            currentOver: this.matchState.currentOver,
-            currentBall: this.matchState.currentBall,
-            totalOvers: this.matchState.totalOvers,
-            overType: this.matchState.overType,
-            battingTeam: {
-                name: battingTeam.name,
-                runs: battingTeam.runs,
-                wickets: battingTeam.wickets,
-                balls: battingTeam.balls,
-                extras: battingTeam.extras,
-                currentBatsman: battingTeam.currentBatsman,
-                battingOrder: battingTeam.battingOrder
-                
-            },
-            bowlingTeam: {
-                name: bowlingTeam.name,
-                currentBowler: bowlingTeam.currentBowler
-            },
-            target: this.matchState.target,
-            winner: this.matchState.winner,
-            isFreeHit: this.matchState.isFreeHit,
-            lastBallResult: this.matchState.lastBallResult,
-            batsmanSet: this.matchState.batsmanSet,
-            bowlerGuessed: this.matchState.bowlerGuessed,
-            currentBatsmanName: this.matchState.currentBatsmanName,
-            currentBowlerName: this.matchState.currentBowlerName,
-            striker: this.striker,
-            nonStriker: this.nonStriker,
-            strikeChanged: this.strikeChanged,
-            noBallUsed: this.matchState.noBallUsed || false,
-            ballLog: this.matchState.ballLog || [],
-            batsmen: Object.values(this.currentMatchStats.batsmen || {}),
-            bowlers: Object.values(this.currentMatchStats.bowlers || {})
-        };
-    }
-
-    resetMatchAdmin() {
-        this.resetMatch();
-        this.striker = null;
-        this.nonStriker = null;
-        this.strikeChanged = false;
-        return { message: 'Match reset successfully' };
-    }
-
-    // ============================================
-    // GOOGLE SHEET AUTO-SYNC
+    // GOOGLE SHEET SYNC
     // ============================================
 
     async syncToGoogleSheet() {
@@ -1442,34 +1639,29 @@ applyBallEffect(result) {
             const bowlers = this.getTopBowlers(10);
             const mom = this.getTopManOfMatch(5);
             const pointsTable = this.getPointsTable();
-            
+
             const { GoogleSpreadsheet } = require('google-spreadsheet');
             const SHEET_ID = '1p35HY4tjArypj2fPp6JXtIIkHXLoV_kk5kZxZrjixeA';
-            
-            // Load credentials
+
             let creds;
             try {
-                const credsPath = '/etc/secrets/credentials.json';
-                const credsContent = fs.readFileSync(credsPath, 'utf8');
-                creds = JSON.parse(credsContent);
+                creds = JSON.parse(fs.readFileSync('/etc/secrets/credentials.json', 'utf8'));
             } catch (fileError) {
-                const localCreds = fs.readFileSync('./credentials.json', 'utf8');
-                creds = JSON.parse(localCreds);
+                creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
             }
-            
+
             if (!creds.client_email || !creds.private_key) {
                 console.error('❌ Credentials missing!');
                 return false;
             }
-            
+
             const doc = new GoogleSpreadsheet(SHEET_ID);
             await doc.useServiceAccountAuth({
                 client_email: creds.client_email,
                 private_key: creds.private_key
             });
             await doc.loadInfo();
-            
-            // Batsmen Sheet (Index 0)
+
             const batsmenSheet = doc.sheetsByIndex[0];
             await batsmenSheet.clearRows();
             await batsmenSheet.setHeaderRow(['Player', 'Runs', 'Balls', 'Fours', 'Sixes', 'Avg', 'SR']);
@@ -1477,14 +1669,12 @@ applyBallEffect(result) {
                 b.name, b.runs || 0, b.balls || 0, b.fours || 0, b.sixes || 0,
                 (b.average || 0).toFixed(2), (b.strikeRate || 0).toFixed(2)
             ]));
-            
-            // MOM Sheet (Index 1)
+
             const momSheet = doc.sheetsByIndex[1];
             await momSheet.clearRows();
             await momSheet.setHeaderRow(['Player', 'Count']);
             await momSheet.addRows(mom.map(m => [m.name, m.count || 0]));
-            
-            // Bowlers Sheet (Index 2)
+
             const bowlersSheet = doc.sheetsByIndex[2];
             await bowlersSheet.clearRows();
             await bowlersSheet.setHeaderRow(['Player', 'Wickets', 'Balls', 'Runs', 'Economy', 'Best']);
@@ -1492,8 +1682,7 @@ applyBallEffect(result) {
                 b.name, b.wickets || 0, b.balls || 0, b.runsConceded || 0,
                 (b.economy || 0).toFixed(2), b.best || 0
             ]));
-            
-            // Points Table Sheet (Index 3)
+
             const pointsSheet = doc.sheetsByIndex[3];
             if (pointsSheet) {
                 await pointsSheet.clearRows();
@@ -1503,7 +1692,7 @@ applyBallEffect(result) {
                     t.points || 0, t.netRunRate || 0
                 ]));
             }
-            
+
             console.log('✅ Google Sheet auto-synced successfully!');
             return true;
         } catch (error) {
@@ -1511,211 +1700,7 @@ applyBallEffect(result) {
             return false;
         }
     }
-// ============================================
-// NON-STRIKER SET
-// ============================================
 
-setNonStriker(name) {
-    // ✅ Preserve current striker and bowler
-    const currentStriker = this.matchState.striker || this.striker;
-    const currentBowler = this.matchState.currentBowlerName;
-    
-    this.matchState.nonStriker = name;
-    this.nonStriker = name;
-    
-    // ✅ Restore striker and bowler
-    if (currentStriker) {
-        this.matchState.striker = currentStriker;
-        this.striker = currentStriker;
-    }
-    if (currentBowler) {
-        this.matchState.currentBowlerName = currentBowler;
-    }
-    
-    // ✅ Add non-striker to scorecard stats
-    if (name && !this.currentMatchStats.batsmen[name]) {
-        this.currentMatchStats.batsmen[name] = {
-            name: name,
-            runs: 0,
-            balls: 0,
-            fours: 0,
-            sixes: 0
-        };
-    }
-    
-    return { message: `Non-Striker set: ${name}` };
-}
-
-// ============================================
-// PENALTY FUNCTIONS
-// ============================================
-
-// Track offences per player
-penaltyTracker = {};
-
-applyPenalty(data) {
-    const { type, player, offence } = data;
-    
-    if (!this.matchState.isActive) {
-        return { error: 'Match not active' };
-    }
-    
-    // Initialize penalty tracker for player
-    if (!this.penaltyTracker[player]) {
-        this.penaltyTracker[player] = { batsman: 0, bowler: 0 };
-    }
-    
-    const battingTeam = this.matchState.battingTeam === 1 ? this.matchState.team1 : this.matchState.team2;
-    let message = '';
-    let runsChange = 0;
-    let isOut = false;
-    
-    if (type === 'batsman') {
-        const count = (this.penaltyTracker[player].batsman || 0) + 1;
-        this.penaltyTracker[player].batsman = count;
-        
-        switch(offence) {
-            case 'score_without_permission':
-                if (count === 1) {
-                    runsChange = -3;
-                    message = `${player} - Score without permission (1st offence): -3 runs`;
-                } else if (count === 2) {
-                    runsChange = -6;
-                    message = `${player} - Score without permission (2nd offence): -6 runs`;
-                } else {
-                    isOut = true;
-                    message = `${player} - Score without permission (3rd offence): DISMISSED!`;
-                }
-                break;
-                
-            case 'text_instead_of_score':
-                if (count === 1) {
-                    // DOT ball - no runs
-                    message = `${player} - Text instead of score (1st offence): DOT ball`;
-                } else {
-                    isOut = true;
-                    message = `${player} - Text instead of score (2nd offence): DISMISSED!`;
-                }
-                break;
-                
-            case 'double_score':
-                if (count === 1) {
-                    runsChange = -3;
-                    message = `${player} - Double score (1st offence): -3 runs`;
-                } else {
-                    runsChange = -6;
-                    isOut = true;
-                    message = `${player} - Double score (2nd offence): -6 runs + DISMISSED!`;
-                }
-                break;
-                
-            case 'edit_delete_score':
-                isOut = true;
-                message = `${player} - Edit/delete score in PM: IMMEDIATE DISMISSAL!`;
-                break;
-                
-            default:
-                return { error: 'Invalid offence' };
-        }
-    } else if (type === 'bowler') {
-        const count = (this.penaltyTracker[player].bowler || 0) + 1;
-        this.penaltyTracker[player].bowler = count;
-        
-        switch(offence) {
-            case 'guess_before_permission':
-                if (count === 1) {
-                    runsChange = 3;
-                    message = `${player} - Guess before permission (1st offence): +3 runs to batting`;
-                } else if (count === 2) {
-                    runsChange = 6;
-                    message = `${player} - Guess before permission (2nd offence): +6 runs to batting`;
-                } else {
-                    runsChange = 6;
-                    isOut = true;
-                    message = `${player} - Guess before permission (3rd offence): +6 runs + BOWLER DISMISSED!`;
-                }
-                break;
-                
-            default:
-                return { error: 'Invalid offence' };
-        }
-    }
-    
-    // Apply changes
-    if (runsChange !== 0) {
-        battingTeam.runs += runsChange;
-    }
-    if (isOut) {
-        battingTeam.wickets += 1;
-        // If batsman out, advance batting order
-        battingTeam.currentBattingIndex += 1;
-        if (battingTeam.currentBattingIndex < battingTeam.battingOrder.length) {
-            battingTeam.currentBatsman = battingTeam.battingOrder[battingTeam.currentBattingIndex];
-            this.matchState.currentBatsmanName = battingTeam.currentBatsman;
-        }
-    }
-      
-    // Add to ball log
-    if (!this.matchState.ballLog) this.matchState.ballLog = [];
-    this.matchState.ballLog.push({
-        over: `${this.matchState.currentOver}.${this.matchState.currentBall}`,
-        result: message,
-        resultClass: 'penalty',
-        batsman: type === 'batsman' ? player : '',
-        bowler: type === 'bowler' ? player : '',
-        runs: runsChange,
-        isOut: isOut,
-        isPenalty: true
-    });
-    
-    this.saveAllData();
-    return { message, runsChange, isOut };
-}
-
-// ============================================
-// CALCULATE BALL RESULT (For Edit/Delete)
-// ============================================
-
-/*calculateBallResult(batsmanScore, bowlerGuess) {
-    let result = {
-        isOut: false,
-        runsScored: 0,
-        isWide: false,
-        isNoBall: false,
-        message: '',
-        resultClass: ''
-    };
-
-    // WIDE: 3 vs 6 OR 6 vs 3
-    if ((batsmanScore === 3 && bowlerGuess === 6) || (batsmanScore === 6 && bowlerGuess === 3)) {
-        result.isWide = true;
-        result.runsScored = 0;
-        result.message = `📏 WIDE! (${batsmanScore}-${bowlerGuess}) Ball counts. No extra run.`;
-        result.resultClass = 'wide';
-    }
-    // NO-BALL: Batsman 5 with any guess other than 5
-    else if (batsmanScore === 5 && bowlerGuess !== 5) {
-        result.isNoBall = true;
-        result.runsScored = 0;
-        result.message = `❌ NO-BALL! (5-${bowlerGuess}) Ball counts. No extra run.`;
-        result.resultClass = 'noball';
-    }
-    // OUT: Exact match
-    else if (batsmanScore === bowlerGuess) {
-        result.isOut = true;
-        result.runsScored = 0;
-        result.message = `🎯 OUT! ${bowlerGuess} guessed correctly!`;
-        result.resultClass = 'wicket';
-    }
-    // SAFE: Runs added
-    else {
-        result.runsScored = batsmanScore;
-        result.message = `✅ Safe! ${batsmanScore} runs`;
-        result.resultClass = 'runs';
-    }
-
-    return result;
-}*/
     // ============================================
     // DATA EXPORT
     // ============================================
@@ -1728,26 +1713,15 @@ applyPenalty(data) {
                 totalMatches: this.tournamentStats.matches || 0
             },
             teams: this.teams.map(t => ({
-                name: t.name,
-                captain: t.captain,
-                viceCaptain: t.viceCaptain,
-                squad: t.squad,
-                matches: t.matchesPlayed || 0,
-                wins: t.wins || 0,
-                losses: t.losses || 0,
-                points: t.points || 0,
-                netRunRate: t.netRunRate || 0
-            })),
+                name: t.name, captain: t.captain, viceCaptain: t.viceCaptain,
+                squad: t.squad, matches: t.matchesPlayed || 0,
+                wins: t.wins || 0, losses: t.losses || 0,
+                points: t.points || 0, netRunRate: t.netRunRate || 0            })),
             pointsTable: this.getPointsTable(),
             fixtures: this.fixtures.matches.map(f => ({
-                team1: f.team1,
-                team2: f.team2,
-                date: f.date,
-                venue: f.venue,
-                host: f.host,
-                status: f.status,
-                result: f.result,
-                manOfMatch: f.manOfMatch
+                team1: f.team1, team2: f.team2, date: f.date,
+                venue: f.venue, host: f.host, status: f.status,
+                result: f.result, manOfMatch: f.manOfMatch
             })),
             playerStats: {
                 batsmen: this.playerStats.batsmen,
@@ -1790,73 +1764,14 @@ applyPenalty(data) {
     }
 
     convertToHTML(data) {
-        let html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>GCL Tournament Report</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-                    .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                    h1 { color: #1a1a2e; border-bottom: 3px solid #ffd700; padding-bottom: 10px; }
-                    h2 { color: #1a1a2e; margin-top: 30px; }
-                    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-                    th { background: #1a1a2e; color: white; padding: 10px; text-align: left; }
-                    td { padding: 8px 10px; border-bottom: 1px solid #eee; }
-                    tr:hover td { background: #f9f9f9; }
-                    .gold { color: #ffd700; font-weight: bold; }
-                    .silver { color: #c0c0c0; font-weight: bold; }
-                    .bronze { color: #cd7f32; font-weight: bold; }
-                    .header { background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                    .header h1 { color: #ffd700; border: none; }
-                    .meta { color: #aaa; font-size: 0.9rem; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>🏏 GEM-STAR Championship 2026</h1>
-                        <p>Tournament Report</p>
-                        <p class="meta">Exported: ${new Date(data.tournament.exportedAt).toLocaleString()}</p>
-                    </div>
-        `;
-
-        html += `<h2>🏆 Points Table</h2><table><thead><tr><th>Rank</th><th>Team</th><th>Matches</th><th>Wins</th><th>Losses</th><th>Points</th><th>NRR</th></tr></thead><tbody>`;
+        let html = `<!DOCTYPE html><html><head><title>GCL Report</title></head><body>`;
+        html += `<h1>GEM-STAR Championship 2026</h1>`;
+        html += `<p>Exported: ${new Date(data.tournament.exportedAt).toLocaleString()}</p>`;
+        html += `<h2>Points Table</h2><table border="1"><tr><th>Rank</th><th>Team</th><th>Mat</th><th>W</th><th>L</th><th>Pts</th><th>NRR</th></tr>`;
         data.pointsTable.forEach(t => {
-            const rankClass = t.rank === 1 ? 'gold' : t.rank === 2 ? 'silver' : t.rank === 3 ? 'bronze' : '';
-            html += `<tr><td class="${rankClass}">#${t.rank}</td><td><strong>${t.name}</strong></td><td>${t.matches}</td><td>${t.wins}</td><td>${t.losses}</td><td><strong>${t.points}</strong></td><td>${t.netRunRate}</td></tr>`;
+            html += `<tr><td>${t.rank}</td><td>${t.name}</td><td>${t.matches}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.points}</td><td>${t.netRunRate}</td></tr>`;
         });
-        html += `</tbody></table>`;
-
-        html += `<h2>🏏 Top Batsmen</h2><table><thead><tr><th>Rank</th><th>Player</th><th>Runs</th><th>Balls</th><th>Fours</th><th>Sixes</th><th>Avg</th><th>SR</th><th>Highest</th></tr></thead><tbody>`;
-        data.topBatsmen.forEach((p, i) => {
-            const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-            html += `<tr><td class="${rankClass}">#${i+1}</td><td><strong>${p.name}</strong></td><td>${p.runs||0}</td><td>${p.balls||0}</td><td>${p.fours||0}</td><td>${p.sixes||0}</td><td>${(p.average||0).toFixed(2)}</td><td>${(p.strikeRate||0).toFixed(2)}</td><td>${p.highest||0}</td></tr>`;
-        });
-        html += `</tbody></table>`;
-
-        html += `<h2>⚾ Top Bowlers</h2><table><thead><tr><th>Rank</th><th>Player</th><th>Wickets</th><th>Balls</th><th>Runs</th><th>Economy</th><th>Best</th><th>Matches</th></tr></thead><tbody>`;
-        data.topBowlers.forEach((p, i) => {
-            const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-            html += `<tr><td class="${rankClass}">#${i+1}</td><td><strong>${p.name}</strong></td><td>${p.wickets||0}</td><td>${p.balls||0}</td><td>${p.runsConceded||0}</td><td>${(p.economy||0).toFixed(2)}</td><td>${p.best||0}</td><td>${p.matches||0}</td></tr>`;
-        });
-        html += `</tbody></table>`;
-
-        html += `<h2>⭐ Man of the Match</h2><table><thead><tr><th>Rank</th><th>Player</th><th>Times Won</th></tr></thead><tbody>`;
-        data.topManOfMatch.forEach((p, i) => {
-            const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-            html += `<tr><td class="${rankClass}">#${i+1}</td><td><strong>${p.name}</strong></td><td>${p.count||0}</td></tr>`;
-        });
-        html += `</tbody></table>`;
-
-        html += `
-                    <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; color: #666; font-size: 0.85rem;">
-                        Generated by GCL Tournament System • ${new Date().toLocaleString()}
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
+        html += `</table></body></html>`;
         return html;
     }
 }
@@ -1878,95 +1793,79 @@ io.on('connection', (socket) => {
         bowlers: gameEngine.getTopBowlers(),
         manOfMatch: gameEngine.getTopManOfMatch()
     });
-    // ============================================
-// SOCKET EVENTS — NON-STRIKER & PENALTY
-// ============================================
 
-// Set Non-Striker
-socket.on('setNonStriker', (data) => {
-    try {
-        const result = gameEngine.setNonStriker(data.name);
-        io.emit('nonStrikerSet', {
-            name: data.name,
-            state: gameEngine.getMatchState()
-        });
-        io.emit('stateUpdate', gameEngine.getMatchState());
-        io.emit('notification', `🔄 Non-Striker set: ${data.name}`);
-    } catch (error) {
-        socket.emit('error', { message: error.message });
-    }
-});
-
-// Apply Penalty
-socket.on('applyPenalty', (data) => {
-    try {
-        const result = gameEngine.applyPenalty(data);
-        if (result.error) {
-            socket.emit('penaltyError', { message: result.error });
-            return;
+    socket.on('setStriker', (data) => {
+        try {
+            const result = gameEngine.setStriker(data.name);
+            if (result.error) {
+                socket.emit('strikerError', { message: result.error });
+                return;
+            }
+            io.emit('strikerSet', { name: data.name, state: gameEngine.getMatchState() });
+            io.emit('stateUpdate', gameEngine.getMatchState());
+            io.emit('notification', `🏏 Striker set: ${data.name}`);
+        } catch (error) {
+            socket.emit('strikerError', { message: error.message });
         }
-        io.emit('penaltyApplied', {
-            message: result.message,
-            state: gameEngine.getMatchState()
-        });
-        io.emit('stateUpdate', gameEngine.getMatchState());
-        io.emit('pointsTable', gameEngine.getPointsTable());
-        io.emit('topStats', {
-            batsmen: gameEngine.getTopBatsmen(),
-            bowlers: gameEngine.getTopBowlers(),
-            manOfMatch: gameEngine.getTopManOfMatch()
-        });
-        io.emit('notification', `⚠️ ${result.message}`);
-    } catch (error) {
-        socket.emit('error', { message: error.message });
-    }
-});
-// ============================================
-// SET BATTING/BOWLING TEAMS
-// ============================================
+    });
 
-socket.on('setBattingBowlingTeams', (data) => {
-    try {
-        const { battingTeam, bowlingTeam } = data;
-        
-        // Find team names in match state
-        const team1Name = gameEngine.matchState.team1.name;
-        const team2Name = gameEngine.matchState.team2.name;
-        
-        // Determine which team is batting and which is bowling
-        let battingTeamId = battingTeam === team1Name ? 1 : 2;
-        let bowlingTeamId = bowlingTeam === team1Name ? 1 : 2;
-        
-        // Switch batting and bowling teams
-        gameEngine.matchState.battingTeam = battingTeamId;
-        gameEngine.matchState.bowlingTeam = bowlingTeamId;
-        
-        // Update current batsman from batting team
-        const battingTeamObj = battingTeamId === 1 ? gameEngine.matchState.team1 : gameEngine.matchState.team2;
-        const bowlingTeamObj = bowlingTeamId === 1 ? gameEngine.matchState.team1 : gameEngine.matchState.team2;
-        
-        // Set current batsman from batting team
-        if (battingTeamObj.battingOrder && battingTeamObj.battingOrder.length > 0) {
-            battingTeamObj.currentBatsman = battingTeamObj.battingOrder[0];
-            gameEngine.matchState.currentBatsmanName = battingTeamObj.currentBatsman;
-            gameEngine.striker = battingTeamObj.currentBatsman;
-            gameEngine.nonStriker = battingTeamObj.battingOrder[1] || 'Non-Striker';
+    socket.on('setNonStriker', (data) => {
+        try {
+            const result = gameEngine.setNonStriker(data.name);
+            if (result.error) {
+                socket.emit('nonStrikerError', { message: result.error });
+                return;
+            }
+            io.emit('nonStrikerSet', { name: data.name, state: gameEngine.getMatchState() });
+            io.emit('stateUpdate', gameEngine.getMatchState());
+            io.emit('notification', `🔄 Non-Striker set: ${data.name}`);
+        } catch (error) {
+            socket.emit('nonStrikerError', { message: error.message });
         }
-        
-        io.emit('teamsSet', {
-            battingTeam: battingTeam,
-            bowlingTeam: bowlingTeam,
-            state: gameEngine.getMatchState()
-        });
-        io.emit('stateUpdate', gameEngine.getMatchState());
-        io.emit('notification', `🏏 ${battingTeam} batting vs ${bowlingTeam} bowling`);
-    } catch (error) {
-        socket.emit('error', { message: error.message });
-    }
-});
-    // ============================================
-    // SOCKET EVENTS — ADMIN OVERRIDE
-    // ============================================
+    });
+
+    socket.on('applyPenalty', (data) => {
+        try {
+            const result = gameEngine.applyPenalty(data);
+            if (result.error) {
+                socket.emit('penaltyError', { message: result.error });
+                return;
+            }
+            io.emit('penaltyApplied', { message: result.message, state: gameEngine.getMatchState() });
+            io.emit('stateUpdate', gameEngine.getMatchState());
+            io.emit('pointsTable', gameEngine.getPointsTable());
+            io.emit('notification', `⚠️ ${result.message}`);
+        } catch (error) {
+            socket.emit('error', { message: error.message });
+        }
+    });
+
+    socket.on('setBattingBowlingTeams', (data) => {
+        try {
+            const { battingTeam, bowlingTeam } = data;
+            const team1Name = gameEngine.matchState.team1.name;
+            const team2Name = gameEngine.matchState.team2.name;
+
+            const battingTeamId = battingTeam === team1Name ? 1 : 2;
+            const bowlingTeamId = bowlingTeam === team1Name ? 1 : 2;
+
+            gameEngine.matchState.battingTeam = battingTeamId;
+            gameEngine.matchState.bowlingTeam = bowlingTeamId;
+
+            gameEngine.matchState.striker = '';
+            gameEngine.matchState.nonStriker = '';
+            gameEngine._syncStrikerFields();
+
+            io.emit('teamsSet', {
+                battingTeam, bowlingTeam,
+                state: gameEngine.getMatchState()
+            });
+            io.emit('stateUpdate', gameEngine.getMatchState());
+            io.emit('notification', `🏏 ${battingTeam} batting vs ${bowlingTeam} bowling`);
+        } catch (error) {
+            socket.emit('error', { message: error.message });
+        }
+    });
 
     socket.on('editBall', (data) => {
         try {
@@ -1975,17 +1874,9 @@ socket.on('setBattingBowlingTeams', (data) => {
                 socket.emit('error', { message: result.error });
                 return;
             }
-            io.emit('ballUpdated', {
-                result: result.message,
-                state: gameEngine.getMatchState()
-            });
+            io.emit('ballUpdated', { result: result.message, state: gameEngine.getMatchState() });
             io.emit('stateUpdate', gameEngine.getMatchState());
             io.emit('pointsTable', gameEngine.getPointsTable());
-            io.emit('topStats', {
-                batsmen: gameEngine.getTopBatsmen(),
-                bowlers: gameEngine.getTopBowlers(),
-                manOfMatch: gameEngine.getTopManOfMatch()
-            });
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -1998,10 +1889,36 @@ socket.on('setBattingBowlingTeams', (data) => {
                 socket.emit('error', { message: result.error });
                 return;
             }
-            io.emit('ballDeleted', {
-                result: result.message,
-                state: gameEngine.getMatchState()
-            });
+            io.emit('ballDeleted', { result: result.message, state: gameEngine.getMatchState() });
+            io.emit('stateUpdate', gameEngine.getMatchState());
+            io.emit('pointsTable', gameEngine.getPointsTable());
+        } catch (error) {
+            socket.emit('error', { message: error.message });
+        }
+    });
+
+    socket.on('editScorecardStats', (data) => {
+        try {
+            const result = gameEngine.editScorecardStats(data);
+            if (result.error) {
+                socket.emit('error', { message: result.error });
+                return;
+            }
+            io.emit('scorecardUpdated', { message: result.message, state: gameEngine.getMatchState() });
+            io.emit('stateUpdate', gameEngine.getMatchState());
+            io.emit('notification', `✏️ ${result.message}`);
+        } catch (error) {
+            socket.emit('error', { message: error.message });
+        }
+    });
+
+    socket.on('finishMatch', async () => {
+        try {
+            const result = await gameEngine.finishMatch();
+            if (result.error) {
+                socket.emit('error', { message: result.error });
+                return;
+            }
             io.emit('stateUpdate', gameEngine.getMatchState());
             io.emit('pointsTable', gameEngine.getPointsTable());
             io.emit('topStats', {
@@ -2009,6 +1926,9 @@ socket.on('setBattingBowlingTeams', (data) => {
                 bowlers: gameEngine.getTopBowlers(),
                 manOfMatch: gameEngine.getTopManOfMatch()
             });
+            io.emit('fixturesUpdate', gameEngine.getFixtures());
+            io.emit('matchFinished', { message: result.message, winner: result.winner });
+            io.emit('notification', `🏆 ${result.message}`);
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -2057,10 +1977,8 @@ socket.on('setBattingBowlingTeams', (data) => {
     socket.on('setupMatch', (data) => {
         try {
             const state = gameEngine.setupMatch(
-                data.team1Id,
-                data.team2Id,
-                data.team1Order,
-                data.team2Order
+                data.team1Id, data.team2Id,
+                data.team1Order, data.team2Order
             );
             io.emit('stateUpdate', state);
             io.emit('notification', `🏏 Match setup: ${gameEngine.matchState.team1.name} vs ${gameEngine.matchState.team2.name}`);
@@ -2110,16 +2028,9 @@ socket.on('setBattingBowlingTeams', (data) => {
     socket.on('completeFixtureWithScore', (data) => {
         try {
             const { fixtureId, team1Runs, team1Overs, team2Runs, team2Overs, winner, manOfMatch, round } = data;
-            
             gameEngine.completeFixtureWithScore(
-                fixtureId,
-                winner,
-                team1Runs,
-                team1Overs,
-                team2Runs,
-                team2Overs,
-                manOfMatch || 'Not Applicable',
-                round || 1
+                fixtureId, winner, team1Runs, team1Overs,
+                team2Runs, team2Overs, manOfMatch || 'Not Applicable', round || 1
             ).then(fixture => {
                 io.emit('fixturesUpdate', gameEngine.getFixtures());
                 io.emit('pointsTable', gameEngine.getPointsTable());
@@ -2145,33 +2056,23 @@ socket.on('setBattingBowlingTeams', (data) => {
 // REST API ENDPOINTS
 // ============================================
 
-app.use(express.json());
-
-app.get('/api/teams', (req, res) => {
-    res.json(gameEngine.getAllTeams());
-});
+app.get('/api/teams', (req, res) => res.json(gameEngine.getAllTeams()));
 
 app.post('/api/teams', (req, res) => {
     try {
-        gameEngine.createTeam(req.body).then(team => {
-            res.json(team);
-        });
+        gameEngine.createTeam(req.body).then(team => res.json(team));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.get('/api/match/state', (req, res) => {
-    res.json(gameEngine.getMatchState());
-});
+app.get('/api/match/state', (req, res) => res.json(gameEngine.getMatchState()));
 
 app.post('/api/match/setup', (req, res) => {
     try {
         const state = gameEngine.setupMatch(
-            req.body.team1Id,
-            req.body.team2Id,
-            req.body.team1Order,
-            req.body.team2Order
+            req.body.team1Id, req.body.team2Id,
+            req.body.team1Order, req.body.team2Order
         );
         res.json(state);
     } catch (error) {
@@ -2180,47 +2081,28 @@ app.post('/api/match/setup', (req, res) => {
 });
 
 app.post('/api/match/reset', (req, res) => {
-    const result = gameEngine.resetMatchAdmin();
-    res.json(result);
+    res.json(gameEngine.resetMatchAdmin());
 });
 
 app.post('/api/match/bat', (req, res) => {
     const result = gameEngine.batsmanSetScore(req.body);
-    if (result.error) {
-        res.status(400).json(result);
-    } else {
-        io.emit('scoreUpdate', {
-            type: 'batsmanSet',
-            result: result,
-            state: gameEngine.getMatchState()
-        });
-        res.json(result);
-    }
+    if (result.error) return res.status(400).json(result);
+    io.emit('scoreUpdate', { type: 'batsmanSet', result, state: gameEngine.getMatchState() });
+    res.json(result);
 });
 
 app.post('/api/match/bowl', (req, res) => {
     const result = gameEngine.bowlerGuess(req.body);
-    if (result.error) {
-        res.status(400).json(result);
-    } else {
-        io.emit('scoreUpdate', {
-            type: 'bowlResult',
-            result: result,
-            state: gameEngine.getMatchState()
-        });
-        res.json(result);
-    }
+    if (result.error) return res.status(400).json(result);
+    io.emit('scoreUpdate', { type: 'bowlResult', result, state: gameEngine.getMatchState() });
+    res.json(result);
 });
 
-app.get('/api/fixtures', (req, res) => {
-    res.json(gameEngine.getFixtures());
-});
+app.get('/api/fixtures', (req, res) => res.json(gameEngine.getFixtures()));
 
 app.post('/api/fixtures', (req, res) => {
     try {
-        gameEngine.createFixture(req.body).then(fixture => {
-            res.json(fixture);
-        });
+        gameEngine.createFixture(req.body).then(fixture => res.json(fixture));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -2228,9 +2110,7 @@ app.post('/api/fixtures', (req, res) => {
 
 app.post('/api/fixtures/start/:id', (req, res) => {
     try {
-        gameEngine.startFixture(req.params.id).then(fixture => {
-            res.json(fixture);
-        });
+        gameEngine.startFixture(req.params.id).then(fixture => res.json(fixture));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -2239,13 +2119,9 @@ app.post('/api/fixtures/start/:id', (req, res) => {
 app.post('/api/fixtures/complete', (req, res) => {
     try {
         gameEngine.completeFixture(
-            req.body.fixtureId,
-            req.body.winner,
-            req.body.manOfMatch,
-            req.body.playerStats
-        ).then(fixture => {
-            res.json(fixture);
-        });
+            req.body.fixtureId, req.body.winner,
+            req.body.manOfMatch, req.body.playerStats
+        ).then(fixture => res.json(fixture));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -2253,28 +2129,16 @@ app.post('/api/fixtures/complete', (req, res) => {
 
 app.get('/api/points-table', (req, res) => {
     try {
-        const table = gameEngine.getPointsTable();
-        res.json(table);
+        res.json(gameEngine.getPointsTable());
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.get('/api/stats/batsmen', (req, res) => {
-    res.json(gameEngine.getTopBatsmen());
-});
-
-app.get('/api/stats/bowlers', (req, res) => {
-    res.json(gameEngine.getTopBowlers());
-});
-
-app.get('/api/stats/manofmatch', (req, res) => {
-    res.json(gameEngine.getTopManOfMatch());
-});
-
-app.get('/api/stats/player/:name', (req, res) => {
-    res.json(gameEngine.getPlayerStats(req.params.name));
-});
+app.get('/api/stats/batsmen', (req, res) => res.json(gameEngine.getTopBatsmen()));
+app.get('/api/stats/bowlers', (req, res) => res.json(gameEngine.getTopBowlers()));
+app.get('/api/stats/manofmatch', (req, res) => res.json(gameEngine.getTopManOfMatch()));
+app.get('/api/stats/player/:name', (req, res) => res.json(gameEngine.getPlayerStats(req.params.name)));
 
 app.get('/api/export', (req, res) => {
     const format = req.query.format || 'json';
@@ -2312,7 +2176,6 @@ app.get('/api/export/points-table', (req, res) => {
                 csv += `${t.rank},${t.name},${t.matches},${t.wins},${t.losses},${t.points},${t.netRunRate}\n`;
             });
             res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', 'attachment; filename=gcl-points-table.csv');
             res.send(csv);
         } else {
             res.status(400).json({ error: 'Invalid format' });
@@ -2333,23 +2196,11 @@ app.get('/api/export/player-stats', (req, res) => {
         if (format === 'json') {
             res.json(data);
         } else if (format === 'csv') {
-            let csv = '=== BATSMEN ===\n';
-            csv += 'Player,Runs,Balls,Fours,Sixes,Average,SR,Highest\n';
+            let csv = '=== BATSMEN ===\nPlayer,Runs,Balls,Fours,Sixes,Average,SR,Highest\n';
             data.batsmen.forEach(p => {
                 csv += `${p.name},${p.runs||0},${p.balls||0},${p.fours||0},${p.sixes||0},${(p.average||0).toFixed(2)},${(p.strikeRate||0).toFixed(2)},${p.highest||0}\n`;
             });
-            csv += '\n=== BOWLERS ===\n';
-            csv += 'Player,Wickets,Balls,Runs,Economy,Best,Matches\n';
-            data.bowlers.forEach(p => {
-                csv += `${p.name},${p.wickets||0},${p.balls||0},${p.runsConceded||0},${(p.economy||0).toFixed(2)},${p.best||0},${p.matches||0}\n`;
-            });
-            csv += '\n=== MAN OF THE MATCH ===\n';
-            csv += 'Player,Count\n';
-            data.manOfMatch.forEach(p => {
-                csv += `${p.name},${p.count||0}\n`;
-            });
             res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', 'attachment; filename=gcl-player-stats.csv');
             res.send(csv);
         } else {
             res.status(400).json({ error: 'Invalid format' });
@@ -2361,12 +2212,11 @@ app.get('/api/export/player-stats', (req, res) => {
 
 app.get('/api/export/top10', (req, res) => {
     try {
-        const data = {
+        res.json({
             batsmen: gameEngine.getTopBatsmen(10),
             bowlers: gameEngine.getTopBowlers(10),
             manOfMatch: gameEngine.getTopManOfMatch(5)
-        };
-        res.json(data);
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -2374,15 +2224,14 @@ app.get('/api/export/top10', (req, res) => {
 
 app.get('/api/export/all', (req, res) => {
     try {
-        const data = {
+        res.json({
             pointsTable: gameEngine.getPointsTable(),
             topBatsmen: gameEngine.getTopBatsmen(10),
             topBowlers: gameEngine.getTopBowlers(10),
             manOfMatch: gameEngine.getTopManOfMatch(5),
             teams: gameEngine.getAllTeams(),
             fixtures: gameEngine.getFixtures()
-        };
-        res.json(data);
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -2391,9 +2240,7 @@ app.get('/api/export/all', (req, res) => {
 app.get('/api/fixtures/round/:round', (req, res) => {
     try {
         const round = parseInt(req.params.round);
-        const fixtures = gameEngine.getFixtures();
-        const roundMatches = fixtures.matches.filter(f => f.round === round);
-        res.json(roundMatches);
+        res.json(gameEngine.getFixtures().matches.filter(f => f.round === round));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -2401,39 +2248,22 @@ app.get('/api/fixtures/round/:round', (req, res) => {
 
 app.get('/api/points-table/:group?', (req, res) => {
     try {
-        const group = req.params.group;
-        const table = gameEngine.getPointsTable(group);
-        res.json(table);
+        res.json(gameEngine.getPointsTable(req.params.group));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.get('/api/tournament/stats', (req, res) => {
-    res.json(gameEngine.tournamentStats);
-});
-
-// ============================================
-// ADMIN - MATCH COMPLETE WITH SCORE (API)
-// ============================================
+app.get('/api/tournament/stats', (req, res) => res.json(gameEngine.tournamentStats));
 
 app.post('/api/fixtures/complete-with-score', (req, res) => {
     try {
         const { fixtureId, team1Runs, team1Overs, team2Runs, team2Overs, winner, manOfMatch } = req.body;
-        
         gameEngine.completeFixtureWithScore(
-            fixtureId,
-            winner,
-            team1Runs,
-            team1Overs,
-            team2Runs,
-            team2Overs,
-            manOfMatch || 'Not Applicable'
-        ).then(fixture => {
-            res.json({ success: true, fixture });
-        }).catch(err => {
-            res.status(400).json({ success: false, error: err.message });
-        });
+            fixtureId, winner, team1Runs, team1Overs,
+            team2Runs, team2Overs, manOfMatch || 'Not Applicable'
+        ).then(fixture => res.json({ success: true, fixture }))
+         .catch(err => res.status(400).json({ success: false, error: err.message }));
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
     }
@@ -2442,21 +2272,9 @@ app.post('/api/fixtures/complete-with-score', (req, res) => {
 app.post('/api/matches/update', (req, res) => {
     try {
         const { id, team1Runs, team1Overs, team2Runs, team2Overs, winner } = req.body;
-        
-        const result = gameEngine.updateMatchResult(
-            id,
-            team1Runs,
-            team1Overs,
-            team2Runs,
-            team2Overs,
-            winner
-        );
-        
-        if (result.success) {
-            res.json({ success: true });
-        } else {
-            res.status(404).json({ success: false, error: result.error });
-        }
+        const result = gameEngine.updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner);
+        if (result.success) res.json({ success: true });
+        else res.status(404).json({ success: false, error: result.error });
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
     }
@@ -2464,14 +2282,9 @@ app.post('/api/matches/update', (req, res) => {
 
 app.post('/api/matches/delete', (req, res) => {
     try {
-        const { id } = req.body;
-        const result = gameEngine.deleteMatchResult(id);
-        
-        if (result.success) {
-            res.json({ success: true });
-        } else {
-            res.status(404).json({ success: false, error: result.error });
-        }
+        const result = gameEngine.deleteMatchResult(req.body.id);
+        if (result.success) res.json({ success: true });
+        else res.status(404).json({ success: false, error: result.error });
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
     }
@@ -2480,27 +2293,18 @@ app.post('/api/matches/delete', (req, res) => {
 app.get('/api/matches/:id', (req, res) => {
     try {
         const match = gameEngine.getMatchResult(req.params.id);
-        if (match) {
-            res.json(match);
-        } else {
-            res.status(404).json({ error: 'Match not found' });
-        }
+        if (match) res.json(match);
+        else res.status(404).json({ error: 'Match not found' });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-// ============================================
-// FIXTURE UPDATE/DELETE API
-// ============================================
-
 app.post('/api/fixtures/update', (req, res) => {
     try {
         const updatedFixture = req.body;
         const index = gameEngine.fixtures.matches.findIndex(f => f.id === updatedFixture.id);
-        if (index === -1) {
-            return res.status(404).json({ success: false, error: 'Fixture not found' });
-        }
+        if (index === -1) return res.status(404).json({ success: false, error: 'Fixture not found' });
         gameEngine.fixtures.matches[index] = updatedFixture;
         gameEngine.saveAllData();
         res.json({ success: true });
@@ -2511,11 +2315,8 @@ app.post('/api/fixtures/update', (req, res) => {
 
 app.post('/api/fixtures/delete', (req, res) => {
     try {
-        const { id } = req.body;
-        const index = gameEngine.fixtures.matches.findIndex(f => f.id === id);
-        if (index === -1) {
-            return res.status(404).json({ success: false, error: 'Fixture not found' });
-        }
+        const index = gameEngine.fixtures.matches.findIndex(f => f.id === req.body.id);
+        if (index === -1) return res.status(404).json({ success: false, error: 'Fixture not found' });
         gameEngine.fixtures.matches.splice(index, 1);
         gameEngine.saveAllData();
         res.json({ success: true });
@@ -2528,10 +2329,7 @@ app.post('/api/teams/update', (req, res) => {
     try {
         const updatedTeam = req.body;
         const index = gameEngine.teams.findIndex(t => t.id === updatedTeam.id);
-        if (index === -1) {
-            return res.status(404).json({ success: false, error: 'Team not found' });
-        }
-        // ✅ Sirf provided fields update karein
+        if (index === -1) return res.status(404).json({ success: false, error: 'Team not found' });
         if (updatedTeam.name !== undefined) gameEngine.teams[index].name = updatedTeam.name;
         if (updatedTeam.captain !== undefined) gameEngine.teams[index].captain = updatedTeam.captain;
         if (updatedTeam.viceCaptain !== undefined) gameEngine.teams[index].viceCaptain = updatedTeam.viceCaptain;
@@ -2543,17 +2341,12 @@ app.post('/api/teams/update', (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 });
-// ============================================
-// TEAMS - UPDATE GROUP ONLY
-// ============================================
 
 app.post('/api/teams/update-group', (req, res) => {
     try {
         const { id, group } = req.body;
         const index = gameEngine.teams.findIndex(t => t.id === id);
-        if (index === -1) {
-            return res.status(404).json({ success: false, error: 'Team not found' });
-        }
+        if (index === -1) return res.status(404).json({ success: false, error: 'Team not found' });
         gameEngine.teams[index].group = group || null;
         gameEngine.saveAllData();
         res.json({ success: true });
@@ -2561,13 +2354,11 @@ app.post('/api/teams/update-group', (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 });
+
 app.post('/api/teams/delete', (req, res) => {
     try {
-        const { id } = req.body;
-        const index = gameEngine.teams.findIndex(t => t.id === id);
-        if (index === -1) {
-            return res.status(404).json({ success: false, error: 'Team not found' });
-        }
+        const index = gameEngine.teams.findIndex(t => t.id === req.body.id);
+        if (index === -1) return res.status(404).json({ success: false, error: 'Team not found' });
         gameEngine.teams.splice(index, 1);
         gameEngine.saveAllData();
         res.json({ success: true });
@@ -2577,32 +2368,23 @@ app.post('/api/teams/delete', (req, res) => {
 });
 
 // ============================================
-// GOOGLE SHEETS API - SERVICE ACCOUNT (FIXED)
+// GOOGLE SHEETS FETCH
 // ============================================
 
 const SHEET_ID = '1p35HY4tjArypj2fPp6JXtIIkHXLoV_kk5kZxZrjixeA';
 
 async function fetchTop10FromSheet() {
     try {
-        console.log('🔍 Fetching from Google Sheet...');
-        
         let creds;
         try {
-            const credsPath = '/etc/secrets/credentials.json';
-            const credsContent = fs.readFileSync(credsPath, 'utf8');
-            creds = JSON.parse(credsContent);
-            console.log('✅ Credentials loaded from Secret File');
+            creds = JSON.parse(fs.readFileSync('/etc/secrets/credentials.json', 'utf8'));
         } catch (fileError) {
-            console.log('📁 Trying local credentials.json...');
-            const localCreds = fs.readFileSync('./credentials.json', 'utf8');
-            creds = JSON.parse(localCreds);
+            creds = JSON.parse(fs.readFileSync('./credentials.json', 'utf8'));
         }
-        
         if (!creds.client_email || !creds.private_key) {
-            console.error('❌ Credentials missing!');
             return { batsmen: [], bowlers: [], mom: [] };
         }
-        
+
         const { GoogleSpreadsheet } = require('google-spreadsheet');
         const doc = new GoogleSpreadsheet(SHEET_ID);
         await doc.useServiceAccountAuth({
@@ -2610,8 +2392,6 @@ async function fetchTop10FromSheet() {
             private_key: creds.private_key
         });
         await doc.loadInfo();
-        
-        console.log('✅ Sheet loaded. Titles:', doc.sheetsByIndex.map(s => s.title));
 
         const batsmenSheet = doc.sheetsByIndex[0];
         const bowlersSheet = doc.sheetsByIndex[2];
@@ -2620,10 +2400,6 @@ async function fetchTop10FromSheet() {
         const batsmenRows = await batsmenSheet.getRows();
         const bowlersRows = await bowlersSheet.getRows();
         const momRows = await momSheet.getRows();
-
-        console.log('📊 Batsmen rows:', batsmenRows.length);
-        console.log('📊 Bowlers rows:', bowlersRows.length);
-        console.log('📊 MOM rows:', momRows.length);
 
         const batsmen = batsmenRows.map(row => {
             const data = row._rawData || {};
@@ -2661,10 +2437,6 @@ async function fetchTop10FromSheet() {
             };
         });
 
-        console.log('✅ Batsmen:', batsmen);
-        console.log('✅ Bowlers:', bowlers);
-        console.log('✅ MOM:', mom);
-
         return { batsmen, bowlers, mom };
     } catch (error) {
         console.error('❌ Google Sheet Error:', error.message);
@@ -2674,17 +2446,11 @@ async function fetchTop10FromSheet() {
 
 app.get('/api/top10/sheet', async (req, res) => {
     try {
-        const data = await fetchTop10FromSheet();
-        res.json(data);
+        res.json(await fetchTop10FromSheet());
     } catch (error) {
-        console.error('❌ API Error:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
-
-// ============================================
-// GOOGLE SHEETS CODE ENDS HERE
-// ============================================
 
 // ============================================
 // START SERVER
@@ -2693,11 +2459,10 @@ app.get('/api/top10/sheet', async (req, res) => {
 async function startServer() {
     await connectMongoDB();
     await gameEngine.loadAllData();
-    
+
     server.listen(PORT, () => {
         console.log(`🏏 GCL Tournament Server running on port ${PORT}`);
         console.log(`📡 Socket.IO ready for real-time updates`);
-        console.log(`📋 http://localhost:${PORT} for the interface`);
     });
 }
 
