@@ -2146,21 +2146,7 @@ function addBallByBall(over, ball, result) {
     }
 }
 
-// Reset live score display on match reset
-socket.on('stateUpdate', (state) => {
-    if (state && state.isActive === false) {
-        // Reset display
-        document.getElementById('runsDisplay').textContent = '0';
-        document.getElementById('wicketsDisplay').textContent = '0';
-        document.getElementById('ballsDisplay').textContent = '0';
-        document.getElementById('extrasDisplay').textContent = '0';
-        document.getElementById('lastBallDisplay').textContent = 'Last Ball: -';
-        document.getElementById('strikerName').textContent = '-';
-        document.getElementById('nonStrikerName').textContent = '-';
-        document.getElementById('currentBowler').textContent = '-';
-        document.getElementById('ballByBall').innerHTML = '<p class="empty-message">No balls bowled yet</p>';
-    }
-});
+
 // ============================================
 // ADMIN - FIXTURE EDIT/DELETE
 // ============================================
@@ -3244,13 +3230,6 @@ function deleteBall(index) {
     }
 });
 
-// State update (full sync)
-socket.on('stateUpdate', (state) => {
-    if (state) {
-        updateMatchState(state);
-    }
-});
-
 // Ball updated (admin override)
 socket.on('ballUpdated', (data) => {
     if (data.result) {
@@ -3819,18 +3798,6 @@ socket.on('teamsList', (data) => {
     populateDropdowns(data, currentMatchTeams.team1, currentMatchTeams.team2);
 });
 
-/*socket.on('stateUpdate', (state) => {
-    if (state && state.battingTeam && state.bowlingTeam) {
-        currentMatchTeams.team1 = state.battingTeam.name;
-        currentMatchTeams.team2 = state.bowlingTeam.name;
-        // Re-populate dropdowns with match teams
-        if (window.teams) {
-            populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
-        }
-    }
-    updateMatchState(state);
-});*/
-
 // ============================================
 // 9. ADMIN LOCK FUNCTIONS (FIXED)
 // ============================================
@@ -3978,24 +3945,46 @@ socket.on('scoreUpdate', (data) => {
     if (data.state) updateMatchState(data.state);
 });
 
-// app.js - Socket event listeners - Update these
+// app.js - Socket event listeners - Canonical stateUpdate handler
 
 socket.on('stateUpdate', (state) => {
-    if (state) {
-        // ✅ Always update scoreboard first
-        updateScoreboard(state);
-        
-        if (state.battingTeam && state.bowlingTeam) {
-            currentMatchTeams.team1 = state.battingTeam.name;
-            currentMatchTeams.team2 = state.bowlingTeam.name;
-        }
-        
-        updateMatchState(state);
-        
-        // ✅ Refresh dropdowns after state update
-        if (window.teams) {
-            populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
-        }
+    if (!state) return;
+
+    // Handle match reset (isActive === false)
+    if (state.isActive === false) {
+        const runsEl = document.getElementById('runsDisplay');
+        if (runsEl) runsEl.textContent = '0';
+        const wktsEl = document.getElementById('wicketsDisplay');
+        if (wktsEl) wktsEl.textContent = '0';
+        const ballsEl = document.getElementById('ballsDisplay');
+        if (ballsEl) ballsEl.textContent = '0';
+        const extrasEl = document.getElementById('extrasDisplay');
+        if (extrasEl) extrasEl.textContent = '0';
+        const lastBallEl = document.getElementById('lastBallDisplay');
+        if (lastBallEl) lastBallEl.textContent = 'Last Ball: -';
+        const strikerEl = document.getElementById('strikerName');
+        if (strikerEl) strikerEl.textContent = '-';
+        const nonStrikerEl = document.getElementById('nonStrikerName');
+        if (nonStrikerEl) nonStrikerEl.textContent = '-';
+        const bowlerEl = document.getElementById('currentBowler');
+        if (bowlerEl) bowlerEl.textContent = '-';
+        const ballByBallEl = document.getElementById('ballByBall');
+        if (ballByBallEl) ballByBallEl.innerHTML = '<p class="empty-message">No balls bowled yet</p>';
+    }
+
+    // Track current match teams
+    if (state.battingTeam && state.bowlingTeam) {
+        currentMatchTeams.team1 = state.battingTeam.name;
+        currentMatchTeams.team2 = state.bowlingTeam.name;
+    }
+
+    // Update scoreboard and match state
+    updateScoreboard(state);
+    updateMatchState(state);
+
+    // Refresh dropdowns with match team players
+    if (window.teams) {
+        populateDropdowns(window.teams, currentMatchTeams.team1, currentMatchTeams.team2);
     }
 });
 
