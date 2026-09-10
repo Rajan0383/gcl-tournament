@@ -2067,66 +2067,6 @@ let liveScoreData = {
     document.getElementById('strikeDisplay').textContent = state.striker || '-';
 }*/
 
-// Socket events for live score
-socket.on('scoreUpdate', (data) => {
-    if (data.state) {
-        const state = data.state;
-        liveScoreData = {
-            ...liveScoreData,
-            runs: state.battingTeam?.runs || 0,
-            wickets: state.battingTeam?.wickets || 0,
-            balls: state.battingTeam?.balls || 0,
-            extras: state.battingTeam?.extras || 0,
-            currentOver: state.currentOver || 0,
-            currentBall: state.currentBall || 0,
-            striker: state.striker || liveScoreData.striker,
-            nonStriker: state.nonStriker || liveScoreData.nonStriker,
-            bowler: state.currentBowlerName || liveScoreData.bowler
-        };
-        
-        if (state.battingTeam?.name) {
-            document.getElementById('battingTeamName').textContent = state.battingTeam.name;
-        }
-        if (state.bowlingTeam?.name) {
-            document.getElementById('bowlingTeamName').textContent = state.bowlingTeam.name;
-        }
-        if (state.target) {
-            document.getElementById('targetDisplay').textContent = `Target: ${state.target}`;
-        }
-        
-        updateScoreboard(state);
-        updateMatchState(state);
-        
-        // Update last ball
-        if (state.lastBallResult) {
-            const result = state.lastBallResult;
-            let displayText = '';
-            if (result.isOut) {
-                displayText = `🎯 OUT! ${result.message}`;
-            } else if (result.isWide) {
-                displayText = `📏 WIDE! ${result.runsScored} runs`;
-            } else if (result.isNoBall) {
-                displayText = `❌ NO-BALL! ${result.runsScored} runs`;
-            } else if (result.isPowerplay) {
-                displayText = `⚡ ${result.message}`;
-            } else {
-                displayText = `${result.runsScored} runs`;
-            }
-            document.getElementById('lastBallDisplay').textContent = `Last Ball: ${displayText}`;
-            
-            // Add to ball-by-ball
-            addBallByBall(state.currentOver, state.currentBall, displayText);
-        }
-    }
-    
-    if (data.result && data.result.message) {
-        showNotification(data.result.message, 
-            data.result.isOut ? 'danger' : 
-            data.result.isWide ? 'warning' : 'success'
-        );
-    }
-});
-
 function addBallByBall(over, ball, result) {
     const container = document.getElementById('ballByBall');
     if (!container) return;
@@ -3914,36 +3854,6 @@ socket.on('teamsSet', (data) => {
 // ============================================
 // 10. SOCKET EVENT LISTENERS (ADD PENALTY & NON-STRIKER)
 // ============================================
-
-socket.on('scoreUpdate', (data) => {
-    if (data.type === 'batsmanSet') {
-        batsmanScoreSet = true;
-        document.getElementById('batsmanStatus').textContent = `✅ Score set: ${data.result.score}`;
-        document.getElementById('batsmanStatus').className = 'status-msg success';
-        document.getElementById('bowlerStatus').textContent = '⏳ Ready to guess...';
-        document.getElementById('bowlerStatus').className = 'status-msg waiting';
-        showNotification(`✅ ${data.result.message}`, 'success');
-    } else if (data.type === 'bowlResult') {
-        batsmanScoreSet = false;
-        document.getElementById('batsmanStatus').textContent = '⏳ Waiting...';
-        document.getElementById('batsmanStatus').className = 'status-msg waiting';
-        document.getElementById('bowlerStatus').textContent = '⏳ Waiting...';
-        document.getElementById('bowlerStatus').className = 'status-msg waiting';
-        document.getElementById('batsmanScoreInput').value = '';
-        document.getElementById('bowlerGuessInput').value = '';
-        
-        if (data.result && data.result.isOut) {
-            showNotification(`🎯 ${data.result.message}`, 'danger');
-        } else if (data.result && data.result.isWide) {
-            showNotification(`📏 ${data.result.message}`, 'warning');
-        } else if (data.result && data.result.isNoBall) {
-            showNotification(`❌ ${data.result.message}`, 'warning');
-        } else if (data.result) {
-            showNotification(`✅ ${data.result.message}`, 'success');
-        }
-    }
-    if (data.state) updateMatchState(data.state);
-});
 
 // app.js - Socket event listeners - Canonical stateUpdate handler
 
