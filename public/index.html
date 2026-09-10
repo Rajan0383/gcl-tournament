@@ -655,11 +655,12 @@
                 <h3>🏏 Batsman (Striker)</h3>
                 <p class="hint">Select batsman and enter score</p>
                 <select id="batsmanSelect" class="player-input" onchange="toggleBatsmanManualInput()">
-                    <option value="">Select Batsman...</option>
-                </select>
+                 <option value="">Select Batsman...</option>
+           </select>
+                <div id="batsmanSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
                 <div id="batsmanManualInput" style="display: none; margin-bottom: 8px;">
-                    <input type="text" id="batsmanManualName" placeholder="Enter batsman name..." class="player-input">
-                </div>
+                <input type="text" id="batsmanManualName" placeholder="Enter batsman name..." class="player-input">
+           </div>
                 <div class="input-group">
                     <input type="number" id="batsmanScoreInput" placeholder="Score (3-6)" min="3" max="6">
                     <button onclick="submitBatScore()">✅ SUBMIT</button>
@@ -672,12 +673,13 @@
             <div class="control-section bowler-section">
                 <h3>⚾ Bowler</h3>
                 <p class="hint">Select bowler and enter guess</p>
-                <select id="bowlerSelect" class="player-input" onchange="toggleBowlerManualInput()">
-                    <option value="">Select Bowler...</option>
-                </select>
+               <select id="bowlerSelect" class="player-input" onchange="toggleBowlerManualInput()">
+               <option value="">Select Bowler...</option>
+         </select>
+                <div id="bowlerSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
                 <div id="bowlerManualInput" style="display: none; margin-bottom: 8px;">
-                    <input type="text" id="bowlerManualName" placeholder="Enter bowler name..." class="player-input">
-                </div>
+                <input type="text" id="bowlerManualName" placeholder="Enter bowler name..." class="player-input">
+         </div>
                 <div class="input-group">
                     <input type="number" id="bowlerGuessInput" placeholder="Guess (3-6)" min="3" max="6">
                     <button onclick="submitBowlGuess()">✅ GUESS!</button>
@@ -690,12 +692,13 @@
             <div class="control-section nonstriker-section" style="grid-column: 1 / -1; margin-top: 10px;">
                 <h3>🔄 Non-Striker</h3>
                 <p class="hint">Select non-striker batsman</p>
-                <select id="nonStrikerSelect" class="player-input" onchange="toggleNonStrikerManualInput()">
-                    <option value="">Select Non-Striker...</option>
-                </select>
+               <select id="nonStrikerSelect" class="player-input" onchange="toggleNonStrikerManualInput()">
+                <option value="">Select Non-Striker...</option>
+          </select>
+                <div id="nonStrikerSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
                 <div id="nonStrikerManualInput" style="display: none; margin-bottom: 8px;">
-                    <input type="text" id="nonStrikerManualName" placeholder="Enter non-striker name..." class="player-input">
-                </div>
+                 <input type="text" id="nonStrikerManualName" placeholder="Enter non-striker name..." class="player-input">
+            </div>
                 <button onclick="setNonStriker()" class="nonstriker-btn" style="padding: 8px 20px; background: #60a5fa; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">✅ Set Non-Striker</button>
                 <div id="nonStrikerStatus" class="status-msg waiting">⏳ Not set</div>
             </div>
@@ -743,9 +746,18 @@
         </div>
 
         <!-- SCORECARD -->
-        <div class="scorecard-section">
-            <h3>📋 Scorecard</h3>
-            <div class="scorecard-grid">
+       <!-- SCORECARD -->
+<div class="scorecard-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3 style="margin: 0;">📋 Scorecard</h3>
+        <div style="display: flex; gap: 8px;">
+            <button id="editStatsBtn" onclick="enterEditStatsMode()" style="display: none; padding: 8px 16px; background: #fbbf24; color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">✏️ Edit Stats</button>
+            <button id="saveStatsBtn" onclick="saveEditStats()" style="display: none; padding: 8px 16px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">💾 Save</button>
+            <button id="cancelStatsBtn" onclick="cancelEditStats()" style="display: none; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">❌ Cancel</button>
+        </div>
+    </div>
+    <div id="editStatsNotice" style="display:none; padding: 8px 12px; background: #fef3c7; color: #92400e; border-radius: 6px; margin-top: 8px; font-size: 0.85rem;">✏️ Edit mode active — modify the fields below, then click Save. Server updates paused for scorecard.</div>
+    <div class="scorecard-grid">
                 <div class="batsmen-scorecard">
                     <h4>🏏 Batsmen</h4>
                     <div id="batsmenScorecard"><p class="empty-message">No batsmen yet</p></div>
