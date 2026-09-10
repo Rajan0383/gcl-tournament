@@ -2057,7 +2057,7 @@ function updateMatchState(state) {
     updateBallByBall(state);
     updateAllowedScores(state);
 }
-
+}
 function updateScorecard(state) {
     if (!state) return;
     if (isEditStatsMode) return; // Pause rendering during edit mode
