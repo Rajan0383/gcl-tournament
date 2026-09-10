@@ -2000,7 +2000,6 @@ function updateMatchState(state) {
         if (bowlerSelect) bowlerSelect.value = '';
     }
 
-   // Batsman dropdown auto-select / clear
     // Batsman dropdown auto-select / clear + prompt
     const batsmanSelect = document.getElementById('batsmanSelect');
     const batsmanStatusEl = document.getElementById('batsmanStatus');
@@ -2029,6 +2028,16 @@ function updateMatchState(state) {
         }
     }
    // Non-striker dropdown auto-select / clear
+     // Non-striker dropdown auto-select / clear
+    const nonStrikerSelect = document.getElementById('nonStrikerSelect');
+    if (nonStrikerSelect) {
+        if (state.nonStriker && state.nonStriker !== 'Non-Striker') {
+            // ... (select/append) ...
+            const nonStrikerStatus = document.getElementById('nonStrikerStatus');
+            if (nonStrikerStatus) {
+                nonStrikerStatus.textContent = `✅ ${state.nonStriker}`;
+                nonStrikerStatus.className = 'status-msg success';
+            }
         } else {
             nonStrikerSelect.value = '';
             const nonStrikerStatus = document.getElementById('nonStrikerStatus');
