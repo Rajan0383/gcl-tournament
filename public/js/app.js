@@ -2027,7 +2027,7 @@ function updateMatchState(state) {
             }
         }
     }
-   // Non-striker dropdown auto-select / clear
+   
      // Non-striker dropdown auto-select / clear
     const nonStrikerSelect = document.getElementById('nonStrikerSelect');
     if (nonStrikerSelect) {
