@@ -513,313 +513,298 @@
                 </div>
             </div>
 
-<!-- ========================================== -->
-<!-- LIVE SCORE TAB -->
-<!-- ========================================== -->
-<div class="tab-content" id="tab-livescore">
-    <div class="livescore-container">
-        
-        <!-- HEADER + ADMIN TOP RIGHT -->
-        <div class="livescore-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-            <div>
-                <h2>🎯 Live Score</h2>
-                <p class="livescore-subtitle">GEM-STAR Championship 2026</p>
-            </div>
-            <!-- Admin Button — Top Right -->
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span id="adminModeStatus" class="admin-status read-only" style="font-size: 0.85rem;">👤 Read-Only</span>
-                <button id="adminLockBtn" onclick="toggleAdminLock()" class="admin-lock-btn" style="padding: 6px 16px; font-size: 0.85rem;">🔐 Admin</button>
-                <button id="adminLogoutBtn" onclick="logoutAdmin()" class="admin-logout-btn" style="display: none; padding: 6px 16px; font-size: 0.85rem;">🔒 Logout</button>
-            </div>
-        </div>
-
-        <!-- Admin Login Popup -->
-        <div id="adminLoginPopup" class="admin-login-popup" style="display:none;">
-            <div class="admin-login-box">
-                <h3>🔐 Admin Access</h3>
-                <p>Enter password to manage live score</p>
-                <div class="admin-login-input">
-                    <input type="password" id="adminPasswordInput" placeholder="Enter Password">
-                    <button onclick="checkLiveScorePassword()">Unlock</button>
-                </div>
-                <div id="adminLoginError" class="admin-login-error">❌ Incorrect password!</div>
-                <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
-            </div>
-        </div>
-<!-- ========================================== -->
-<!-- BATTING/BOWLING TEAM SELECTION — Admin Only -->
-<!-- ========================================== -->
-<div class="team-selection" style="display: none; margin-bottom: 16px; padding: 16px; background: rgba(0, 0, 0, 0.15); border-radius: 12px; border: 1px solid rgba(255, 215, 0, 0.1);">
-    <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="color: var(--text-muted); font-weight: 600;">🏏 Batting:</span>
-            <select id="battingTeamSelect" class="player-input" style="width: auto; min-width: 120px; margin-bottom: 0;">
-                <option value="">Select Team</option>
-            </select>
-        </div>
-        <span style="color: var(--text-muted); font-weight: 700;">VS</span>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="color: var(--text-muted); font-weight: 600;">⚾ Bowling:</span>
-            <select id="bowlingTeamSelect" class="player-input" style="width: auto; min-width: 120px; margin-bottom: 0;">
-                <option value="">Select Team</option>
-            </select>
-        </div>
-        <button onclick="setBattingBowlingTeams()" class="admin-lock-btn" style="padding: 8px 24px;">✅ SET TEAMS</button>
-    </div>
-    <div id="teamSelectionStatus" class="status-msg waiting" style="margin-top: 8px; text-align: center;">⏳ Select batting and bowling teams</div>
-</div>
-        <!-- SCOREBOARD -->
-        <div class="scoreboard">
-            <div class="scoreboard-top">
-                <div class="batting-team">
-                    <div class="team-name" id="battingTeamName">Team 1</div>
-                    <div class="score-display">
-                        <span class="runs" id="runsDisplay">0</span>
-                        <span class="wickets">/ <span id="wicketsDisplay">0</span></span>
-                    </div>
-                    <div class="overs-display">( <span id="ballsDisplay">0</span> balls )</div>
-                    <div class="extras-display">Extras: <span id="extrasDisplay">0</span></div>
-                </div>
-                <div class="vs-divider">VS</div>
-                <div class="bowling-team">
-                    <div class="team-name" id="bowlingTeamName">Team 2</div>
-                    <div class="target-display" id="targetDisplay"></div>
-                </div>
-            </div>
-            <div class="current-players">
-                <div class="player-info batsman-info">
-                    <span class="label">🏏 Batsmen:</span>
-                    <div class="batsmen-names">
-    <div class="striker-line">
-        <span class="strike-arrow">▶</span>
-        <span class="striker" id="strikerName">-</span>
-    </div>
-    <div class="non-striker-line">
-        <span class="strike-arrow" style="opacity:0.5;">●</span>
-        <span class="non-striker" id="nonStrikerName">-</span>
-    </div>
-</div>
-                    <span class="status" id="batsmanStatus">⏳ Waiting...</span>
-                </div>
-                <div class="player-info bowler-info">
-                    <span class="label">⚾ Bowler:</span>
-                    <span class="name" id="currentBowler">-</span>
-                    <span class="status" id="bowlerStatus">⏳ Waiting...</span>
-                </div>
-            </div>
-            <div class="over-info">
-                <div class="over-detail">
-                    <span class="over-label">Current Over:</span>
-                    <span class="over-value" id="currentOverDisplay">0.0</span>
-                </div>
-                <div class="over-detail">
-                    <span class="over-label">Numbers:</span>
-                    <span class="over-value" id="allowedNumbers">3, 4, 5, 6</span>
-                </div>
-                <div class="over-detail">
-                    <span class="over-label">Strike:</span>
-                    <span class="over-value" id="strikeDisplay">-</span>
-                </div>
-            </div>
-            <div class="rules-info">
-                <span class="rule-badge wide-badge">📏 Wide: 3-6 / 6-3</span>
-                <span class="rule-badge noball-badge">❌ No-Ball: 5</span>
-                <span class="rule-badge strike-badge">🔄 Strike Change: 3, 5</span>
-                <span class="rule-badge no-freehit">🚫 No Free Hit</span>
-            </div>
-            <div class="last-ball" id="lastBallDisplay">Last Ball: -</div>
-        </div>
-
-        <!-- No-Ball Indicator -->
-        <div class="noball-indicator">
-            <span class="noball-label">⚠️ No-Ball used this over:</span>
-            <span id="noBallStatus" class="noball-status no">❌ No</span>
-        </div>
-
-        <!-- STRIKE RULES -->
-        <div class="strike-rules">
-            <div class="strike-rule-item odd"><span class="strike-rule-icon">🔄</span><span><strong>ODD</strong> (3,5) → <span class="strike-change">Strike CHANGES</span></span></div>
-            <div class="strike-rule-item even"><span class="strike-rule-icon">✅</span><span><strong>EVEN</strong> (4,6) → <span class="strike-remain">Strike REMAINS</span></span></div>
-            <div class="strike-rule-item wide-3"><span class="strike-rule-icon">📏</span><span><strong>WIDE 3</strong> → <span class="strike-change">Strike CHANGES</span></span></div>
-            <div class="strike-rule-item wide-6"><span class="strike-rule-icon">📏</span><span><strong>WIDE 6</strong> → <span class="strike-remain">Strike REMAINS</span></span></div>
-            <div class="strike-rule-item noball"><span class="strike-rule-icon">❌</span><span><strong>NO-BALL 5</strong> → <span class="strike-change">Strike CHANGES</span></span></div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- GAME CONTROLS — Admin Only -->
-        <!-- ========================================== -->
-        <div class="game-controls" style="display: none;">
-
-            <!-- Batsman Section -->
-            <div class="control-section batsman-section">
-                <h3>🏏 Batsman (Striker)</h3>
-                <p class="hint">Select batsman and enter score</p>
-                <select id="batsmanSelect" class="player-input" onchange="toggleBatsmanManualInput()">
-                 <option value="">Select Batsman...</option>
-           </select>
-                <div id="batsmanSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
-                <div id="batsmanManualInput" style="display: none; margin-bottom: 8px;">
-                <input type="text" id="batsmanManualName" placeholder="Enter batsman name..." class="player-input">
-           </div>
-                <div class="input-group">
-                    <input type="number" id="batsmanScoreInput" placeholder="Score (3-6)" min="3" max="6">
-                    <button onclick="submitBatScore()">✅ SUBMIT</button>
-                </div>
-                <div class="allowed-scores">Allowed: 3, 4, 5, 6</div>
-                <div id="batsmanStatus" class="status-msg waiting">⏳ Waiting...</div>
-            </div>
-
-            <!-- Bowler Section -->
-            <div class="control-section bowler-section">
-                <h3>⚾ Bowler</h3>
-                <p class="hint">Select bowler and enter guess</p>
-               <select id="bowlerSelect" class="player-input" onchange="toggleBowlerManualInput()">
-               <option value="">Select Bowler...</option>
-         </select>
-                <div id="bowlerSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
-                <div id="bowlerManualInput" style="display: none; margin-bottom: 8px;">
-                <input type="text" id="bowlerManualName" placeholder="Enter bowler name..." class="player-input">
-         </div>
-                <div class="input-group">
-                    <input type="number" id="bowlerGuessInput" placeholder="Guess (3-6)" min="3" max="6">
-                    <button onclick="submitBowlGuess()">✅ GUESS!</button>
-                </div>
-                <div class="allowed-scores">Allowed: 3, 4, 5, 6</div>
-                <div id="bowlerStatus" class="status-msg waiting">⏳ Waiting...</div>
-            </div>
-
-            <!-- Non-Striker Section -->
-            <div class="control-section nonstriker-section" style="grid-column: 1 / -1; margin-top: 10px;">
-                <h3>🔄 Non-Striker</h3>
-                <p class="hint">Select non-striker batsman</p>
-               <select id="nonStrikerSelect" class="player-input" onchange="toggleNonStrikerManualInput()">
-                <option value="">Select Non-Striker...</option>
-          </select>
-                <div id="nonStrikerSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
-                <div id="nonStrikerManualInput" style="display: none; margin-bottom: 8px;">
-                 <input type="text" id="nonStrikerManualName" placeholder="Enter non-striker name..." class="player-input">
-            </div>
-                <button onclick="setNonStriker()" class="nonstriker-btn" style="padding: 8px 20px; background: #60a5fa; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">✅ Set Non-Striker</button>
-                <div id="nonStrikerStatus" class="status-msg waiting">⏳ Not set</div>
-            </div>
-
             <!-- ========================================== -->
-            <!-- PENALTY ACTIONS SECTION — NEW -->
+            <!-- LIVE SCORE TAB -->
             <!-- ========================================== -->
-            <div class="control-section penalty-section" style="grid-column: 1 / -1; margin-top: 10px; border: 2px solid #ff6b6b; background: rgba(255, 107, 107, 0.05);">
-                <h3 style="color: #ff6b6b;">⚠️ Penalty Actions</h3>
-                <p class="hint">Apply penalty to batsman or bowler</p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <!-- Batsman Penalty -->
-                    <div>
-                        <h4 style="color: #fb923c; margin-bottom: 6px;">🏏 Batsman Penalty</h4>
-                        <select id="penaltyBatsmanSelect" class="player-input" style="margin-bottom: 6px;">
-                            <option value="">Select Batsman...</option>
-                        </select>
-                        <select id="penaltyBatsmanOffence" class="player-input" style="margin-bottom: 6px;">
-                            <option value="">Select Offence...</option>
-                            <option value="score_without_permission">Score without permission</option>
-                            <option value="text_instead_of_score">Text instead of score</option>
-                            <option value="double_score">Double score</option>
-                            <option value="edit_delete_score">Edit/delete score in PM</option>
-                        </select>
-                        <button onclick="applyPenalty('batsman')" class="penalty-btn" style="padding: 6px 16px; background: #fb923c; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif; width: 100%;">✅ Apply Batsman Penalty</button>
+            <div class="tab-content" id="tab-livescore">
+                <div class="livescore-container">
+
+                    <!-- HEADER + ADMIN -->
+                    <div class="livescore-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <h2>🎯 Live Score</h2>
+                            <p class="livescore-subtitle">GEM-STAR Championship 2026</p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="adminModeStatus" class="admin-status read-only" style="font-size: 0.85rem;">👤 Read-Only</span>
+                            <button id="adminLockBtn" onclick="toggleAdminLock()" class="admin-lock-btn" style="padding: 6px 16px; font-size: 0.85rem;">🔐 Admin</button>
+                            <button id="adminLogoutBtn" onclick="logoutAdmin()" class="admin-logout-btn" style="display: none; padding: 6px 16px; font-size: 0.85rem;">🔒 Logout</button>
+                        </div>
                     </div>
-                    
-                    <!-- Bowler Penalty -->
-                    <div>
-                        <h4 style="color: #60a5fa; margin-bottom: 6px;">⚾ Bowler Penalty</h4>
-                        <select id="penaltyBowlerSelect" class="player-input" style="margin-bottom: 6px;">
-                            <option value="">Select Bowler...</option>
-                        </select>
-                        <select id="penaltyBowlerOffence" class="player-input" style="margin-bottom: 6px;">
-                            <option value="">Select Offence...</option>
-                            <option value="guess_before_permission">Guess before permission</option>
-                        </select>
-                        <button onclick="applyPenalty('bowler')" class="penalty-btn" style="padding: 6px 16px; background: #60a5fa; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif; width: 100%;">✅ Apply Bowler Penalty</button>
+
+                    <!-- Admin Login Popup -->
+                    <div id="adminLoginPopup" class="admin-login-popup" style="display:none;">
+                        <div class="admin-login-box">
+                            <h3>🔐 Admin Access</h3>
+                            <p>Enter password to manage live score</p>
+                            <div class="admin-login-input">
+                                <input type="password" id="adminPasswordInput" placeholder="Enter Password">
+                                <button onclick="checkLiveScorePassword()">Unlock</button>
+                            </div>
+                            <div id="adminLoginError" class="admin-login-error">❌ Incorrect password!</div>
+                            <button onclick="closeAdminLogin()" class="admin-login-close">✕</button>
+                        </div>
                     </div>
+
+                    <!-- Team Selection Panel — Admin Only -->
+                    <div class="team-selection" style="display: none; margin-bottom: 16px; padding: 16px; background: rgba(0, 0, 0, 0.15); border-radius: 12px; border: 1px solid rgba(255, 215, 0, 0.1);">
+                        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="color: var(--text-muted); font-weight: 600;">🏏 Batting:</span>
+                                <select id="battingTeamSelect" class="player-input" style="width: auto; min-width: 120px; margin-bottom: 0;">
+                                    <option value="">Select Team</option>
+                                </select>
+                            </div>
+                            <span style="color: var(--text-muted); font-weight: 700;">VS</span>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="color: var(--text-muted); font-weight: 600;">⚾ Bowling:</span>
+                                <select id="bowlingTeamSelect" class="player-input" style="width: auto; min-width: 120px; margin-bottom: 0;">
+                                    <option value="">Select Team</option>
+                                </select>
+                            </div>
+                            <button onclick="setBattingBowlingTeams()" class="admin-lock-btn" style="padding: 8px 24px;">✅ SET TEAMS</button>
+                        </div>
+                        <div id="teamSelectionStatus" class="status-msg waiting" style="margin-top: 8px; text-align: center;">⏳ Select batting and bowling teams</div>
+                    </div>
+
+                    <!-- ============================================ -->
+                    <!-- SCOREBOARD — STICKY, COMPACT                  -->
+                    <!-- ============================================ -->
+                    <div class="scoreboard sticky-scoreboard">
+
+                        <!-- Team top: name + score + target -->
+                        <div class="compact-team-top">
+                            <div class="batting-team" style="text-align: left;">
+                                <div class="team-name" id="battingTeamName" style="font-size: 1.1rem;">Team 1</div>
+                                <div style="font-family: 'Orbitron', monospace;">
+                                    <span style="font-size: 1.8rem; font-weight: 900; color: var(--primary);" id="runsDisplay">0</span>
+                                    <span style="font-size: 1.2rem; font-weight: 700; color: var(--danger);">/ <span id="wicketsDisplay">0</span></span>
+                                </div>
+                                <div class="overs-display" style="font-size: 0.85rem;">( <span id="ballsDisplay">0</span> balls )</div>
+                                <div class="extras-display" style="font-size: 0.85rem;">Extras: <span id="extrasDisplay">0</span></div>
+                            </div>
+
+                            <div class="vs-divider" style="align-self: center;">VS</div>
+
+                            <div class="bowling-team" style="text-align: right;">
+                                <div class="team-name" id="bowlingTeamName" style="font-size: 1.1rem;">Team 2</div>
+                                <div class="target-display" id="targetDisplay" style="font-size: 1rem;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Three boxes: Batsman | Over | Bowler -->
+                        <div class="compact-player-row">
+                            <!-- Batsman box -->
+                            <div class="compact-box">
+                                <div class="box-label">🏏 Bat</div>
+                                <div class="box-line">
+                                    <span class="arrow">▶</span>
+                                    <span id="strikerName">-</span>
+                                </div>
+                                <div class="box-line">
+                                    <span style="opacity: 0.5;">●</span>
+                                    <span id="nonStrikerName">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Over box -->
+                            <div class="compact-box over-box">
+                                <div class="box-label">Over</div>
+                                <div class="over-num" id="currentOverDisplay">0.0</div>
+                                <div class="over-total">/ 4</div>
+                            </div>
+
+                            <!-- Bowler box -->
+                            <div class="compact-box" style="text-align: right;">
+                                <div class="box-label">⚾ Bowl</div>
+                                <div class="box-line" style="justify-content: flex-end;">
+                                    <span id="currentBowler">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Merged Last Ball + No-Ball -->
+                        <div class="merged-result-box">
+                            <div>🏏 Last Ball: <strong style="color: var(--primary);" id="lastBallDisplay">-</strong></div>
+                            <span class="divider">|</span>
+                            <div>⚠️ No-Ball used: <strong id="noBallStatus" class="noball-status no" style="color: var(--text-muted);">❌ No</strong></div>
+                        </div>
+                    </div>
+                    <!-- END SCOREBOARD -->
+
+                    <!-- ============================================ -->
+                    <!-- GAME CONTROLS — Admin Only                    -->
+                    <!-- ============================================ -->
+                    <div class="game-controls" style="display: none;">
+
+                        <div class="controls-grid-new">
+
+                            <!-- Batsman Section — GOLD -->
+                            <div class="control-section batsman-section">
+                                <h3>🏏 Batsman (Striker)</h3>
+                                <select id="batsmanSelect" class="player-input" onchange="toggleBatsmanManualInput()">
+                                    <option value="">Select Batsman...</option>
+                                </select>
+                                <div id="batsmanSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
+                                <div id="batsmanManualInput" style="display: none; margin-bottom: 8px;">
+                                    <input type="text" id="batsmanManualName" placeholder="Enter batsman name..." class="player-input">
+                                </div>
+                                <div class="input-group">
+                                    <input type="number" id="batsmanScoreInput" placeholder="Score (3-6)" min="3" max="6">
+                                    <button onclick="submitBatScore()">✅ SUBMIT</button>
+                                </div>
+                                <div id="batsmanStatus" class="status-msg waiting">⏳ Waiting...</div>
+                            </div>
+
+                            <!-- Bowler Section — PURPLE -->
+                            <div class="control-section bowler-section">
+                                <h3>⚾ Bowler</h3>
+                                <select id="bowlerSelect" class="player-input" onchange="toggleBowlerManualInput()">
+                                    <option value="">Select Bowler...</option>
+                                </select>
+                                <div id="bowlerSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
+                                <div id="bowlerManualInput" style="display: none; margin-bottom: 8px;">
+                                    <input type="text" id="bowlerManualName" placeholder="Enter bowler name..." class="player-input">
+                                </div>
+                                <div class="input-group">
+                                    <input type="number" id="bowlerGuessInput" placeholder="Guess (3-6)" min="3" max="6">
+                                    <button onclick="submitBowlGuess()">✅ GUESS!</button>
+                                </div>
+                                <div id="bowlerStatus" class="status-msg waiting">⏳ Waiting...</div>
+                            </div>
+
+                            <!-- Non-Striker Section — GREEN (narrower) -->
+                            <div class="control-section nonstriker-section">
+                                <h3>🔄 Non-Striker</h3>
+                                <select id="nonStrikerSelect" class="player-input" onchange="toggleNonStrikerManualInput()">
+                                    <option value="">Select Non-Striker...</option>
+                                </select>
+                                <div id="nonStrikerSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
+                                <div id="nonStrikerManualInput" style="display: none; margin-bottom: 8px;">
+                                    <input type="text" id="nonStrikerManualName" placeholder="Enter non-striker name..." class="player-input">
+                                </div>
+                                <button onclick="setNonStriker()" class="nonstriker-btn">✅ SET NON-STRIKER</button>
+                                <div id="nonStrikerStatus" class="status-msg waiting">⏳ Not set</div>
+                            </div>
+                        </div>
+
+                        <!-- Penalty Actions — Collapsible -->
+                        <details class="collapsible-penalty">
+                            <summary>⚠️ Penalties (click to expand)</summary>
+                            <div class="penalty-body">
+                                <div class="penalty-grid">
+                                    <div>
+                                        <h4 style="color: #fb923c; margin-bottom: 6px;">🏏 Batsman Penalty</h4>
+                                        <select id="penaltyBatsmanSelect" class="player-input" style="margin-bottom: 6px;">
+                                            <option value="">Select Batsman...</option>
+                                        </select>
+                                        <select id="penaltyBatsmanOffence" class="player-input" style="margin-bottom: 6px;">
+                                            <option value="">Select Offence...</option>
+                                            <option value="score_without_permission">Score without permission</option>
+                                            <option value="text_instead_of_score">Text instead of score</option>
+                                            <option value="double_score">Double score</option>
+                                            <option value="edit_delete_score">Edit/delete score in PM</option>
+                                        </select>
+                                        <button onclick="applyPenalty('batsman')" class="penalty-btn batsman-penalty-btn">✅ Apply Batsman Penalty</button>
+                                    </div>
+                                    <div>
+                                        <h4 style="color: #a78bfa; margin-bottom: 6px;">⚾ Bowler Penalty</h4>
+                                        <select id="penaltyBowlerSelect" class="player-input" style="margin-bottom: 6px;">
+                                            <option value="">Select Bowler...</option>
+                                        </select>
+                                        <select id="penaltyBowlerOffence" class="player-input" style="margin-bottom: 6px;">
+                                            <option value="">Select Offence...</option>
+                                            <option value="guess_before_permission">Guess before permission</option>
+                                        </select>
+                                        <button onclick="applyPenalty('bowler')" class="penalty-btn bowler-penalty-btn">✅ Apply Bowler Penalty</button>
+                                    </div>
+                                </div>
+                                <div id="penaltyStatus" class="status-msg waiting" style="margin-top: 8px;">⏳ No penalty applied</div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- ============================================ -->
+                    <!-- SCORECARD — COMPACT TABLE                     -->
+                    <!-- ============================================ -->
+                    <div class="scorecard-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <h3 style="margin: 0;">📋 Scorecard</h3>
+                            <div style="display: flex; gap: 8px;">
+                                <button id="editStatsBtn" onclick="enterEditStatsMode()" style="display: none; padding: 8px 16px; background: #fbbf24; color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">✏️ Edit Stats</button>
+                                <button id="saveStatsBtn" onclick="saveEditStats()" style="display: none; padding: 8px 16px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">💾 Save</button>
+                                <button id="cancelStatsBtn" onclick="cancelEditStats()" style="display: none; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">❌ Cancel</button>
+                            </div>
+                        </div>
+                        <div id="editStatsNotice" style="display:none; padding: 8px 12px; background: #fef3c7; color: #92400e; border-radius: 6px; margin-top: 8px; font-size: 0.85rem;">✏️ Edit mode active — modify the fields below, then click Save. Server updates paused for scorecard.</div>
+
+                        <div class="scorecard-sections">
+                            <div class="batsmen-scorecard">
+                                <h4>🏏 Batsmen</h4>
+                                <div id="batsmenScorecard"><p class="empty-message">No batsmen yet</p></div>
+                            </div>
+                            <div class="bowlers-scorecard">
+                                <h4>⚾ Bowlers</h4>
+                                <div id="bowlersScorecard"><p class="empty-message">No bowlers yet</p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ============================================ -->
+                    <!-- BALL-BY-BALL — CHIPS                          -->
+                    <!-- ============================================ -->
+                    <div class="ball-by-ball-section">
+                        <h3>📌 Ball-by-Ball</h3>
+                        <div id="ballByBall"><p class="empty-message">No balls bowled yet</p></div>
+                    </div>
+
+                    <!-- NOTIFICATION -->
+                    <div class="notification" id="notification"></div>
+
+                    <!-- RESET + FINISH BUTTONS -->
+                    <div class="reset-match-section" style="margin-top: 20px; text-align: center; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+                        <button id="resetMatchBtn" onclick="resetMatch()" class="reset-match-btn" style="padding: 12px 30px; background: #ff6b6b; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; font-family: 'Rajdhani', sans-serif; transition: all 0.3s; display: none;">🔄 Reset Match</button>
+                        <button id="finishMatchBtn" onclick="finishMatch()" class="finish-match-btn" style="padding: 12px 30px; background: #22c55e; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; font-family: 'Rajdhani', sans-serif; transition: all 0.3s; display: none;">🏁 Finish Match</button>
+                    </div>
+
+                    <!-- EDIT BALL POPUP -->
+                    <div id="editBallPopup" class="edit-ball-popup" style="display:none;">
+                        <div class="edit-ball-box">
+                            <div class="edit-ball-header">
+                                <span>✏️ Edit Ball — <span id="editBallOver">Over 2.4</span></span>
+                                <button onclick="closeEditBall()" class="edit-ball-close">✕</button>
+                            </div>
+                            <div id="editBallCurrent" class="edit-ball-current">
+                                <p><strong>Current:</strong> <span id="editCurrentData">-</span></p>
+                            </div>
+                            <div class="edit-ball-form">
+                                <div class="edit-form-row">
+                                    <label>🏏 Batsman:</label>
+                                    <select id="editBatsmanSelect"></select>
+                                </div>
+                                <div class="edit-form-row">
+                                    <label>Batsman Score:</label>
+                                    <input type="number" id="editBatsmanScore" min="3" max="6">
+                                </div>
+                                <div class="edit-form-row">
+                                    <label>⚾ Bowler:</label>
+                                    <select id="editBowlerSelect"></select>
+                                </div>
+                                <div class="edit-form-row">
+                                    <label>Bowler Guess:</label>
+                                    <input type="number" id="editBowlerGuess" min="3" max="6">
+                                </div>
+                                <div class="edit-form-row" style="flex-direction: row; gap: 10px;">
+                                    <button onclick="updateBall()" class="edit-confirm-btn">✅ Update</button>
+                                    <button onclick="closeEditBall()" class="edit-cancel-btn">❌ Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-                <div id="penaltyStatus" class="status-msg waiting" style="margin-top: 8px;">⏳ No penalty applied</div>
             </div>
 
-        </div>
-
-        <!-- SCORECARD -->
-       <!-- SCORECARD -->
-<div class="scorecard-section">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <h3 style="margin: 0;">📋 Scorecard</h3>
-        <div style="display: flex; gap: 8px;">
-            <button id="editStatsBtn" onclick="enterEditStatsMode()" style="display: none; padding: 8px 16px; background: #fbbf24; color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">✏️ Edit Stats</button>
-            <button id="saveStatsBtn" onclick="saveEditStats()" style="display: none; padding: 8px 16px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">💾 Save</button>
-            <button id="cancelStatsBtn" onclick="cancelEditStats()" style="display: none; padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">❌ Cancel</button>
-        </div>
-    </div>
-    <div id="editStatsNotice" style="display:none; padding: 8px 12px; background: #fef3c7; color: #92400e; border-radius: 6px; margin-top: 8px; font-size: 0.85rem;">✏️ Edit mode active — modify the fields below, then click Save. Server updates paused for scorecard.</div>
-    <div class="scorecard-grid">
-                <div class="batsmen-scorecard">
-                    <h4>🏏 Batsmen</h4>
-                    <div id="batsmenScorecard"><p class="empty-message">No batsmen yet</p></div>
-                </div>
-                <div class="bowlers-scorecard">
-                    <h4>⚾ Bowlers</h4>
-                    <div id="bowlersScorecard"><p class="empty-message">No bowlers yet</p></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- BALL-BY-BALL -->
-        <div class="ball-by-ball-section">
-            <h3>📌 Ball-by-Ball</h3>
-            <div id="ballByBall"><p class="empty-message">No balls bowled yet</p></div>
-        </div>
-
-        <!-- NOTIFICATION -->
-        <div class="notification" id="notification"></div>
-
-       <!-- RESET MATCH + FINISH MATCH BUTTONS -->
-<div class="reset-match-section" style="margin-top: 20px; text-align: center; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
-    <button id="resetMatchBtn" onclick="resetMatch()" class="reset-match-btn" style="padding: 12px 30px; background: #ff6b6b; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; font-family: 'Rajdhani', sans-serif; transition: all 0.3s; display: none;">🔄 Reset Match</button>
-    <button id="finishMatchBtn" onclick="finishMatch()" class="finish-match-btn" style="padding: 12px 30px; background: #22c55e; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; font-family: 'Rajdhani', sans-serif; transition: all 0.3s; display: none;">🏁 Finish Match</button>
-</div>
-        <!-- EDIT BALL POPUP -->
-        <div id="editBallPopup" class="edit-ball-popup" style="display:none;">
-            <div class="edit-ball-box">
-                <div class="edit-ball-header">
-                    <span>✏️ Edit Ball — <span id="editBallOver">Over 2.4</span></span>
-                    <button onclick="closeEditBall()" class="edit-ball-close">✕</button>
-                </div>
-                <div id="editBallCurrent" class="edit-ball-current">
-                    <p><strong>Current:</strong> <span id="editCurrentData">Kohli 5 | Bumrah 3 → NO-BALL</span></p>
-                </div>
-                <div class="edit-ball-form">
-                    <div class="edit-form-row">
-                        <label>🏏 Batsman:</label>
-                        <select id="editBatsmanSelect"></select>
-                    </div>
-                    <div class="edit-form-row">
-                        <label>Batsman Score:</label>
-                        <input type="number" id="editBatsmanScore" min="3" max="6">
-                    </div>
-                    <div class="edit-form-row">
-                        <label>⚾ Bowler:</label>
-                        <select id="editBowlerSelect"></select>
-                    </div>
-                    <div class="edit-form-row">
-                        <label>Bowler Guess:</label>
-                        <input type="number" id="editBowlerGuess" min="3" max="6">
-                    </div>
-                    <div class="edit-form-row" style="flex-direction: row; gap: 10px;">
-                        <button onclick="updateBall()" class="edit-confirm-btn">✅ Update</button>
-                        <button onclick="closeEditBall()" class="edit-cancel-btn">❌ Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-</div>
 
             <!-- ========================================== -->
             <!-- TOP 10 PLAYERS TAB -->
