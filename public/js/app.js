@@ -329,7 +329,25 @@ function updateScoreboard(state) {
         const over = state.currentOver !== undefined ? state.currentOver : 0;
         overEl.textContent = `Over: ${over}.${ball} / ${state.totalOvers || 4}`;
     }
+    // Update compact over display
+    const compactOverEl = document.getElementById('currentOverDisplay');
+    if (compactOverEl) {
+        const over = state.currentOver !== undefined ? state.currentOver : 0;
+        const ball = state.currentBall || 0;
+        compactOverEl.textContent = `${over}.${ball}`;
+    }
 
+    // Update no-ball status
+    const noBallEl = document.getElementById('noBallStatus');
+    if (noBallEl) {
+        if (state.noBallUsed) {
+            noBallEl.textContent = '✅ Yes';
+            noBallEl.className = 'noball-status yes';
+        } else {
+            noBallEl.textContent = '❌ No';
+            noBallEl.className = 'noball-status no';
+        }
+    }
     if (state.battingTeam) {
         const battingName = document.getElementById('battingTeamName');
         const runs = document.getElementById('runsDisplay');
@@ -390,9 +408,9 @@ function updateScoreboard(state) {
             } else {
                 displayText = `${result.runsScored} runs`;
             }
-            lastBallDisplay.textContent = `Last Ball: ${displayText}`;
+            lastBallDisplay.textContent = displayText;
         } else {
-            lastBallDisplay.textContent = 'Last Ball: -';
+           lastBallDisplay.textContent = '-';
         }
     }
 }
