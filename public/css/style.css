@@ -5570,7 +5570,7 @@ select option:hover {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     gap: 16px;
-    align-items: stretch;
+    align-items: start;
     margin-top: 12px;
 }
 
@@ -5581,7 +5581,8 @@ select option:hover {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    justify-content: center;
+    align-self: start;
+    height: fit-content;
 }
 
 .compact-box .box-label {
