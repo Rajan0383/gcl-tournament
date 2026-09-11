@@ -1989,10 +1989,32 @@ function updateMatchState(state) {
     }
 
     // Striker / non-striker display
-    const strikerName = document.getElementById('strikerName');
-    if (strikerName) strikerName.textContent = state.striker || '-';
-    const nonStrikerName = document.getElementById('nonStrikerName');
-    if (nonStrikerName) nonStrikerName.textContent = state.nonStriker || '-';
+const strikerName = document.getElementById('strikerName');
+if (strikerName) strikerName.textContent = state.striker || '-';
+const nonStrikerName = document.getElementById('nonStrikerName');
+if (nonStrikerName) nonStrikerName.textContent = state.nonStriker || '-';
+
+// Striker stats (runs(balls))
+const strikerStats = document.getElementById('strikerStats');
+if (strikerStats) {
+    if (state.striker) {
+        const batsman = (state.batsmen || []).find(b => b.name === state.striker);
+        strikerStats.textContent = batsman ? `${batsman.runs || 0}(${batsman.balls || 0})` : '0(0)';
+    } else {
+        strikerStats.textContent = '';
+    }
+}
+
+// Non-striker stats (runs(balls))
+const nonStrikerStats = document.getElementById('nonStrikerStats');
+if (nonStrikerStats) {
+    if (state.nonStriker) {
+        const batsman = (state.batsmen || []).find(b => b.name === state.nonStriker);
+        nonStrikerStats.textContent = batsman ? `${batsman.runs || 0}(${batsman.balls || 0})` : '0(0)';
+    } else {
+        nonStrikerStats.textContent = '';
+    }
+}
 
     // Bowler
     const currentBowler = document.getElementById('currentBowler');
