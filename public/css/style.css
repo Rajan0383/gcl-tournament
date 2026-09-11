@@ -5542,7 +5542,7 @@ select option:hover {
 .game-controls {
     grid-template-columns: 1fr;
 }
-}
+
 .scoreboard.sticky-scoreboard {
     position: sticky;
     top: 0;
