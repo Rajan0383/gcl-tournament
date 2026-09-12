@@ -2489,6 +2489,42 @@ app.post('/api/teams/delete', (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 });
+app.post('/api/points-table/update-stats', (req, res) => {
+    try {
+        const { updates } = req.body;
+        if (!Array.isArray(updates)) {
+            return res.status(400).json({ success: false, error: 'Invalid updates array' });
+        }
+
+        const updated = [];
+
+        updates.forEach(u => {
+            const team = gameEngine.teams.find(t => t.name === u.name);
+            if (!team) return;
+
+            if (u.matches !== undefined) team.matchesPlayed = parseInt(u.matches) || 0;
+            if (u.wins !== undefined) team.wins = parseInt(u.wins) || 0;
+            if (u.losses !== undefined) team.losses = parseInt(u.losses) || 0;
+            if (u.points !== undefined) team.points = parseInt(u.points) || 0;
+            if (u.netRunRate !== undefined) team.netRunRate = parseFloat(u.netRunRate) || 0;
+            if (u.runsScored !== undefined) team.runsScored = parseInt(u.runsScored) || 0;
+            if (u.runsConceded !== undefined) team.runsConceded = parseInt(u.runsConceded) || 0;
+            if (u.oversPlayed !== undefined) team.oversPlayed = parseFloat(u.oversPlayed) || 0;
+            if (u.oversBowled !== undefined) team.oversBowled = parseFloat(u.oversBowled) || 0;
+
+            updated.push(team.name);
+        });
+
+        gameEngine.saveAllData();
+
+        // Emit updated points table to all clients
+        io.emit('pointsTable', gameEngine.getPointsTable());
+
+        res.json({ success: true, updated });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // ============================================
 // GOOGLE SHEETS FETCH
