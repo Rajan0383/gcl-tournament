@@ -2101,18 +2101,50 @@ if (nonStrikerStats) {
 function updateScorecard(state) {
     if (!state) return;
     if (isEditStatsMode) return; // Pause rendering during edit mode
+
     const batsmen = state.batsmen || [];
     const batsmenContainer = document.getElementById('batsmenScorecard');
     if (batsmenContainer) {
         if (batsmen.length === 0) {
             batsmenContainer.innerHTML = '<p class="empty-message">No batsmen yet</p>';
         } else {
-            batsmenContainer.innerHTML = batsmen.map(b => `
-                <div class="scorecard-player">
-                    <span class="sc-name">${b.name}</span>
-                    <span class="sc-stats">${b.runs || 0}(${b.balls || 0}) ${b.fours || 0}x4 ${b.sixes || 0}x6</span>
-                </div>
-            `).join('');
+            const striker = state.striker || '';
+            const nonStriker = state.nonStriker || '';
+            batsmenContainer.innerHTML = `
+                <table class="scorecard-table">
+                    <thead>
+                        <tr>
+                            <th>Batsman</th>
+                            <th>R</th>
+                            <th>B</th>
+                            <th>4s</th>
+                            <th>6s</th>
+                            <th>SR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${batsmen.map(b => {
+                            const isStriker = b.name === striker;
+                            const isNonStriker = b.name === nonStriker;
+                            const marker = isStriker ? '▶ ' : (isNonStriker ? '● ' : '');
+                            const markerClass = isStriker ? 'striker-mark' : (isNonStriker ? 'non-striker-mark' : '');
+                            const runs = b.runs || 0;
+                            const balls = b.balls || 0;
+                            const sr = balls > 0 ? ((runs / balls) * 100).toFixed(2) : '0.00';
+                            return `
+                                <tr>
+                                    <td class="${markerClass}">${marker}${b.name}</td>
+                                    <td>${runs}</td>
+                                    <td>${balls}</td>
+                                    <td>${b.fours || 0}</td>
+                                    <td>${b.sixes || 0}</td>
+                                    <td>${sr}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
         }
     }
 
@@ -2122,16 +2154,39 @@ function updateScorecard(state) {
         if (bowlers.length === 0) {
             bowlersContainer.innerHTML = '<p class="empty-message">No bowlers yet</p>';
         } else {
-            bowlersContainer.innerHTML = bowlers.map(b => `
-                <div class="scorecard-player">
-                    <span class="sc-name">${b.name}</span>
-                    <span class="sc-stats">${b.wickets || 0}w ${b.runsConceded || 0}r ${b.overs || 0}ov</span>
-                </div>
-            `).join('');
+            bowlersContainer.innerHTML = `
+                <table class="scorecard-table">
+                    <thead>
+                        <tr>
+                            <th>Bowler</th>
+                            <th>O</th>
+                            <th>W</th>
+                            <th>R</th>
+                            <th>Econ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bowlers.map(b => {
+                            const balls = b.balls || 0;
+                            const overs = b.overs || 0;
+                            const runs = b.runsConceded || 0;
+                            const econ = balls > 0 ? ((runs / balls) * 6).toFixed(2) : '0.00';
+                            return `
+                                <tr>
+                                    <td>${b.name}</td>
+                                    <td>${overs}</td>
+                                    <td>${b.wickets || 0}</td>
+                                    <td>${runs}</td>
+                                    <td>${econ}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
         }
     }
 }
-
 function updateBallByBall(state) {
     if (!state) return;
 
