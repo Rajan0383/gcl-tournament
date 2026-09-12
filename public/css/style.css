@@ -5919,3 +5919,77 @@ select option:hover {
 .bowlers-scorecard {
     overflow-x: auto;
 }
+/* ------------------------------------------------------------ */
+/* BALL-BY-BALL TWO COLUMNS                                      */
+/* ------------------------------------------------------------ */
+.ball-by-ball-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.ball-by-ball-column {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+
+.ball-by-ball-column.current {
+    border-color: rgba(255, 215, 0, 0.35);
+    background: rgba(255, 215, 0, 0.03);
+}
+
+.ball-by-ball-column .inning-header {
+    font-weight: 900;
+    font-size: 0.85rem;
+    color: var(--primary);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.ball-by-ball-column .ball-by-ball-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* ------------------------------------------------------------ */
+/* SCORECARD TWO SECTIONS                                        */
+/* ------------------------------------------------------------ */
+.scorecard-inning-section {
+    margin-bottom: 16px;
+    padding: 10px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.scorecard-inning-section.current {
+    background: rgba(255, 215, 0, 0.03);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+}
+
+.scorecard-inning-section .inning-header {
+    font-weight: 900;
+    font-size: 0.8rem;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+/* ------------------------------------------------------------ */
+/* RESPONSIVE                                                    */
+/* ------------------------------------------------------------ */
+@media (max-width: 768px) {
+    .ball-by-ball-columns {
+        grid-template-columns: 1fr;
+    }
+}
