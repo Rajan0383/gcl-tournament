@@ -2098,93 +2098,128 @@ if (nonStrikerStats) {
     updateAllowedScores(state);
 }
 }
+function renderBatsmanTable(batsmen, striker, nonStriker) {
+    if (!batsmen || batsmen.length === 0) {
+        return '<p class="empty-message">No batsmen yet</p>';
+    }
+    return `
+        <table class="scorecard-table">
+            <thead>
+                <tr>
+                    <th>Batsman</th>
+                    <th>R</th>
+                    <th>B</th>
+                    <th>4s</th>
+                    <th>6s</th>
+                    <th>SR</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${batsmen.map(b => {
+                    const isStriker = b.name === striker;
+                    const isNonStriker = b.name === nonStriker;
+                    const marker = isStriker ? '▶ ' : (isNonStriker ? '● ' : '');
+                    const markerClass = isStriker ? 'striker-mark' : (isNonStriker ? 'non-striker-mark' : '');
+                    const runs = b.runs || 0;
+                    const balls = b.balls || 0;
+                    const sr = balls > 0 ? ((runs / balls) * 100).toFixed(2) : '0.00';
+                    return `
+                        <tr>
+                            <td class="${markerClass}">${marker}${b.name}</td>
+                            <td>${runs}</td>
+                            <td>${balls}</td>
+                            <td>${b.fours || 0}</td>
+                            <td>${b.sixes || 0}</td>
+                            <td>${sr}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderBowlerTable(bowlers) {
+    if (!bowlers || bowlers.length === 0) {
+        return '<p class="empty-message">No bowlers yet</p>';
+    }
+    return `
+        <table class="scorecard-table">
+            <thead>
+                <tr>
+                    <th>Bowler</th>
+                    <th>O</th>
+                    <th>W</th>
+                    <th>R</th>
+                    <th>Econ</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${bowlers.map(b => {
+                    const balls = b.balls || 0;
+                    const overs = b.overs || 0;
+                    const runs = b.runsConceded || 0;
+                    const econ = balls > 0 ? ((runs / balls) * 6).toFixed(2) : '0.00';
+                    return `
+                        <tr>
+                            <td>${b.name}</td>
+                            <td>${overs}</td>
+                            <td>${b.wickets || 0}</td>
+                            <td>${runs}</td>
+                            <td>${econ}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
 function updateScorecard(state) {
     if (!state) return;
-    if (isEditStatsMode) return; // Pause rendering during edit mode
+    if (isEditStatsMode) return;
 
-    const batsmen = state.batsmen || [];
+    const currentInning = state.inning || 1;
+    const striker = state.striker || '';
+    const nonStriker = state.nonStriker || '';
+
+    const batsmen1 = state.batsmenInning1 || [];
+    const bowlers1 = state.bowlersInning1 || [];
+    const batsmen2 = state.batsmenInning2 || [];
+    const bowlers2 = state.bowlersInning2 || [];
+
     const batsmenContainer = document.getElementById('batsmenScorecard');
     if (batsmenContainer) {
-        if (batsmen.length === 0) {
-            batsmenContainer.innerHTML = '<p class="empty-message">No batsmen yet</p>';
-        } else {
-            const striker = state.striker || '';
-            const nonStriker = state.nonStriker || '';
-            batsmenContainer.innerHTML = `
-                <table class="scorecard-table">
-                    <thead>
-                        <tr>
-                            <th>Batsman</th>
-                            <th>R</th>
-                            <th>B</th>
-                            <th>4s</th>
-                            <th>6s</th>
-                            <th>SR</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${batsmen.map(b => {
-                            const isStriker = b.name === striker;
-                            const isNonStriker = b.name === nonStriker;
-                            const marker = isStriker ? '▶ ' : (isNonStriker ? '● ' : '');
-                            const markerClass = isStriker ? 'striker-mark' : (isNonStriker ? 'non-striker-mark' : '');
-                            const runs = b.runs || 0;
-                            const balls = b.balls || 0;
-                            const sr = balls > 0 ? ((runs / balls) * 100).toFixed(2) : '0.00';
-                            return `
-                                <tr>
-                                    <td class="${markerClass}">${marker}${b.name}</td>
-                                    <td>${runs}</td>
-                                    <td>${balls}</td>
-                                    <td>${b.fours || 0}</td>
-                                    <td>${b.sixes || 0}</td>
-                                    <td>${sr}</td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
+        const section1 = `
+            <div class="scorecard-inning-section ${currentInning === 1 ? 'current' : ''}">
+                <div class="inning-header">INNING 1 — Batting</div>
+                ${renderBatsmanTable(batsmen1, currentInning === 1 ? striker : '', currentInning === 1 ? nonStriker : '')}
+            </div>
+        `;
+        const section2 = batsmen1.length > 0 || batsmen2.length > 0 ? `
+            <div class="scorecard-inning-section ${currentInning === 2 ? 'current' : ''}">
+                <div class="inning-header">INNING 2 — Batting</div>
+                ${batsmen2.length === 0 ? '<p class="empty-message">Waiting...</p>' : renderBatsmanTable(batsmen2, currentInning === 2 ? striker : '', currentInning === 2 ? nonStriker : '')}
+            </div>
+        ` : '';
+        batsmenContainer.innerHTML = section1 + section2;
     }
 
-    const bowlers = state.bowlers || [];
     const bowlersContainer = document.getElementById('bowlersScorecard');
     if (bowlersContainer) {
-        if (bowlers.length === 0) {
-            bowlersContainer.innerHTML = '<p class="empty-message">No bowlers yet</p>';
-        } else {
-            bowlersContainer.innerHTML = `
-                <table class="scorecard-table">
-                    <thead>
-                        <tr>
-                            <th>Bowler</th>
-                            <th>O</th>
-                            <th>W</th>
-                            <th>R</th>
-                            <th>Econ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${bowlers.map(b => {
-                            const balls = b.balls || 0;
-                            const overs = b.overs || 0;
-                            const runs = b.runsConceded || 0;
-                            const econ = balls > 0 ? ((runs / balls) * 6).toFixed(2) : '0.00';
-                            return `
-                                <tr>
-                                    <td>${b.name}</td>
-                                    <td>${overs}</td>
-                                    <td>${b.wickets || 0}</td>
-                                    <td>${runs}</td>
-                                    <td>${econ}</td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
+        const section1 = `
+            <div class="scorecard-inning-section ${currentInning === 1 ? 'current' : ''}">
+                <div class="inning-header">INNING 1 — Bowling</div>
+                ${renderBowlerTable(bowlers1)}
+            </div>
+        `;
+        const section2 = bowlers1.length > 0 || bowlers2.length > 0 ? `
+            <div class="scorecard-inning-section ${currentInning === 2 ? 'current' : ''}">
+                <div class="inning-header">INNING 2 — Bowling</div>
+                ${bowlers2.length === 0 ? '<p class="empty-message">Waiting...</p>' : renderBowlerTable(bowlers2)}
+            </div>
+        ` : '';
+        bowlersContainer.innerHTML = section1 + section2;
     }
 }
 function updateBallByBall(state) {
@@ -2199,9 +2234,19 @@ function updateBallByBall(state) {
         return;
     }
 
-    container.innerHTML = balls.map((ball, index) => {
-        const editBtn = isAdminMode ? `<button class="ball-edit-btn" onclick="editBall(${index})" style="display:inline-block;">✏️</button>` : '';
-        const deleteBtn = isAdminMode ? `<button class="ball-delete-btn" onclick="deleteBall(${index})" style="display:inline-block;">🗑️</button>` : '';
+    const innings = { 1: [], 2: [] };
+    balls.forEach(ball => {
+        const inn = ball.inning || 1;
+        if (!innings[inn]) innings[inn] = [];
+        innings[inn].push(ball);
+    });
+
+    const currentInning = state.inning || 1;
+
+    const renderBall = (ball) => {
+        const idx = ball.index !== undefined ? ball.index : balls.indexOf(ball);
+        const editBtn = isAdminMode ? `<button class="ball-edit-btn" onclick="editBall(${idx})" style="display:inline-block;">✏️</button>` : '';
+        const deleteBtn = isAdminMode ? `<button class="ball-delete-btn" onclick="deleteBall(${idx})" style="display:inline-block;">🗑️</button>` : '';
         const corrected = ball.corrected ? ' [Corrected]' : '';
         const resultClass = ball.resultClass || '';
         return `
@@ -2211,7 +2256,33 @@ function updateBallByBall(state) {
                 <span class="ball-actions">${editBtn}${deleteBtn}</span>
             </div>
         `;
-    }).join('');
+    };
+
+    const renderColumn = (inningNum, list) => {
+        const isCurrent = inningNum === currentInning;
+        const header = `<div class="inning-header">INNING ${inningNum}</div>`;
+        let body;
+        if (list.length === 0) {
+            body = inningNum === 1
+                ? '<p class="empty-message">No balls bowled yet</p>'
+                : '<p class="empty-message">Waiting...</p>';
+        } else {
+            body = list.map(renderBall).join('');
+        }
+        return `
+            <div class="ball-by-ball-column ${isCurrent ? 'current' : ''}">
+                ${header}
+                <div class="ball-by-ball-list">${body}</div>
+            </div>
+        `;
+    };
+
+    container.innerHTML = `
+        <div class="ball-by-ball-columns">
+            ${renderColumn(1, innings[1] || [])}
+            ${renderColumn(2, innings[2] || [])}
+        </div>
+    `;
 }
 // ============================================
 // EDIT STATS MODE
