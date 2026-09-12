@@ -451,6 +451,7 @@ function updateTeamSelects(teams) {
 }
 
 function updatePointsTable(pointsTable) {
+     lastPointsTableData = pointsTable || [];   // ← ADD THIS LINE
     if (!pointsTable || pointsTable.length === 0) {
         const groupAEl = document.getElementById('groupA');
         const groupBEl = document.getElementById('groupB');
@@ -1439,6 +1440,161 @@ function showRound(round) {
 
     document.querySelectorAll('.round-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`.round-btn[data-round="${round}"]`)?.classList.add('active');
+}
+// ============================================
+// POINTS TABLE — ADMIN EDIT MODE
+// ============================================
+
+let pointsEditMode = false;
+let pointsAdminMode = false;
+let lastPointsTableData = [];
+
+function togglePointsAdmin() {
+    const popup = document.getElementById('pointsAdminPopup');
+    const pwInput = document.getElementById('pointsAdminPassword');
+    const errEl = document.getElementById('pointsAdminError');
+    if (popup) popup.style.display = 'flex';
+    if (pwInput) pwInput.value = '';
+    if (errEl) errEl.style.display = 'none';
+}
+
+function closePointsAdminLogin() {
+    const popup = document.getElementById('pointsAdminPopup');
+    if (popup) popup.style.display = 'none';
+}
+
+function checkPointsAdminPassword() {
+    const input = document.getElementById('pointsAdminPassword').value;
+    if (input === 'gcl2026') {
+        pointsAdminMode = true;
+        document.getElementById('pointsAdminPopup').style.display = 'none';
+        document.getElementById('pointsAdminLoginBtn').style.display = 'none';
+        document.getElementById('pointsEditBtn').style.display = 'inline-block';
+        showNotification('✅ Points Table admin access granted!', 'success');
+    } else {
+        const errEl = document.getElementById('pointsAdminError');
+        if (errEl) errEl.style.display = 'block';
+        document.getElementById('pointsAdminPassword').value = '';
+    }
+}
+
+function enterPointsEditMode() {
+    if (!pointsAdminMode) return showNotification('⚠️ Admin login required!', 'danger');
+    if (!lastPointsTableData || lastPointsTableData.length === 0) {
+        return showNotification('⚠️ No data to edit', 'warning');
+    }
+
+    pointsEditMode = true;
+
+    document.getElementById('pointsEditBtn').style.display = 'none';
+    document.getElementById('pointsSaveBtn').style.display = 'inline-block';
+    document.getElementById('pointsCancelBtn').style.display = 'inline-block';
+    document.getElementById('pointsEditNotice').style.display = 'block';
+
+    renderPointsTableEditMode();
+}
+
+function cancelPointsEdit() {
+    pointsEditMode = false;
+
+    document.getElementById('pointsEditBtn').style.display = 'inline-block';
+    document.getElementById('pointsSaveBtn').style.display = 'none';
+    document.getElementById('pointsCancelBtn').style.display = 'none';
+    document.getElementById('pointsEditNotice').style.display = 'none';
+
+    // Re-render original view
+    if (lastPointsTableData && lastPointsTableData.length > 0) {
+        updatePointsTable(lastPointsTableData);
+    }
+    showNotification('❌ Edit cancelled', 'warning');
+}
+
+function renderPointsTableEditMode() {
+    const data = lastPointsTableData;
+    if (!data || data.length === 0) return;
+
+    const groupA = data.filter(t => t.group === 'A');
+    const groupB = data.filter(t => t.group === 'B');
+
+    const renderRow = (team) => `
+        <tr data-team-name="${team.name}">
+            <td class="rank">#${team.rank}</td>
+            <td><strong>${team.name}</strong></td>
+            <td><input type="number" data-field="matches" value="${team.matches || 0}" style="width:50px;"></td>
+            <td><input type="number" data-field="wins" value="${team.wins || 0}" style="width:50px;"></td>
+            <td><input type="number" data-field="losses" value="${team.losses || 0}" style="width:50px;"></td>
+            <td><input type="number" data-field="points" value="${team.points || 0}" style="width:50px;"></td>
+            <td><input type="number" step="0.001" data-field="netRunRate" value="${(team.netRunRate || 0).toFixed(3)}" style="width:70px;"></td>
+        </tr>
+    `;
+
+    const groupAEl = document.getElementById('groupA');
+    if (groupAEl) {
+        groupAEl.innerHTML = groupA.length === 0
+            ? '<tr><td colspan="7" class="empty-message">No data available</td></tr>'
+            : groupA.map(renderRow).join('');
+    }
+
+    const groupBEl = document.getElementById('groupB');
+    if (groupBEl) {
+        groupBEl.innerHTML = groupB.length === 0
+            ? '<tr><td colspan="7" class="empty-message">No data available</td></tr>'
+            : groupB.map(renderRow).join('');
+    }
+}
+
+function savePointsEdit() {
+    if (!pointsEditMode) return;
+
+    const updates = [];
+    const rows = document.querySelectorAll('#groupA tr[data-team-name], #groupB tr[data-team-name]');
+
+    rows.forEach(row => {
+        const name = row.dataset.teamName;
+        if (!name) return;
+        const update = { name };
+        row.querySelectorAll('input[data-field]').forEach(input => {
+            const field = input.dataset.field;
+            const value = parseFloat(input.value);
+            update[field] = isNaN(value) ? 0 : value;
+        });
+        updates.push(update);
+    });
+
+    if (updates.length === 0) {
+        return showNotification('⚠️ No changes to save', 'warning');
+    }
+
+    // Send to server
+    fetch('/api/points-table/update-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✅ Points Table updated!', 'success');
+            pointsEditMode = false;
+            document.getElementById('pointsEditBtn').style.display = 'inline-block';
+            document.getElementById('pointsSaveBtn').style.display = 'none';
+            document.getElementById('pointsCancelBtn').style.display = 'none';
+            document.getElementById('pointsEditNotice').style.display = 'none';
+
+            // Refresh data
+            socket.emit('getPointsTable');
+            fetch('/api/points-table')
+                .then(r => r.json())
+                .then(tableData => updatePointsTable(tableData))
+                .catch(err => console.error(err));
+        } else {
+            showNotification(`❌ Update failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error updating Points Table', 'danger');
+        console.error(err);
+    });
 }
 
 function updatePlayoffTeams(team1, team2, team3, team4) {
