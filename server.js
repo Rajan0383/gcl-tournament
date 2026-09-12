@@ -1096,27 +1096,59 @@ _getInningStats(inningNum) {
         // Merge player stats (batsmen + bowlers)
         this._mergePlayerStats();
 
-        // Mark fixture complete if applicable
-        if (this.matchState.matchId && this.matchState.matchId.startsWith('FIX-')) {
-            const fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
-            if (fixture) {
-                fixture.status = 'completed';
-                fixture.result = winner;
-                fixture.completedAt = new Date().toISOString();
-                fixture.team1Runs = this.matchState.team1.runs;
-                fixture.team2Runs = this.matchState.team2.runs;
-                fixture.team1Overs = this.matchState.battingTeam === 1
-                    ? (this.matchState.currentOver + this.matchState.currentBall / 6)
-                    : 4;
-                fixture.team2Overs = this.matchState.battingTeam === 2
-                    ? (this.matchState.currentOver + this.matchState.currentBall / 6)
-                    : 4;
-                if (!this.fixtures.completed.includes(fixture.id)) {
-                    this.fixtures.completed.push(fixture.id);
-                }
+        // Mark fixture complete — handle both FIX- and MATCH- matchIds
+if (this.matchState.matchId) {
+    let fixture = null;
+
+    if (this.matchState.matchId.startsWith('FIX-')) {
+        // Match started from Fixtures page
+        fixture = this.fixtures.matches.find(m => m.id === this.matchState.matchId);
+    } else {
+        // Match started from Admin page or Live Score directly
+        // Find the ongoing fixture by team names
+        fixture = this.fixtures.matches.find(f =>
+            f.status === 'ongoing' &&
+            ((f.team1 === this.matchState.team1.name && f.team2 === this.matchState.team2.name) ||
+             (f.team1 === this.matchState.team2.name && f.team2 === this.matchState.team1.name))
+        );
+    }
+
+    if (fixture) {
+        fixture.status = 'completed';
+        fixture.result = winner;
+        fixture.completedAt = new Date().toISOString();
+        fixture.team1Runs = this.matchState.team1.runs;
+        fixture.team2Runs = this.matchState.team2.runs;
+
+        const totalOvers = 4;
+        const currentOver = this.matchState.currentOver || 0;
+        const currentBall = this.matchState.currentBall || 0;
+        const completedOvers = currentOver + currentBall / 6;
+
+        // Figure out which team batted how many overs
+        // After inning 2, battingTeam tells us who was batting last
+        if (this.matchState.inning === 2) {
+            if (this.matchState.battingTeam === 1) {
+                // Team1 was batting in inning 2
+                fixture.team1Overs = completedOvers;
+                fixture.team2Overs = totalOvers;
+            } else {
+                // Team2 was batting in inning 2
+                fixture.team1Overs = totalOvers;
+                fixture.team2Overs = completedOvers;
             }
+        } else {
+            // Inning 1 wasn't completed — just record both as 4 for now
+            fixture.team1Overs = totalOvers;
+            fixture.team2Overs = totalOvers;
         }
 
+        if (!this.fixtures.completed.includes(fixture.id)) {
+            this.fixtures.completed.push(fixture.id);
+        }
+        this.fixtures.upcoming = this.fixtures.upcoming.filter(id => id !== fixture.id);
+    }
+}
         this.tournamentStats.matches = (this.tournamentStats.matches || 0) + 1;
 
         await this.saveAllData();
@@ -1296,6 +1328,10 @@ _getInningStats(inningNum) {
     async completeFixtureWithScore(fixtureId, winner, team1Runs, team1Overs, team2Runs, team2Overs, manOfMatch, round) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
+        // Prevent double-counting
+    if (fixture.status === 'completed') {
+        throw new Error('Match already completed — cannot re-complete');
+    }
 
         const team1Name = fixture.team1;
         const team2Name = fixture.team2;
