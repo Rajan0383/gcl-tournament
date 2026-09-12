@@ -5865,3 +5865,57 @@ select option:hover {
         text-align: center !important;
     }
 }
+/* ------------------------------------------------------------ */
+/* SCORECARD TABLE — 2026                                         */
+/* ------------------------------------------------------------ */
+.scorecard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.scorecard-table thead {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.scorecard-table th {
+    padding: 10px 12px;
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid rgba(255, 215, 0, 0.15);
+}
+
+.scorecard-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.scorecard-table tr:last-child td {
+    border-bottom: none;
+}
+
+.scorecard-table tr:hover td {
+    background: rgba(255, 215, 0, 0.03);
+}
+
+.scorecard-table .striker-mark {
+    color: #ffd700;
+    font-weight: 700;
+}
+
+.scorecard-table .non-striker-mark {
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+/* Ensure tables fit within their container */
+.batsmen-scorecard,
+.bowlers-scorecard {
+    overflow-x: auto;
+}
