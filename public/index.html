@@ -407,10 +407,37 @@
             <!-- ========================================== -->
             <div class="tab-content" id="tab-points">
                 <div class="points-container">
-                    <div class="points-header">
-                        <h2>🏆 Points Table</h2>
-                        <p class="points-subtitle">GEM-STAR Championship 2026</p>
-                    </div>
+                   <div class="points-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div>
+        <h2>🏆 Points Table</h2>
+        <p class="points-subtitle">GEM-STAR Championship 2026</p>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="pointsAdminLoginBtn" onclick="togglePointsAdmin()" class="admin-lock-btn" style="padding: 8px 20px;">🔐 Admin</button>
+        <button id="pointsEditBtn" onclick="enterPointsEditMode()" style="display: none; padding: 8px 20px; background: #fbbf24; color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">✏️ Edit Points</button>
+        <button id="pointsSaveBtn" onclick="savePointsEdit()" style="display: none; padding: 8px 20px; background: #22c55e; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">💾 Save</button>
+        <button id="pointsCancelBtn" onclick="cancelPointsEdit()" style="display: none; padding: 8px 20px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: 'Rajdhani', sans-serif;">❌ Cancel</button>
+    </div>
+</div>
+
+<!-- Points Admin Login Popup -->
+<div id="pointsAdminPopup" class="admin-login-popup" style="display:none;">
+    <div class="admin-login-box">
+        <h3>🔐 Admin Access</h3>
+        <p>Enter password to edit Points Table</p>
+        <div class="admin-login-input">
+            <input type="password" id="pointsAdminPassword" placeholder="Enter Password">
+            <button onclick="checkPointsAdminPassword()">Unlock</button>
+        </div>
+        <div id="pointsAdminError" class="admin-login-error" style="display: none;">❌ Incorrect password!</div>
+        <button onclick="closePointsAdminLogin()" class="admin-login-close">✕</button>
+    </div>
+</div>
+
+<!-- Edit Notice -->
+<div id="pointsEditNotice" style="display:none; padding: 8px 12px; background: #fef3c7; color: #92400e; border-radius: 6px; margin: 12px 0; font-size: 0.85rem;">
+    ✏️ Edit mode active — modify the fields below, then click Save.
+</div>
                     <div class="round-selector">
                         <button class="round-btn active" data-round="1" onclick="showRound(1)">Round 1 - Group Stage</button>
                         <button class="round-btn" data-round="2" onclick="showRound(2)">Round 2 - Super Six</button>
