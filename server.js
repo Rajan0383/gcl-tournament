@@ -1642,20 +1642,23 @@ if (this.matchState.matchId) {
             oversBowled: team.oversBowled || 4
         }));
 
-        table.sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
-            return b.netRunRate - a.netRunRate;
-        });
+       // STEP 1: Compute NRR first
+table.forEach(team => {
+    if (team.oversPlayed > 0 && team.oversBowled > 0) {
+        const runRate = team.runsScored / team.oversPlayed;
+        const concededRate = team.runsConceded / team.oversBowled;
+        team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
+    }
+});
 
-        table.forEach((team, index) => { team.rank = index + 1; });
+// STEP 2: Then sort by points, then NRR
+table.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    return b.netRunRate - a.netRunRate;
+});
 
-        table.forEach(team => {
-            if (team.oversPlayed > 0 && team.oversBowled > 0) {
-                const runRate = team.runsScored / team.oversPlayed;
-                const concededRate = team.runsConceded / team.oversBowled;
-                team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
-            }
-        });
+// STEP 3: Then assign ranks
+table.forEach((team, index) => { team.rank = index + 1; });
 
         return table;
     }
