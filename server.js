@@ -325,25 +325,27 @@ _getInningStats(inningNum) {
     // ============================================
 
     resetMatch() {
-        this.matchState = {
-            isActive: false,
-            currentOver: 0,
-            currentBall: 0,
-            totalOvers: 4,
-            team1: {
-                name: '', runs: 0, wickets: 0, balls: 0, extras: 0,
-                currentBatsman: null, currentBowler: null,
-                battingOrder: [], bowlingOrder: [],
-                currentBattingIndex: 0, currentBowlingIndex: 0,
-                partnership: 0, lastBalls: []
-            },
-            team2: {
-                name: '', runs: 0, wickets: 0, balls: 0, extras: 0,
-                currentBatsman: null, currentBowler: null,
-                battingOrder: [], bowlingOrder: [],
-                currentBattingIndex: 0, currentBowlingIndex: 0,
-                partnership: 0, lastBalls: []
-            },
+    this.matchState = {
+        isActive: false,
+        currentOver: 0,
+        currentBall: 0,
+        totalOvers: 4,
+        team1: {
+            name: '', runs: 0, wickets: 0, balls: 0, extras: 0,
+            currentBatsman: null, currentBowler: null,
+            battingOrder: [], bowlingOrder: [],
+            currentBattingIndex: 0, currentBowlingIndex: 0,
+            partnership: 0, lastBalls: [],
+            battingOvers: 0
+        },
+        team2: {
+            name: '', runs: 0, wickets: 0, balls: 0, extras: 0,
+            currentBatsman: null, currentBowler: null,
+            battingOrder: [], bowlingOrder: [],
+            currentBattingIndex: 0, currentBowlingIndex: 0,
+            partnership: 0, lastBalls: [],
+            battingOvers: 0
+        },
             battingTeam: 1,
             bowlingTeam: 2,
             overType: 'normal',
@@ -1064,35 +1066,56 @@ _getInningStats(inningNum) {
     // FINISH MATCH
     // ============================================
 
-    async finishMatch() {
-        if (!this.matchState.isActive && !this.matchState.isComplete) {
-            return { error: 'No active match' };
-        }
-        if (this.matchState.isComplete) {
-            return { error: 'Match already finished' };
-        }
+   async finishMatch() {
+    if (!this.matchState.isActive && !this.matchState.isComplete) {
+        return { error: 'No active match' };
+    }
+    if (this.matchState.isComplete) {
+        return { error: 'Match already finished' };
+    }
 
-        const team1Score = this.matchState.team1.runs;
-        const team2Score = this.matchState.team2.runs;
-        let winner = 'TIE';
-        if (team2Score > team1Score) winner = this.matchState.team2.name;
-        else if (team1Score > team2Score) winner = this.matchState.team1.name;
+    const team1Score = this.matchState.team1.runs;
+    const team2Score = this.matchState.team2.runs;
+    let winner = 'TIE';
+    if (team2Score > team1Score) winner = this.matchState.team2.name;
+    else if (team1Score > team2Score) winner = this.matchState.team1.name;
 
-        this.matchState.winner = winner;
-        this.matchState.isComplete = true;
-        this.matchState.isActive = false;
+    this.matchState.winner = winner;
+    this.matchState.isComplete = true;
+    this.matchState.isActive = false;
 
-        // Update team stats
-        this.updateTeamStats({
-            team1: this.matchState.team1.name,
-            team2: this.matchState.team2.name,
-            winner: winner,
-            runs1: team1Score,
-            runs2: team2Score,
-            overs1: this.matchState.currentOver + (this.matchState.currentBall / 6),
-            overs2: 4
-        });
+    // ✅ NRR FIX: Record the last batting team's overs
+    const currentOvers = this.matchState.currentOver + (this.matchState.currentBall / 6);
+    if (this.matchState.battingTeam === 1) {
+        this.matchState.team1.battingOvers = currentOvers;
+    } else {
+        this.matchState.team2.battingOvers = currentOvers;
+    }
 
+    // ✅ NRR FIX: Winner's overs = actual, Loser's overs = 4
+    let overs1, overs2;
+    if (winner === this.matchState.team1.name) {
+        overs1 = this.matchState.team1.battingOvers || 4;
+        overs2 = 4;
+    } else if (winner === this.matchState.team2.name) {
+        overs1 = 4;
+        overs2 = this.matchState.team2.battingOvers || 4;
+    } else {
+        // Tie
+        overs1 = 4;
+        overs2 = 4;
+    }
+
+    // Update team stats with corrected overs
+    this.updateTeamStats({
+        team1: this.matchState.team1.name,
+        team2: this.matchState.team2.name,
+        winner: winner,
+        runs1: team1Score,
+        runs2: team2Score,
+        overs1: overs1,
+        overs2: overs2
+    });
         // Merge player stats (batsmen + bowlers)
         this._mergePlayerStats();
 
@@ -1970,7 +1993,7 @@ io.on('connection', (socket) => {
         }
     });
 
-   socket.on('setBattingBowlingTeams', (data) => {
+  socket.on('setBattingBowlingTeams', (data) => {
     try {
         const { battingTeam, bowlingTeam } = data;
         const team1Name = gameEngine.matchState.team1.name;
@@ -1988,6 +2011,10 @@ io.on('connection', (socket) => {
                 ? gameEngine.matchState.team1
                 : gameEngine.matchState.team2;
             const previousRuns = previousBattingTeamObj.runs || 0;
+
+            // ✅ NRR FIX: Record outgoing team's batting overs
+            const outgoingOvers = gameEngine.matchState.currentOver + (gameEngine.matchState.currentBall / 6);
+            previousBattingTeamObj.battingOvers = outgoingOvers;
 
             if (gameEngine.matchState.inning === 1) {
                 gameEngine.matchState.target = previousRuns + 1;
