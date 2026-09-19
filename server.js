@@ -541,7 +541,7 @@ _getInningStats(inningNum) {
     index: this.matchState.ballLog.length,
     inning: this.matchState.inning || 1,
     battingTeamId: this.matchState.battingTeam,
-    over: `${snapshot.overAtStart}.${snapshot.ballAtStart}`,
+    over: `${snapshot.overAtStart}.${snapshot.ballAtStart + 1}`,
     batsman: snapshot.batsmanName,
     batsmanScore: batsmanScore,
     bowler: snapshot.bowlerName,
