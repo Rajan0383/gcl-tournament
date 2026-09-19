@@ -513,28 +513,33 @@ _getInningStats(inningNum) {
 
         // Strike handling
         if (result.isOut) {
-            const isLastBall = (this.matchState.currentBall >= 6);
-            this._handleOut(snapshot.strikerAtBallStart, isLastBall, false);
-        } else {
-            let shouldChange = false;
-            if (result.isWide) {
-                shouldChange = (result.runsScored === 3);
-            } else if (result.isNoBall) {
-                shouldChange = true;
-            } else if (result.ballType === 'normal5') {
-                shouldChange = true;
-            } else if (result.ballType === 'safe') {
-                shouldChange = (result.runsScored % 2 !== 0);
-            }
-
-            if (shouldChange) {
-                const temp = this.matchState.striker;
-                this.matchState.striker = this.matchState.nonStriker;
-                this.matchState.nonStriker = temp;
-            }
-            this._syncStrikerFields();
+    const isLastBall = (this.matchState.currentBall >= 6);
+    this._handleOut(snapshot.strikerAtBallStart, isLastBall, false);
+} else {
+    const isLastBall = (this.matchState.currentBall >= 6);
+    
+    // Skip mid-ball strike on last ball — over-complete rule handles it
+    if (!isLastBall) {
+        let shouldChange = false;
+        if (result.isWide) {
+            shouldChange = (result.runsScored === 3);
+        } else if (result.isNoBall) {
+            shouldChange = true;
+        } else if (result.ballType === 'normal5') {
+            shouldChange = true;
+        } else if (result.ballType === 'safe') {
+            shouldChange = (result.runsScored % 2 !== 0);
         }
 
+        if (shouldChange) {
+            const temp = this.matchState.striker;
+            this.matchState.striker = this.matchState.nonStriker;
+            this.matchState.nonStriker = temp;
+        }
+        this._syncStrikerFields();
+    }
+    // If last ball, over-complete check will handle strike
+}
         // BallLog
  if (!this.matchState.ballLog) this.matchState.ballLog = [];
     this.matchState.ballLog.push({
