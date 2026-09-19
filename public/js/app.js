@@ -348,19 +348,25 @@ function updateScoreboard(state) {
             noBallEl.className = 'noball-status no';
         }
     }
-    if (state.battingTeam) {
-        const battingName = document.getElementById('battingTeamName');
-        const runs = document.getElementById('runsDisplay');
-        const wickets = document.getElementById('wicketsDisplay');
-        const balls = document.getElementById('ballsDisplay');
-        const extras = document.getElementById('extrasDisplay');
+   if (state.battingTeam) {
+    const battingName = document.getElementById('battingTeamName');
+    const runs = document.getElementById('runsDisplay');
+    const wickets = document.getElementById('wicketsDisplay');
+    const balls = document.getElementById('ballsDisplay');
+    const extras = document.getElementById('extrasDisplay');
+    const scoreOvers = document.getElementById('scoreOversDisplay');
 
-        if (battingName) battingName.textContent = state.battingTeam.name || 'Team 1';
-        if (runs) runs.textContent = state.battingTeam.runs || 0;
-        if (wickets) wickets.textContent = state.battingTeam.wickets || 0;
-        if (balls) balls.textContent = state.battingTeam.balls || 0;
-        if (extras) extras.textContent = state.battingTeam.extras || 0;
+    if (battingName) battingName.textContent = state.battingTeam.name || 'Team 1';
+    if (runs) runs.textContent = state.battingTeam.runs || 0;
+    if (wickets) wickets.textContent = state.battingTeam.wickets || 0;
+    if (balls) balls.textContent = state.battingTeam.balls || 0;
+    if (extras) extras.textContent = state.battingTeam.extras || 0;
+    if (scoreOvers) {
+        const over = state.currentOver !== undefined ? state.currentOver : 0;
+        const ball = state.currentBall || 0;
+        scoreOvers.textContent = `${over}.${ball}`;
     }
+}
 
     if (state.bowlingTeam) {
         const bowlingName = document.getElementById('bowlingTeamName');
