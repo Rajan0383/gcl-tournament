@@ -568,6 +568,7 @@ _getInningStats(inningNum) {
 });
 
         // Over complete
+               // Over complete
         if (this.matchState.currentBall >= 6) {
             if (!result.isOut) {
                 const shouldChange = (result.runsScored % 2 === 0);
@@ -575,9 +576,10 @@ _getInningStats(inningNum) {
                     const temp = this.matchState.striker;
                     this.matchState.striker = this.matchState.nonStriker;
                     this.matchState.nonStriker = temp;
-                    this._syncStrikerFields();
                 }
             }
+            this._syncStrikerFields();
+
             this.matchState.currentBall = 0;
             this.matchState.currentOver += 1;
             this.matchState.noBallUsed = false;
