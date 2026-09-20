@@ -120,7 +120,7 @@
                             <div class="info-icon">📅</div>
                             <h3>Tournament Details</h3>
                             <p><strong>Season:</strong> 2026</p>
-                            <p><strong>Format:</strong> Round1 +Round2 + Playoffs+Final</p>
+                            <p><strong>Format:</strong> Round1 +Round2(Knockout) + Playoffs+Final</p>
                             <p><strong>Status:</strong> 🔴 Live</p>
                         </div>
                     </div>
@@ -173,7 +173,7 @@
                                 <li><strong>4 overs</strong> per side</li>
                                 <li><strong>Numbers:</strong> 3, 4, 5, 6</li>
                                 <li><strong>Wide:</strong> 3 vs 6 OR 6 vs 3 = WIDE</li>
-                                <li><strong>No-Ball:</strong> 1 No-Ball on 5</li>
+                                <li><strong>No-Ball:</strong> 1 No-Ball on 5 (if batsman is out on 5, no more no-ball in that over)</li>
                                 <li><strong>Double-Batting</strong> Format</li>
                                 <li><strong>Strike</strong> will change on 3 and 5</li>
                                 <li><strong>Superover Rule:</strong> **A tied match will be decided by a Super Over under the same playing rules.**.</li>
@@ -441,7 +441,7 @@
 </div>
                     <div class="round-selector">
                         <button class="round-btn active" data-round="1" onclick="showRound(1)">Round 1 - Group Stage</button>
-                        <button class="round-btn" data-round="2" onclick="showRound(2)">Round 2 - Super Six</button>
+                        <button class="round-btn" data-round="2" onclick="showRound(2)">Round 2 - Knockout Round</button>
                         <button class="round-btn" data-round="3" onclick="showRound(3)">Round 3 - Playoffs</button>
                         <button class="round-btn" data-round="4" onclick="showRound(4)">Round 4 - Grand Final</button>
                     </div>
@@ -455,7 +455,7 @@
                                         <tbody id="groupA"><tr><td colspan="7" class="empty-message">No data available</td></tr></tbody>
                                     </table>
                                 </div>
-                                <div class="qualification-note">✅ Top 3 from each group → Round 2 (Super Six)</div>
+                                <div class="qualification-note">✅ Top 4 from each group → Round 2 (Knockout Round)</div>
                             </div>
                             <div class="group-table">
                                 <h3>GROUP B</h3>
@@ -465,7 +465,7 @@
                                         <tbody id="groupB"><tr><td colspan="7" class="empty-message">No data available</td></tr></tbody>
                                     </table>
                                 </div>
-                                <div class="qualification-note">✅ Top 3 from each group → Round 2 (Super Six)</div>
+                                <div class="qualification-note">✅ Top 4 from each group → Round 2 (Knockout Round)</div>
                             </div>
                         </div>
                     </div>
