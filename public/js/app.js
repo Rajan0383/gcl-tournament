@@ -51,8 +51,8 @@ socket.on('connect', () => {
                 updateTop10Players(data);
             }
         })
-        .catch(err => console.error('Error fetching sheet data:', err));
-});*/
+        .catch(err => console.error('Error fetching sheet data:', err));*/
+});
 
 socket.on('disconnect', () => {
     console.log('❌ Disconnected from server');
