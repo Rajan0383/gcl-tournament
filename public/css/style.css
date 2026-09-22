@@ -6016,3 +6016,28 @@ select option:hover {
 .points-table tr.editing {
     background: rgba(255, 215, 0, 0.05);
 }
+/* Non-Striker Toggle Button */
+.nonstriker-toggle-btn {
+    width: 100%;
+    padding: 10px 16px;
+    background: #fbbf24;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    margin-top: 10px;
+    transition: all 0.2s;
+}
+
+.nonstriker-toggle-btn:hover {
+    background: #f59e0b;
+    transform: translateY(-1px);
+}
+
+.nonstriker-toggle-btn:disabled {
+    background: #6b7280;
+    cursor: not-allowed;
+}
