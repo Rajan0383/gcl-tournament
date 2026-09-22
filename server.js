@@ -368,7 +368,8 @@ _getInningStats(inningNum) {
             striker: '',
             nonStriker: '',
             dismissedBatsmen: [],
-            removedBowlers: []
+removedBowlers: [],
+nonStrikerDisabled: false
         };
 
         this.currentMatchStats = {
@@ -512,34 +513,37 @@ _getInningStats(inningNum) {
 });
 
         // Strike handling
+               // Strike handling
         if (result.isOut) {
-    const isLastBall = (this.matchState.currentBall >= 6);
-    this._handleOut(snapshot.strikerAtBallStart, isLastBall, false);
-} else {
-    const isLastBall = (this.matchState.currentBall >= 6);
-    
-    // Skip mid-ball strike on last ball — over-complete rule handles it
-    if (!isLastBall) {
-        let shouldChange = false;
-        if (result.isWide) {
-            shouldChange = (result.runsScored === 3);
-        } else if (result.isNoBall) {
-            shouldChange = true;
-        } else if (result.ballType === 'normal5') {
-            shouldChange = true;
-        } else if (result.ballType === 'safe') {
-            shouldChange = (result.runsScored % 2 !== 0);
-        }
+            const isLastBall = (this.matchState.currentBall >= 6);
+            this._handleOut(snapshot.strikerAtBallStart, isLastBall, false);
+        } else {
+            const isLastBall = (this.matchState.currentBall >= 6);
+            const skipStrike = this.matchState.nonStrikerDisabled;
 
-        if (shouldChange) {
-            const temp = this.matchState.striker;
-            this.matchState.striker = this.matchState.nonStriker;
-            this.matchState.nonStriker = temp;
+            // Mid-ball strike rule ONLY if not the last ball AND non-striker not disabled
+            if (!skipStrike && !isLastBall) {
+                let shouldChange = false;
+                if (result.isWide) {
+                    shouldChange = (result.runsScored === 3);
+                } else if (result.isNoBall) {
+                    shouldChange = true;
+                } else if (result.ballType === 'normal5') {
+                    shouldChange = true;
+                } else if (result.ballType === 'safe') {
+                    shouldChange = (result.runsScored % 2 !== 0);
+                }
+
+                if (shouldChange) {
+                    const temp = this.matchState.striker;
+                    this.matchState.striker = this.matchState.nonStriker;
+                    this.matchState.nonStriker = temp;
+                }
+                this._syncStrikerFields();
+            }
+            // If last ball or disabled: over-complete check handles strike
         }
-        this._syncStrikerFields();
-    }
-    // If last ball, over-complete check will handle strike
-}
+ 
         // BallLog
  if (!this.matchState.ballLog) this.matchState.ballLog = [];
     this.matchState.ballLog.push({
@@ -566,11 +570,9 @@ _getInningStats(inningNum) {
     bowlerWickets: result.isOut ? 1 : 0,
     corrected: false
 });
-
-        // Over complete
-               // Over complete
+                     // Over complete
         if (this.matchState.currentBall >= 6) {
-            if (!result.isOut) {
+            if (!result.isOut && !this.matchState.nonStrikerDisabled) {
                 const shouldChange = (result.runsScored % 2 === 0);
                 if (shouldChange) {
                     const temp = this.matchState.striker;
@@ -586,7 +588,6 @@ _getInningStats(inningNum) {
             this.matchState.currentBowlerName = '';
             this.matchState.bowlerGuessed = false;
         }
-
         this.matchState.batsmanSet = false;
         this.matchState.bowlerGuessed = false;
         this.matchState.secretScore = null;
@@ -1280,7 +1281,8 @@ if (this.matchState.matchId) {
             bowlerGuessed: this.matchState.bowlerGuessed,
             currentBowlerName: this.matchState.currentBowlerName,
             noBallUsed: this.matchState.noBallUsed || false,
-            striker: this.matchState.striker || '',
+nonStrikerDisabled: this.matchState.nonStrikerDisabled || false,
+striker: this.matchState.striker || '',
             nonStriker: this.matchState.nonStriker || '',
             currentBatsmanName: this.matchState.striker || '',
             dismissedBatsmen: this.matchState.dismissedBatsmen || [],
@@ -2045,6 +2047,7 @@ io.on('connection', (socket) => {
             gameEngine.matchState.secretScore = null;
             gameEngine.matchState.lastBallResult = null;
             gameEngine.matchState.currentBowlerName = '';
+            gameEngine.matchState.nonStrikerDisabled = false;
 
             gameEngine.matchState.striker = '';
             gameEngine.matchState.nonStriker = '';
@@ -2059,6 +2062,19 @@ io.on('connection', (socket) => {
         });
         io.emit('stateUpdate', gameEngine.getMatchState());
         io.emit('notification', notification);
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
+    socket.on('toggleNonStrikerDisabled', (data) => {
+    try {
+        const newDisabled = data && data.disabled === true;
+        gameEngine.matchState.nonStrikerDisabled = newDisabled;
+        io.emit('stateUpdate', gameEngine.getMatchState());
+        io.emit('notification', newDisabled
+            ? '🔒 Non-striker disabled'
+            : '🔓 Non-striker enabled'
+        );
     } catch (error) {
         socket.emit('error', { message: error.message });
     }
