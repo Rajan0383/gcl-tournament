@@ -1884,9 +1884,13 @@ function checkLiveScorePassword() {
         if (controls) controls.style.display = 'grid';
         document.querySelectorAll('.ball-edit-btn').forEach(b => b.style.display = 'inline-block');
         document.querySelectorAll('.ball-delete-btn').forEach(b => b.style.display = 'inline-block');
-        const resetBtn = document.getElementById('resetMatchBtn');
-        if (resetBtn) resetBtn.style.display = 'inline-block';
-        populateTeamDropdowns();
+       const resetBtn = document.getElementById('resetMatchBtn');
+if (resetBtn) resetBtn.style.display = 'inline-block';
+
+const finishBtn = document.getElementById('finishMatchBtn');
+if (finishBtn) finishBtn.style.display = 'inline-block';
+
+populateTeamDropdowns();
         
         // ✅ Refresh UI to show admin-only elements
         if (currentMatchState) {
