@@ -2302,7 +2302,7 @@ if (nonStrikerStats) {
     updateBallByBall(state);
     updateAllowedScores(state);
 }
-}
+
 function renderBatsmanTable(batsmen, striker, nonStriker) {
     if (!batsmen || batsmen.length === 0) {
         return '<p class="empty-message">No batsmen yet</p>';
