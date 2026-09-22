@@ -2230,29 +2230,72 @@ if (nonStrikerStats) {
         }
     }
    
-     // Non-striker dropdown auto-select / clear
+        // Non-striker dropdown auto-select / clear + disable handling
     const nonStrikerSelect = document.getElementById('nonStrikerSelect');
-    if (nonStrikerSelect) {
-        if (state.nonStriker && state.nonStriker !== 'Non-Striker') {
-            // ... (select/append) ...
-            const nonStrikerStatus = document.getElementById('nonStrikerStatus');
-            if (nonStrikerStatus) {
-                nonStrikerStatus.textContent = `✅ ${state.nonStriker}`;
-                nonStrikerStatus.className = 'status-msg success';
-            }
+    const nonStrikerStatus = document.getElementById('nonStrikerStatus');
+    const toggleBtn = document.getElementById('nonStrikerToggleBtn');
+    const nonStrikerSetBtn = document.querySelector('.nonstriker-btn');
+
+    // Toggle button visibility (admin only)
+    if (toggleBtn) {
+        if (isAdminMode) {
+            toggleBtn.style.display = 'inline-block';
+            toggleBtn.textContent = state.nonStrikerDisabled
+                ? '🔓 Enable Non-Striker'
+                : '🔒 Disable Non-Striker';
         } else {
+            toggleBtn.style.display = 'none';
+        }
+    }
+
+    // Disable/enable non-striker UI
+    if (state.nonStrikerDisabled) {
+        if (nonStrikerSelect) {
             nonStrikerSelect.value = '';
-            const nonStrikerStatus = document.getElementById('nonStrikerStatus');
-            if (nonStrikerStatus) {
-                if (state.isActive) {
-                    nonStrikerStatus.textContent = '⏳ Select non-striker';
-                } else {
-                    nonStrikerStatus.textContent = '⏳ Not set';
+            nonStrikerSelect.disabled = true;
+        }
+        if (nonStrikerSetBtn) nonStrikerSetBtn.disabled = true;
+        if (nonStrikerStatus) {
+            nonStrikerStatus.textContent = '🏏 Last batsman alone';
+            nonStrikerStatus.className = 'status-msg waiting';
+        }
+    } else {
+        if (nonStrikerSelect) nonStrikerSelect.disabled = false;
+        if (nonStrikerSetBtn) nonStrikerSetBtn.disabled = false;
+
+        if (nonStrikerSelect) {
+            if (state.nonStriker && state.nonStriker !== 'Non-Striker') {
+                let exists = false;
+                for (let i = 0; i < nonStrikerSelect.options.length; i++) {
+                    if (nonStrikerSelect.options[i].value === state.nonStriker) {
+                        exists = true;
+                        break;
+                    }
                 }
-                nonStrikerStatus.className = 'status-msg waiting';
+                if (exists) {
+                    nonStrikerSelect.value = state.nonStriker;
+                } else {
+                    const opt = document.createElement('option');
+                    opt.value = state.nonStriker;
+                    opt.textContent = state.nonStriker;
+                    nonStrikerSelect.appendChild(opt);
+                    nonStrikerSelect.value = state.nonStriker;
+                }
+                if (nonStrikerStatus) {
+                    nonStrikerStatus.textContent = `✅ ${state.nonStriker}`;
+                    nonStrikerStatus.className = 'status-msg success';
+                }
+            } else {
+                nonStrikerSelect.value = '';
+                if (nonStrikerStatus) {
+                    nonStrikerStatus.textContent = state.isActive
+                        ? '⏳ Select non-striker'
+                        : '⏳ Not set';
+                    nonStrikerStatus.className = 'status-msg waiting';
+                }
             }
         }
-
+    }
     // NO strikePending block (removed - server no longer sends it)
 
     updateScorecard(state);
@@ -2614,6 +2657,19 @@ function submitBatScore() {
 
     socket.emit('batsmanSetScore', { name, score });
     document.getElementById('batsmanScoreInput').value = '';
+}
+function toggleNonStrikerDisabled() {
+    if (!isAdminMode) {
+        return showNotification('⚠️ Admin login required!', 'danger');
+    }
+    
+    const state = currentMatchState;
+    if (!state) {
+        return showNotification('⚠️ No match state available', 'danger');
+    }
+    
+    const newDisabled = !state.nonStrikerDisabled;
+    socket.emit('toggleNonStrikerDisabled', { disabled: newDisabled });
 }
 function submitBowlGuess() {
     if (!isAdminMode) return showNotification('⚠️ Admin login required!', 'danger');
