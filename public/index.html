@@ -674,20 +674,23 @@
 
                             <!-- Batsman Section — GOLD -->
                             <div class="control-section batsman-section">
-                                <h3>🏏 Batsman (Striker)</h3>
-                                <select id="batsmanSelect" class="player-input" onchange="toggleBatsmanManualInput()">
-                                    <option value="">Select Batsman...</option>
-                                </select>
-                                <div id="batsmanSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
-                                <div id="batsmanManualInput" style="display: none; margin-bottom: 8px;">
-                                    <input type="text" id="batsmanManualName" placeholder="Enter batsman name..." class="player-input">
-                                </div>
-                                <div class="input-group">
-                                    <input type="number" id="batsmanScoreInput" placeholder="Score (3-6)" min="3" max="6">
-                                    <button onclick="submitBatScore()">✅ SUBMIT</button>
-                                </div>
-                                <div id="batsmanStatus" class="status-msg waiting">⏳ Waiting...</div>
-                            </div>
+    <h3>🏏 Batsman (Striker)</h3>
+    <select id="batsmanSelect" class="player-input" onchange="toggleBatsmanManualInput()">
+        <option value="">Select Batsman...</option>
+    </select>
+    <div id="batsmanSelectError" class="inline-error" style="display:none; color:#f87171; font-size:0.8rem; margin-top:4px;"></div>
+    <div id="batsmanManualInput" style="display: none; margin-bottom: 8px;">
+        <input type="text" id="batsmanManualName" placeholder="Enter batsman name..." class="player-input">
+    </div>
+    <div class="input-group">
+        <input type="number" id="batsmanScoreInput" placeholder="Score (3-6)" min="3" max="6">
+        <button onclick="submitBatScore()">✅ SUBMIT</button>
+    </div>
+    <div id="batsmanStatus" class="status-msg waiting">⏳ Waiting...</div>
+    <button id="nonStrikerToggleBtn" onclick="toggleNonStrikerDisabled()" class="nonstriker-toggle-btn" style="display: none;">
+        🔒 Disable Non-Striker
+    </button>
+</div>
 
                             <!-- Bowler Section — PURPLE -->
                             <div class="control-section bowler-section">
