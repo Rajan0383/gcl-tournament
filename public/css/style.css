@@ -6041,3 +6041,37 @@ select option:hover {
     background: #6b7280;
     cursor: not-allowed;
 }
+/* ============================================ */
+/* POINTS TABLE — TOP 4 COLOUR HIGHLIGHT        */
+/* ============================================ */
+
+/* Top 4 rows — always colourful */
+.qualified-row {
+    background: linear-gradient(90deg, rgba(74, 222, 128, 0.10), transparent 70%);
+    border-left: 4px solid #4ade80;
+    transition: background 0.2s;
+}
+
+.qualified-row:hover td {
+    background: rgba(74, 222, 128, 0.08) !important;
+}
+
+.qualified-row td:first-child {
+    padding-left: 12px;
+}
+
+/* "Q" badge — only after group stage complete */
+.qualify-badge {
+    display: inline-block;
+    background: rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(74, 222, 128, 0.35);
+    vertical-align: middle;
+    text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+}
