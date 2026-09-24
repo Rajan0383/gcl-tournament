@@ -472,21 +472,33 @@ function updatePointsTable(pointsTable) {
     const groupAElement = document.getElementById('groupA');
     const groupBElement = document.getElementById('groupB');
 
-    const renderTable = (teams) => teams.map(team => {
-        const rankClass = team.rank === 1 ? 'gold' : team.rank === 2 ? 'silver' : team.rank === 3 ? 'bronze' : '';
-        return `
-            <tr>
-                <td class="rank ${rankClass}">#${team.rank}</td>
-                <td><strong>${team.name}</strong></td>
-                <td>${team.matches || 0}</td>
-                <td class="wins">${team.wins || 0}</td>
-                <td class="losses">${team.losses || 0}</td>
-                <td class="points">${team.points || 0}</td>
-                <td>${(team.netRunRate || 0).toFixed(3)}</td>
-            </tr>
-        `;
-    }).join('');
+        const renderTable = (teams) => {
+        // Group has 5 teams, each plays 4 matches.
+        // Q badge appears only when ALL teams completed 4 matches.
+        const TOTAL_MATCHES_PER_TEAM = 4;
+        const groupComplete = teams.length > 0 &&
+            teams.every(t => (t.matches || 0) >= TOTAL_MATCHES_PER_TEAM);
 
+        return teams.map(team => {
+            const rankClass = team.rank === 1 ? 'gold' : team.rank === 2 ? 'silver' : team.rank === 3 ? 'bronze' : '';
+            const isTop4 = team.rank <= 4;                          // ← always highlight top 4
+            const isQualified = groupComplete && isTop4;            // ← Q badge only after group stage
+            const rowClass = isTop4 ? 'qualified-row' : '';
+            const qualifyBadge = isQualified ? '<span class="qualify-badge">✅ Q</span>' : '';
+
+            return `
+                <tr class="${rowClass}">
+                    <td class="rank ${rankClass}">#${team.rank}</td>
+                    <td><strong>${team.name}</strong> ${qualifyBadge}</td>
+                    <td>${team.matches || 0}</td>
+                    <td class="wins">${team.wins || 0}</td>
+                    <td class="losses">${team.losses || 0}</td>
+                    <td class="points">${team.points || 0}</td>
+                    <td>${(team.netRunRate || 0).toFixed(3)}</td>
+                </tr>
+            `;
+        }).join('');
+    };
     if (groupAElement) {
         groupAElement.innerHTML = groupATeams.length === 0
             ? '<tr><td colspan="7" class="empty-message">No data available</td></tr>'
