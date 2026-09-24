@@ -1402,25 +1402,33 @@ striker: this.matchState.striker || '',
         return fixture;
     }
 
-    updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner) {
-        const fixture = this.fixtures.matches.find(m => m.id === id);
-        if (!fixture) return { success: false, error: 'Match not found' };
+    updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner, resultDisplay) {
+    const fixture = this.fixtures.matches.find(m => m.id === id);
+    if (!fixture) return { success: false, error: 'Match not found' };
 
-        fixture.team1Runs = team1Runs;
-        fixture.team1Overs = team1Overs;
-        fixture.team2Runs = team2Runs;
-        fixture.team2Overs = team2Overs;
-        fixture.result = winner;
+    // ✅ STEP 1: Reverse the OLD stats (remove previous contribution)
+    this.removeMatchStats(fixture);
 
-        this.updateTeamStats({
-            team1: fixture.team1, team2: fixture.team2, winner,
-            runs1: team1Runs, runs2: team2Runs,
-            overs1: team1Overs, overs2: team2Overs
-        });
-        this.saveAllData();
-        return { success: true };
+    // ✅ STEP 2: Overwrite fixture fields with new values
+    fixture.team1Runs = team1Runs;
+    fixture.team1Overs = team1Overs;
+    fixture.team2Runs = team2Runs;
+    fixture.team2Overs = team2Overs;
+    fixture.result = winner;
+    if (resultDisplay !== undefined) {
+        fixture.resultDisplay = resultDisplay;
     }
 
+    // ✅ STEP 3: Apply NEW stats (fresh contribution)
+    this.updateTeamStats({
+        team1: fixture.team1, team2: fixture.team2, winner,
+        runs1: team1Runs, runs2: team2Runs,
+        overs1: team1Overs, overs2: team2Overs
+    });
+
+    this.saveAllData();
+    return { success: true };
+}
     async editMatchResult(fixtureId, newTeam1Runs, newTeam1Overs, newTeam2Runs, newTeam2Overs, newWinner) {
         const fixture = this.fixtures.matches.find(m => m.id === fixtureId);
         if (!fixture) throw new Error('Fixture not found');
