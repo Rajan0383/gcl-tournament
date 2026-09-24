@@ -1641,44 +1641,55 @@ striker: this.matchState.striker || '',
     // ============================================
 
     getPointsTable(group) {
-        let teams = this.teams;
-        if (group) teams = teams.filter(t => t.group === group);
+    let teams = this.teams;
+    if (group) teams = teams.filter(t => t.group === group);
 
-        const table = teams.map(team => ({
-            rank: 0,
-            name: team.name,
-            group: team.group || 'Unassigned',
-            matches: team.matchesPlayed || 0,
-            wins: team.wins || 0,
-            losses: team.losses || 0,
-            points: team.points || 0,
-            netRunRate: team.netRunRate || 0,
-            runsScored: team.runsScored || 0,
-            runsConceded: team.runsConceded || 0,
-            oversPlayed: team.oversPlayed || 4,
-            oversBowled: team.oversBowled || 4
-        }));
+    const table = teams.map(team => ({
+        rank: 0,
+        name: team.name,
+        group: team.group || 'Unassigned',
+        matches: team.matchesPlayed || 0,
+        wins: team.wins || 0,
+        losses: team.losses || 0,
+        points: team.points || 0,
+        netRunRate: team.netRunRate || 0,
+        runsScored: team.runsScored || 0,
+        runsConceded: team.runsConceded || 0,
+        oversPlayed: team.oversPlayed || 4,
+        oversBowled: team.oversBowled || 4
+    }));
 
-       // STEP 1: Compute NRR first
-table.forEach(team => {
-    if (team.oversPlayed > 0 && team.oversBowled > 0) {
-        const runRate = team.runsScored / team.oversPlayed;
-        const concededRate = team.runsConceded / team.oversBowled;
-        team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
-    }
-});
+    // STEP 1: Compute NRR
+    table.forEach(team => {
+        if (team.oversPlayed > 0 && team.oversBowled > 0) {
+            const runRate = team.runsScored / team.oversPlayed;
+            const concededRate = team.runsConceded / team.oversBowled;
+            team.netRunRate = parseFloat((runRate - concededRate).toFixed(3));
+        }
+    });
 
-// STEP 2: Then sort by points, then NRR
-table.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    return b.netRunRate - a.netRunRate;
-});
+    // STEP 2: Group teams by group (A, B, etc.)
+    const grouped = {};
+    table.forEach(t => {
+        const g = t.group || 'Unassigned';
+        if (!grouped[g]) grouped[g] = [];
+        grouped[g].push(t);
+    });
 
-// STEP 3: Then assign ranks
-table.forEach((team, index) => { team.rank = index + 1; });
+    // STEP 3: Sort + rank each group independently
+    Object.keys(grouped).forEach(g => {
+        grouped[g].sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            return b.netRunRate - a.netRunRate;
+        });
+        grouped[g].forEach((team, index) => {
+            team.rank = index + 1;
+        });
+    });
 
-        return table;
-    }
+    // STEP 4: Return as a flat array (preserves group structure via .group field)
+    return Object.values(grouped).flat();
+}
 
     updateTeamStats(matchResult) {
         const team1 = this.teams.find(t => t.name === matchResult.team1);
