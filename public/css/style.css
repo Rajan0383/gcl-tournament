@@ -6045,25 +6045,38 @@ select option:hover {
 /* POINTS TABLE — TOP 4 COLOUR HIGHLIGHT        */
 /* ============================================ */
 
-/* Top 4 rows — always colourful */
-.qualified-row {
-    background: linear-gradient(90deg, rgba(74, 222, 128, 0.10), transparent 70%);
-    border-left: 4px solid #4ade80;
-    transition: background 0.2s;
-}
-
-.qualified-row:hover td {
-    background: rgba(74, 222, 128, 0.08) !important;
+/* Top 4 rows — strong green highlight */
+.qualified-row td {
+    background: linear-gradient(90deg, rgba(74, 222, 128, 0.18), rgba(74, 222, 128, 0.03) 80%) !important;
+    border-top: 1px solid rgba(74, 222, 128, 0.15);
+    border-bottom: 1px solid rgba(74, 222, 128, 0.15);
 }
 
 .qualified-row td:first-child {
+    border-left: 5px solid #4ade80;
+    box-shadow: inset 6px 0 12px rgba(74, 222, 128, 0.15);
     padding-left: 12px;
+}
+
+.qualified-row td:last-child {
+    border-right: 1px solid rgba(74, 222, 128, 0.15);
+}
+
+/* Team name inside top 4 gets a green tint + bold */
+.qualified-row td strong {
+    color: #a7f3d0;
+    text-shadow: 0 0 12px rgba(74, 222, 128, 0.4);
+}
+
+/* Hover effect on top 4 rows */
+.qualified-row:hover td {
+    background: linear-gradient(90deg, rgba(74, 222, 128, 0.28), rgba(74, 222, 128, 0.06) 80%) !important;
 }
 
 /* "Q" badge — only after group stage complete */
 .qualify-badge {
     display: inline-block;
-    background: rgba(74, 222, 128, 0.2);
+    background: rgba(74, 222, 128, 0.25);
     color: #4ade80;
     font-size: 0.65rem;
     font-weight: 800;
@@ -6071,7 +6084,7 @@ select option:hover {
     border-radius: 10px;
     margin-left: 6px;
     letter-spacing: 0.5px;
-    border: 1px solid rgba(74, 222, 128, 0.35);
+    border: 1px solid rgba(74, 222, 128, 0.5);
     vertical-align: middle;
-    text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
 }
