@@ -995,19 +995,24 @@
                                     <button onclick="resetMatchFromAdmin()" class="danger">🔄 Reset Match</button>
                                 </div>
                             </div>
-                            <div class="admin-card">
-                                <h3>📅 Create Fixture</h3>
-                                <div class="form-group">
-                                    <select id="adminFixtureTeam1"><option value="">Select Team 1</option></select>
-                                    <select id="adminFixtureTeam2"><option value="">Select Team 2</option></select>
-                                    <input type="date" id="adminFixtureDate">
-                                    <input type="time" id="adminFixtureTime">
-                                    <input type="text" id="adminFixtureVenue" placeholder="Venue">
-                                    <input type="text" id="adminFixtureHost" placeholder="Host Name">
-                                    <button onclick="createFixtureFromAdmin()">✅ Create Fixture</button>
-                                </div>
-                            </div>
-                            <div class="admin-card">
+                           <div class="admin-card">
+    <h3>📅 Create Fixture</h3>
+    <div class="form-group">
+        <select id="adminFixtureRound">
+            <option value="1">Round 1 — Group Stage</option>
+            <option value="2">Round 2 — Knockout (QF)</option>
+            <option value="3">Round 3 — Playoffs (SF)</option>
+            <option value="4">Round 4 — Grand Final</option>
+        </select>
+        <select id="adminFixtureTeam1"><option value="">Select Team 1</option></select>
+        <select id="adminFixtureTeam2"><option value="">Select Team 2</option></select>
+        <input type="date" id="adminFixtureDate">
+        <input type="time" id="adminFixtureTime">
+        <input type="text" id="adminFixtureVenue" placeholder="Venue">
+        <input type="text" id="adminFixtureHost" placeholder="Host Name">
+        <button onclick="createFixtureFromAdmin()">✅ Create Fixture</button>
+    </div>
+</div>                            <div class="admin-card">
                                 <h3>🏆 Complete Match</h3>
                                 <div class="form-group">
                                     <select id="adminCompleteMatchSelect" onchange="updateCompleteMatchForm()">
