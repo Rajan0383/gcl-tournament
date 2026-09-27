@@ -1567,22 +1567,23 @@ striker: this.matchState.striker || '',
     // ============================================
 
     async createFixture(matchData) {
-        const fixture = {
-            id: `FIX-${Date.now()}`,
-            team1: matchData.team1,
-            team2: matchData.team2,
-            date: matchData.date || new Date().toISOString(),
-            venue: matchData.venue || 'PalTalk Room',
-            host: matchData.host || '',
-            status: 'scheduled',
-            result: null, matchId: null, manOfMatch: null,
-            createdAt: new Date().toISOString()
-        };
-        this.fixtures.matches.push(fixture);
-        this.fixtures.upcoming.push(fixture.id);
-        await this.saveAllData();
-        return fixture;
-    }
+    const fixture = {
+        id: `FIX-${Date.now()}`,
+        team1: matchData.team1,
+        team2: matchData.team2,
+        date: matchData.date || new Date().toISOString(),
+        venue: matchData.venue || 'PalTalk Room',
+        host: matchData.host || '',
+        status: 'scheduled',
+        round: matchData.round || 1,        // ← NEW: 1=Group, 2=QF, 3=SF, 4=Final
+        result: null, matchId: null, manOfMatch: null,
+        createdAt: new Date().toISOString()
+    };
+    this.fixtures.matches.push(fixture);
+    this.fixtures.upcoming.push(fixture.id);
+    await this.saveAllData();
+    return fixture;
+}
 
     getFixtures() { return this.fixtures; }
 
