@@ -1636,6 +1636,93 @@ striker: this.matchState.striker || '',
         await this.saveAllData();
         return fixture;
     }
+    /**
+ * Round 2 Points Table — returns the 4 QF winners ranked by their QF NRR.
+ * Only includes teams that WON their QF match.
+ * Ranking is based purely on NRR from that single QF match.
+ * READ-ONLY: does not trigger any match start.
+ */
+getRound2PointsTable() {
+    const qfFixtures = this.fixtures.matches.filter(f => f.round === 2);
+
+    if (qfFixtures.length === 0) {
+        return {
+            fixtures: [],
+            table: [],
+            isComplete: false,
+            totalQFs: 0,
+            completedQFs: 0
+        };
+    }
+
+    const completedQFs = qfFixtures.filter(f => f.status === 'completed');
+
+    const parseOvers = (overs) => {
+        if (typeof overs === 'string' && overs.includes('.')) {
+            const parts = overs.split('.');
+            return parseInt(parts[0]) + (parseInt(parts[1]) || 0) / 6;
+        }
+        return parseFloat(overs) || 4;
+    };
+
+    const winners = [];
+
+    completedQFs.forEach(fixture => {
+        const winner = fixture.result;
+        if (!winner) return;
+
+        const isTeam1Winner = winner === fixture.team1;
+
+        const winnerRuns = isTeam1Winner ? (fixture.team1Runs || 0) : (fixture.team2Runs || 0);
+        const winnerOvers = isTeam1Winner ? (fixture.team1Overs || 4) : (fixture.team2Overs || 4);
+        const loserRuns = isTeam1Winner ? (fixture.team2Runs || 0) : (fixture.team1Runs || 0);
+        const loserOvers = isTeam1Winner ? (fixture.team2Overs || 4) : (fixture.team1Overs || 4);
+
+        const wonOvers = parseOvers(winnerOvers);
+        const lostOvers = parseOvers(loserOvers);
+
+        const runRate = wonOvers > 0 ? winnerRuns / wonOvers : 0;
+        const concededRate = lostOvers > 0 ? loserRuns / lostOvers : 0;
+        const nrr = parseFloat((runRate - concededRate).toFixed(3));
+
+        winners.push({
+            rank: 0,
+            name: winner,
+            opponent: isTeam1Winner ? fixture.team2 : fixture.team1,
+            runs: winnerRuns,
+            overs: parseFloat(wonOvers.toFixed(2)),
+            runsConceded: loserRuns,
+            oversBowled: parseFloat(lostOvers.toFixed(2)),
+            netRunRate: nrr,
+            fixtureId: fixture.id,
+            date: fixture.date,
+            status: 'Won'
+        });
+    });
+
+    winners.sort((a, b) => b.netRunRate - a.netRunRate);
+    winners.forEach((w, i) => { w.rank = i + 1; });
+
+    return {
+        fixtures: qfFixtures.map(f => ({
+            id: f.id,
+            team1: f.team1,
+            team2: f.team2,
+            status: f.status,
+            result: f.result,
+            team1Runs: f.team1Runs,
+            team1Overs: f.team1Overs,
+            team2Runs: f.team2Runs,
+            team2Overs: f.team2Overs,
+            date: f.date,
+            venue: f.venue
+        })),
+        table: winners,
+        isComplete: completedQFs.length === qfFixtures.length && qfFixtures.length > 0,
+        totalQFs: qfFixtures.length,
+        completedQFs: completedQFs.length
+    };
+}
 
     // ============================================
     // POINTS TABLE
@@ -2024,6 +2111,13 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: error.message });
         }
     });
+    socket.on('getRound2PointsTable', () => {
+    try {
+        socket.emit('round2PointsTable', gameEngine.getRound2PointsTable());
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
 
   socket.on('setBattingBowlingTeams', (data) => {
     try {
@@ -2161,6 +2255,7 @@ io.on('connection', (socket) => {
             io.emit('fixturesUpdate', gameEngine.getFixtures());
             io.emit('matchFinished', { message: result.message, winner: result.winner });
             io.emit('notification', `🏆 ${result.message}`);
+            io.emit('round2PointsTable', gameEngine.getRound2PointsTable());
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -2267,6 +2362,7 @@ io.on('connection', (socket) => {
                 io.emit('fixturesUpdate', gameEngine.getFixtures());
                 io.emit('pointsTable', gameEngine.getPointsTable());
                 io.emit('notification', `🏆 Match completed! Winner: ${winner}`);
+                io.emit('round2PointsTable', gameEngine.getRound2PointsTable());
             }).catch(err => {
                 socket.emit('error', { message: err.message });
             });
@@ -2473,6 +2569,13 @@ app.get('/api/fixtures/round/:round', (req, res) => {
     try {
         const round = parseInt(req.params.round);
         res.json(gameEngine.getFixtures().matches.filter(f => f.round === round));
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+app.get('/api/points-table/round2', (req, res) => {
+    try {
+        res.json(gameEngine.getRound2PointsTable());
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
