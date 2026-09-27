@@ -1140,6 +1140,7 @@ function resetMatchFromAdmin() {
 }
 
 function createFixtureFromAdmin() {
+    const round = parseInt(document.getElementById('adminFixtureRound').value || 1);
     const team1 = document.getElementById('adminFixtureTeam1').value;
     const team2 = document.getElementById('adminFixtureTeam2').value;
     const date = document.getElementById('adminFixtureDate').value;
@@ -1155,16 +1156,27 @@ function createFixtureFromAdmin() {
     const team2Name = getTeamNameById(team2);
     const dateTime = date + (time ? 'T' + time : '');
 
-    socket.emit('createFixture', { team1: team1Name, team2: team2Name, date: dateTime, venue, host });
+    socket.emit('createFixture', {
+        team1: team1Name,
+        team2: team2Name,
+        date: dateTime,
+        venue,
+        host,
+        round    // ← NEW: pass round to server
+    });
 
+    // Reset fields (keep round dropdown at current selection for convenience)
     ['adminFixtureDate', 'adminFixtureTime', 'adminFixtureVenue', 'adminFixtureHost'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
 
-    showNotification(`📅 Fixture created: ${team1Name} vs ${team2Name}`, 'success');
+    const roundLabel = round === 1 ? 'Group Stage'
+                     : round === 2 ? 'Knockout (QF)'
+                     : round === 3 ? 'Playoffs (SF)'
+                     : 'Grand Final';
+    showNotification(`📅 [${roundLabel}] Fixture created: ${team1Name} vs ${team2Name}`, 'success');
 }
-
 function updateWinnerSelect(fixtures, fixtureId) {
     const select = document.getElementById('adminWinnerSelect');
     if (!select) return;
