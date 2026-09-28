@@ -6088,3 +6088,148 @@ select option:hover {
     vertical-align: middle;
     text-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
 }
+/* ============================================ */
+/* ROUND 2 — KNOCKOUT TAB                        */
+/* ============================================ */
+
+.knockout-round-container {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.knockout-round-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.knockout-round-header h3 {
+    color: var(--primary);
+    font-family: 'Orbitron', monospace;
+    font-size: 1.3rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    margin: 0;
+}
+
+.knockout-round-subtitle {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    letter-spacing: 1px;
+}
+
+/* QF Fixture Cards Grid */
+.knockout-fixtures-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+    .knockout-fixtures-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.knockout-fixture-card {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    padding: 16px;
+    border-left: 4px solid var(--primary);
+    transition: all 0.2s;
+}
+
+.knockout-fixture-card.scheduled {
+    border-left-color: #60a5fa;
+}
+
+.knockout-fixture-card.ongoing {
+    border-left-color: #4ade80;
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.15);
+}
+
+.knockout-fixture-card.completed {
+    border-left-color: #ffd700;
+    background: rgba(255, 215, 0, 0.03);
+}
+
+.knockout-fixture-card .kf-label {
+    color: var(--primary);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.knockout-fixture-card .kf-teams {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.knockout-fixture-card .kf-team {
+    color: var(--text-light);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.knockout-fixture-card .kf-vs {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.knockout-fixture-card .kf-winner {
+    color: #4ade80;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-top: 6px;
+}
+
+.knockout-fixture-card .kf-score {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+.knockout-fixture-card .kf-ongoing {
+    color: #4ade80;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.knockout-fixture-card .kf-scheduled {
+    color: #60a5fa;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+/* Round 2 Points Table Section */
+.knockout-points-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 215, 0, 0.1);
+}
+
+.knockout-points-section h4 {
+    color: var(--primary);
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+
+.knockout-points-section .points-table .nrr-positive {
+    color: #4ade80;
+    font-weight: 700;
+}
+
+.knockout-points-section .points-table .nrr-negative {
+    color: #ff6b6b;
+    font-weight: 700;
+}
