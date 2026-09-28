@@ -470,17 +470,46 @@
                         </div>
                     </div>
                     <div id="round2" class="round-content" style="display:none;">
-                        <div class="super-six">
-                            <h3>SUPER SIX</h3>
-                            <div class="table-container">
-                                <table class="points-table">
-                                    <thead><tr><th>#</th><th>Team</th><th>M</th><th>W</th><th>L</th><th>PTS</th><th>NRR</th></tr></thead>
-                                    <tbody id="superSix"><tr><td colspan="7" class="empty-message">No data available</td></tr></tbody>
-                                </table>
-                            </div>
-                            <div class="qualification-note">✅ Top 4 Teams → Playoffs</div>
-                        </div>
-                    </div>
+    <div class="knockout-round-container">
+
+        <!-- Header -->
+        <div class="knockout-round-header">
+            <h3>🏆 ROUND 2 — KNOCKOUT (QUARTER FINALS)</h3>
+            <p class="knockout-round-subtitle">Top 4 teams from each group qualified</p>
+        </div>
+
+        <!-- QF Fixture Cards -->
+        <div id="round2Fixtures" class="knockout-fixtures-grid">
+            <p class="empty-message">Knockout Round 2 Fixture will be created after round 1.</p>
+        </div>
+
+        <!-- Round 2 Points Table (4 winners by NRR) -->
+        <div class="knockout-points-section">
+            <h4>📊 ROUND 2 POINTS TABLE (Qualified Teams)</h4>
+            <div class="table-container">
+                <table class="points-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Team</th>
+                            <th>Opponent</th>
+                            <th>Runs</th>
+                            <th>Overs</th>
+                            <th>NRR</th>
+                        </tr>
+                    </thead>
+                    <tbody id="round2PointsTable">
+                        <tr><td colspan="6" class="empty-message">Waiting for QF matches to complete</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="round2QualificationNote" class="qualification-note" style="display:none;">
+                ✅ Top 4 teams qualify for Round 3 — Playoffs
+            </div>
+        </div>
+
+    </div>
+</div>
                     <div id="round3" class="round-content" style="display:none;">
                         <div class="playoffs">
                             <h3>🏆 PLAYOFFS - SEMI-FINAL ROUND</h3>
