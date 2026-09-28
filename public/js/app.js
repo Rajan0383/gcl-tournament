@@ -44,6 +44,7 @@ socket.on('connect', () => {
     socket.emit('getFixtures');
     socket.emit('getTopStats');
     socket.emit('getPointsTable');
+    socket.emit('getRound2PointsTable');
     /*fetch('/api/top10/sheet')
         .then(res => res.json())
         .then(data => {
@@ -70,6 +71,7 @@ socket.on('fixturesUpdate', (fixtures) => {
     updateAdminFixturesList();
     updateAdminResultsList();
     updateCompleteFixtureSelect(fixtures);
+        socket.emit('getRound2PointsTable');
 });
 
 socket.on('startFixture', (fixtureId) => {
@@ -82,6 +84,9 @@ socket.on('startFixture', (fixtureId) => {
 
 socket.on('pointsTable', (data) => {
     updatePointsTable(data);
+});
+socket.on('round2PointsTable', (data) => {
+    updateRound2Tab(data);
 });
 
 socket.on('topStats', (data) => {
@@ -508,6 +513,92 @@ function updatePointsTable(pointsTable) {
         groupBElement.innerHTML = groupBTeams.length === 0
             ? '<tr><td colspan="7" class="empty-message">No data available</td></tr>'
             : renderTable(groupBTeams);
+    }
+}
+/**
+ * Round 2 Tab — renders QF fixture cards + Round 2 Points Table.
+ * READ-ONLY — no start/stop buttons.
+ */
+function updateRound2Tab(data) {
+    const fixturesContainer = document.getElementById('round2Fixtures');
+    const tableContainer = document.getElementById('round2PointsTable');
+    const noteEl = document.getElementById('round2QualificationNote');
+
+    if (!fixturesContainer || !tableContainer) return;
+
+    const fixtures = (data && data.fixtures) || [];
+    const table = (data && data.table) || [];
+
+    // ── 1. Render QF fixture cards (sorted by createdAt order) ──
+    if (fixtures.length === 0) {
+        fixturesContainer.innerHTML = '<p class="empty-message">No QF fixtures created yet. Admin must create them via Admin page.</p>';
+    } else {
+        // Sort by creation order (oldest first)
+        const sorted = [...fixtures].sort((a, b) => {
+            const tA = a.createdAt ? new Date(a.createdAt) : 0;
+            const tB = b.createdAt ? new Date(b.createdAt) : 0;
+            return tA - tB;
+        });
+
+        fixturesContainer.innerHTML = sorted.map((f, idx) => {
+            const label = `QF${idx + 1}`;
+            const status = f.status || 'scheduled';
+            const statusClass = status === 'completed' ? 'completed'
+                              : status === 'ongoing'   ? 'ongoing'
+                              : 'scheduled';
+
+            let scoreLine = '';
+            if (status === 'completed') {
+                scoreLine = `<div class="kf-winner">🏆 Winner: <strong>${f.result || '-'}</strong></div>`;
+                if (f.team1Runs !== undefined && f.team2Runs !== undefined) {
+                    scoreLine += `<div class="kf-score">${f.team1Runs}/${f.team1Overs || 0} vs ${f.team2Runs}/${f.team2Overs || 0}</div>`;
+                }
+            } else if (status === 'ongoing') {
+                scoreLine = `<div class="kf-ongoing">🟢 Ongoing</div>`;
+            } else {
+                scoreLine = `<div class="kf-scheduled">⏳ Scheduled</div>`;
+            }
+
+            return `
+                <div class="knockout-fixture-card ${statusClass}">
+                    <div class="kf-label">${label}</div>
+                    <div class="kf-teams">
+                        <div class="kf-team">${f.team1 || '-'}</div>
+                        <div class="kf-vs">vs</div>
+                        <div class="kf-team">${f.team2 || '-'}</div>
+                    </div>
+                    ${scoreLine}
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ── 2. Render Round 2 Points Table ──
+    if (table.length === 0) {
+        tableContainer.innerHTML = '<tr><td colspan="6" class="empty-message">Waiting for QF matches to complete</td></tr>';
+        if (noteEl) noteEl.style.display = 'none';
+    } else {
+        tableContainer.innerHTML = table.map(t => {
+            const rankClass = t.rank === 1 ? 'gold'
+                            : t.rank === 2 ? 'silver'
+                            : t.rank === 3 ? 'bronze'
+                            : '';
+            const nrrStr = (t.netRunRate || 0).toFixed(3);
+            const nrrClass = t.netRunRate >= 0 ? 'nrr-positive' : 'nrr-negative';
+            return `
+                <tr>
+                    <td class="rank ${rankClass}">#${t.rank}</td>
+                    <td><strong>${t.name}</strong></td>
+                    <td>${t.opponent || '-'}</td>
+                    <td>${t.runs || 0}</td>
+                    <td>${t.overs || 0}</td>
+                    <td class="${nrrClass}">${nrrStr}</td>
+                </tr>
+            `;
+        }).join('');
+        if (noteEl) {
+            noteEl.style.display = (data && data.isComplete) ? 'block' : 'none';
+        }
     }
 }
 
