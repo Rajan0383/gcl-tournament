@@ -1723,7 +1723,51 @@ getRound2PointsTable() {
         completedQFs: completedQFs.length
     };
 }
+/**
+ * Returns knockout fixture data for Round 3 (Playoffs) and Round 4 (Final).
+ * Sorted by createdAt for consistent slot assignment.
+ * READ-ONLY — no match start triggers.
+ */
+getKnockoutData() {
+    const round3Fixtures = this.fixtures.matches
+        .filter(f => f.round === 3)
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
+    const round4Fixtures = this.fixtures.matches
+        .filter(f => f.round === 4)
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    return {
+        round3Fixtures: round3Fixtures.map(f => ({
+            id: f.id,
+            team1: f.team1,
+            team2: f.team2,
+            status: f.status,
+            result: f.result,
+            team1Runs: f.team1Runs,
+            team1Overs: f.team1Overs,
+            team2Runs: f.team2Runs,
+            team2Overs: f.team2Overs,
+            date: f.date,
+            venue: f.venue,
+            createdAt: f.createdAt
+        })),
+        round4Fixtures: round4Fixtures.map(f => ({
+            id: f.id,
+            team1: f.team1,
+            team2: f.team2,
+            status: f.status,
+            result: f.result,
+            team1Runs: f.team1Runs,
+            team1Overs: f.team1Overs,
+            team2Runs: f.team2Runs,
+            team2Overs: f.team2Overs,
+            date: f.date,
+            venue: f.venue,
+            createdAt: f.createdAt
+        }))
+    };
+}
     // ============================================
     // POINTS TABLE
     // ============================================
@@ -2118,7 +2162,13 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: error.message });
     }
 });
-
+socket.on('getKnockoutData', () => {
+    try {
+        socket.emit('knockoutData', gameEngine.getKnockoutData());
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
   socket.on('setBattingBowlingTeams', (data) => {
     try {
         const { battingTeam, bowlingTeam } = data;
@@ -2256,6 +2306,7 @@ io.on('connection', (socket) => {
             io.emit('matchFinished', { message: result.message, winner: result.winner });
             io.emit('notification', `🏆 ${result.message}`);
             io.emit('round2PointsTable', gameEngine.getRound2PointsTable());
+            io.emit('knockoutData', gameEngine.getKnockoutData());
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -2363,6 +2414,7 @@ io.on('connection', (socket) => {
                 io.emit('pointsTable', gameEngine.getPointsTable());
                 io.emit('notification', `🏆 Match completed! Winner: ${winner}`);
                 io.emit('round2PointsTable', gameEngine.getRound2PointsTable());
+                io.emit('knockoutData', gameEngine.getKnockoutData());
             }).catch(err => {
                 socket.emit('error', { message: err.message });
             });
@@ -2580,7 +2632,13 @@ app.get('/api/points-table/round2', (req, res) => {
         res.status(400).json({ error: error.message });
     }
 });
-
+app.get('/api/knockout-data', (req, res) => {
+    try {
+        res.json(gameEngine.getKnockoutData());
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
 app.get('/api/points-table/:group?', (req, res) => {
     try {
         res.json(gameEngine.getPointsTable(req.params.group));
