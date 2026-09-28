@@ -531,7 +531,7 @@ function updateRound2Tab(data) {
 
     // ── 1. Render QF fixture cards (sorted by createdAt order) ──
     if (fixtures.length === 0) {
-        fixturesContainer.innerHTML = '<p class="empty-message">No QF fixtures created yet. Admin must create them via Admin page.</p>';
+        fixturesContainer.innerHTML = '<p class="empty-message">Knockout Round 2 Fixture will be created after Round 1.</p>';
     } else {
         // Sort by creation order (oldest first)
         const sorted = [...fixtures].sort((a, b) => {
