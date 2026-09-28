@@ -45,6 +45,7 @@ socket.on('connect', () => {
     socket.emit('getTopStats');
     socket.emit('getPointsTable');
     socket.emit('getRound2PointsTable');
+    socket.emit('getKnockoutData');
     /*fetch('/api/top10/sheet')
         .then(res => res.json())
         .then(data => {
@@ -72,6 +73,7 @@ socket.on('fixturesUpdate', (fixtures) => {
     updateAdminResultsList();
     updateCompleteFixtureSelect(fixtures);
         socket.emit('getRound2PointsTable');
+        socket.emit('getKnockoutData');
 });
 
 socket.on('startFixture', (fixtureId) => {
@@ -88,7 +90,10 @@ socket.on('pointsTable', (data) => {
 socket.on('round2PointsTable', (data) => {
     updateRound2Tab(data);
 });
-
+socket.on('knockoutData', (data) => {
+    updateRound3Tab(data);
+    updateRound4Tab(data);
+});
 socket.on('topStats', (data) => {
     updateTop10Players(data);
 });
@@ -601,7 +606,107 @@ function updateRound2Tab(data) {
         }
     }
 }
+/**
+ * Round 3 Tab — Playoffs (Q1 / Eliminator / Q2).
+ * Reads from Round 3 fixtures sorted by createdAt.
+ * First created = Qualifier 1, Second = Eliminator, Third = Second Qualifier.
+ * READ-ONLY.
+ */
+function updateRound3Tab(data) {
+    const fixtures = (data && data.round3Fixtures) || [];
 
+    // Sort by creation order (oldest first)
+    const sorted = [...fixtures].sort((a, b) => {
+        const tA = a.createdAt ? new Date(a.createdAt) : 0;
+        const tB = b.createdAt ? new Date(b.createdAt) : 0;
+        return tA - tB;
+    });
+
+    const q1 = sorted[0];
+    const e  = sorted[1];
+    const q2 = sorted[2];
+
+    // Helper: set textContent safely
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value || '-';
+    };
+
+    // Qualifier 1
+    setText('q1t1', q1 ? q1.team1 : '#1 Team');
+    setText('q1t2', q1 ? q1.team2 : '#2 Team');
+
+    // Eliminator
+    setText('e1t1', e ? e.team1 : '#3 Team');
+    setText('e1t2', e ? e.team2 : '#4 Team');
+
+    // Second Qualifier
+    setText('q2t1', q2 ? q2.team1 : 'Loser Q1');
+    setText('q2t2', q2 ? q2.team2 : 'Winner Eliminator');
+
+    // Add winner indicator if a fixture is completed
+    markPlayoffWinner('q1', q1);
+    markPlayoffWinner('e1', e);
+    markPlayoffWinner('q2', q2);
+}
+
+/**
+ * Add a small "✅ Winner: X" line below a playoff match card.
+ * Called for q1, e1, q2.
+ */
+function markPlayoffWinner(slotId, fixture) {
+    // Find the parent playoff-match container
+    const team1El = document.getElementById(slotId + 't1');
+    if (!team1El) return;
+    const card = team1El.closest('.playoff-match');
+    if (!card) return;
+
+    // Remove any existing winner line
+    const existing = card.querySelector('.playoff-winner-line');
+    if (existing) existing.remove();
+
+    if (!fixture || fixture.status !== 'completed' || !fixture.result) return;
+
+    const winnerLine = document.createElement('div');
+    winnerLine.className = 'playoff-winner-line';
+    winnerLine.style.cssText = 'margin-top: 8px; padding: 4px 10px; background: rgba(74,222,128,0.1); border-radius: 6px; color: #4ade80; font-size: 0.85rem; font-weight: 700; text-align: center;';
+    winnerLine.textContent = `✅ Winner: ${fixture.result}`;
+    card.appendChild(winnerLine);
+}
+
+/**
+ * Round 4 Tab — Grand Final.
+ * Reads the single Round 4 fixture. READ-ONLY.
+ */
+function updateRound4Tab(data) {
+    const fixtures = (data && data.round4Fixtures) || [];
+    const final = fixtures[0]; // only one Final
+
+    const setText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value || '-';
+    };
+
+    if (final) {
+        setText('finalTeam1', final.team1 || 'TBD');
+        setText('finalTeam2', final.team2 || 'TBD');
+
+        if (final.status === 'completed' && final.result) {
+            const winner = final.result;
+            const loser = winner === final.team1 ? final.team2 : final.team1;
+            setText('champion', winner);
+            setText('runnerUp', loser);
+        } else {
+            setText('champion', 'TBD');
+            setText('runnerUp', 'TBD');
+        }
+    } else {
+        setText('finalTeam1', 'Winner Q1');
+        setText('finalTeam2', 'Winner Q2');
+        setText('champion', 'TBD');
+        setText('runnerUp', 'TBD');
+    }
+}
 function updateTop10Players(data) {
     const batsmenBody = document.getElementById('topBatsmenBody');
     if (batsmenBody) {
