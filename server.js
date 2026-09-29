@@ -1201,9 +1201,8 @@ if (this.matchState.matchId) {
 
         await this.saveAllData();
 
-        // Sync to Google Sheets (async, non-blocking)
-        this.syncToGoogleSheet().catch(err => console.error('Sheet sync error:', err));
-
+               // Google Sheet sync disabled (Viewer permission only)
+        // this.syncToGoogleSheet().catch(err => console.error('Sheet sync error:', err));
         return {
             message: `🏆 Match Complete! Winner: ${winner}`,
             winner: winner,
