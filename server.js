@@ -1114,19 +1114,36 @@ nonStrikerDisabled: false
         overs2 = 4;
     }
 
-    // Update team stats with corrected overs
-    this.updateTeamStats({
-        team1: this.matchState.team1.name,
-        team2: this.matchState.team2.name,
-        winner: winner,
-        runs1: team1Score,
-        runs2: team2Score,
-        overs1: overs1,
-        overs2: overs2
-    });
-        // Merge player stats (batsmen + bowlers)
-        this._mergePlayerStats();
+       // ── Only update Round 1 Points Table for group-stage matches ──
+    let isGroupStage = true;
+    let matchRound = 1;
+    if (this.matchState.matchId) {
+        const fx = this.fixtures.matches.find(f => f.id === this.matchState.matchId);
+        if (fx && fx.round) {
+            matchRound = fx.round;
+            if (fx.round !== 1) {
+                isGroupStage = false;
+            }
+        }
+    }
 
+    if (isGroupStage) {
+        this.updateTeamStats({
+            team1: this.matchState.team1.name,
+            team2: this.matchState.team2.name,
+            winner: winner,
+            runs1: team1Score,
+            runs2: team2Score,
+            overs1: overs1,
+            overs2: overs2
+        });
+    } else {
+        console.log(`ℹ️ Skipping Round 1 Points Table update for knockout match (round ${matchRound})`);
+    }
+
+    // Merge player stats (batsmen + bowlers) — ALWAYS (all rounds count toward Top 10)
+    this._mergePlayerStats();
+       
         // Mark fixture complete — handle both FIX- and MATCH- matchIds
 if (this.matchState.matchId) {
     let fixture = null;
@@ -1393,15 +1410,19 @@ striker: this.matchState.striker || '',
             this.fixtures.completed.push(fixtureId);
         }
 
-        this.updateTeamStats({
-            team1: team1Name, team2: team2Name, winner,
-            runs1, runs2, overs1, overs2
-        });
+               // ── Only update Round 1 Points Table for group-stage fixtures ──
+        if (!fixture.round || fixture.round === 1) {
+            this.updateTeamStats({
+                team1: team1Name, team2: team2Name, winner,
+                runs1, runs2, overs1, overs2
+            });
+        } else {
+            console.log(`ℹ️ Skipping Round 1 Points Table update for knockout fixture (round ${fixture.round})`);
+        }
 
         await this.saveAllData();
         return fixture;
     }
-
     updateMatchResult(id, team1Runs, team1Overs, team2Runs, team2Overs, winner, resultDisplay) {
     const fixture = this.fixtures.matches.find(m => m.id === id);
     if (!fixture) return { success: false, error: 'Match not found' };
@@ -1419,12 +1440,14 @@ striker: this.matchState.striker || '',
         fixture.resultDisplay = resultDisplay;
     }
 
-    // ✅ STEP 3: Apply NEW stats (fresh contribution)
-    this.updateTeamStats({
-        team1: fixture.team1, team2: fixture.team2, winner,
-        runs1: team1Runs, runs2: team2Runs,
-        overs1: team1Overs, overs2: team2Overs
-    });
+       // ✅ STEP 3: Apply NEW stats (only for group-stage fixtures)
+    if (!fixture.round || fixture.round === 1) {
+        this.updateTeamStats({
+            team1: fixture.team1, team2: fixture.team2, winner,
+            runs1: team1Runs, runs2: team2Runs,
+            overs1: team1Overs, overs2: team2Overs
+        });
+    }
 
     this.saveAllData();
     return { success: true };
@@ -1441,16 +1464,24 @@ striker: this.matchState.striker || '',
         fixture.team2Overs = newTeam2Overs;
         fixture.result = newWinner;
 
-        this.updateTeamStats({
-            team1: fixture.team1, team2: fixture.team2, winner: newWinner,
-            runs1: newTeam1Runs, runs2: newTeam2Runs,
-            overs1: newTeam1Overs, overs2: newTeam2Overs
-        });
+               if (!fixture.round || fixture.round === 1) {
+            this.updateTeamStats({
+                team1: fixture.team1, team2: fixture.team2, winner: newWinner,
+                runs1: newTeam1Runs, runs2: newTeam2Runs,
+                overs1: newTeam1Overs, overs2: newTeam2Overs
+            });
+        }
         await this.saveAllData();
         return fixture;
     }
 
-    removeMatchStats(fixture) {
+            removeMatchStats(fixture) {
+        // ── Only touch Round 1 Points Table for group-stage fixtures ──
+        if (fixture.round && fixture.round !== 1) {
+            console.log(`ℹ️ Skipping removeMatchStats for knockout fixture (round ${fixture.round})`);
+            return;
+        }
+
         const team1 = this.teams.find(t => t.name === fixture.team1);
         const team2 = this.teams.find(t => t.name === fixture.team2);
 
@@ -1525,7 +1556,10 @@ striker: this.matchState.striker || '',
             team.netRunRate = 0;
         });
 
-        const completedMatches = this.fixtures.matches.filter(f => f.status === 'completed');
+     // Only group-stage matches count toward Round 1 Points Table
+        const completedMatches = this.fixtures.matches.filter(f =>
+            f.status === 'completed' && (!f.round || f.round === 1)
+        );
         completedMatches.forEach(f => {
             if (f.team1Runs !== undefined && f.team2Runs !== undefined) {
                 this.updateTeamStats({
@@ -1625,7 +1659,7 @@ striker: this.matchState.striker || '',
         }
         const team1 = this.teams.find(t => t.name === fixture.team1);
         const team2 = this.teams.find(t => t.name === fixture.team2);
-        if (team1 && team2) {
+               if (team1 && team2 && (!fixture.round || fixture.round === 1)) {
             this.updateTeamStats({
                 team1: fixture.team1, team2: fixture.team2, winner,
                 runs1: this.matchState?.team1?.runs || 0,
