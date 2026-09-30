@@ -6233,3 +6233,74 @@ select option:hover {
     color: #ff6b6b;
     font-weight: 700;
 }
+/* ============================================ */
+/* ROUND 2 — QF PAIRING RULES                    */
+/* ============================================ */
+
+.knockout-pairing-rules {
+    background: rgba(255, 215, 0, 0.05);
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+}
+
+.knockout-pairing-rules h4 {
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin: 0 0 12px 0;
+    text-align: center;
+}
+
+.pairing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.pairing-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+}
+
+.pairing-label {
+    color: var(--primary);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    background: rgba(255, 215, 0, 0.15);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.pairing-team {
+    color: var(--text-light);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.pairing-vs {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.pairing-note {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-align: center;
+    margin: 0;
+    font-style: italic;
+    letter-spacing: 0.3px;
+}
