@@ -46,6 +46,7 @@ socket.on('connect', () => {
     socket.emit('getPointsTable');
     socket.emit('getRound2PointsTable');
     socket.emit('getKnockoutData');
+    socket.emit('getChampionData');
     /*fetch('/api/top10/sheet')
         .then(res => res.json())
         .then(data => {
@@ -89,6 +90,9 @@ socket.on('pointsTable', (data) => {
 });
 socket.on('round2PointsTable', (data) => {
     updateRound2Tab(data);
+});
+socket.on('championData', (data) => {
+    updateChampionSection(data);
 });
 socket.on('knockoutData', (data) => {
     updateRound3Tab(data);
@@ -519,6 +523,65 @@ function updatePointsTable(pointsTable) {
             ? '<tr><td colspan="7" class="empty-message">No data available</td></tr>'
             : renderTable(groupBTeams);
     }
+}
+/**
+ * Home Page — Champions Section.
+ * Shows champion, runner-up, top batsman, top bowler.
+ * Hidden until Final match completes.
+ */
+function updateChampionSection(data) {
+    const section = document.getElementById('championsSection');
+    if (!section) return;
+
+    // Hide if no data (Final not completed yet)
+    if (!data || !data.champion) {
+        section.style.display = 'none';
+        return;
+    }
+
+    // Champion + Runner-Up
+    const championEl = document.getElementById('championName');
+    if (championEl) championEl.textContent = data.champion || '-';
+
+    const runnerUpEl = document.getElementById('runnerUpName');
+    if (runnerUpEl) runnerUpEl.textContent = data.runnerUp || '-';
+
+    // Top Batsman
+    const batsmanNameEl = document.getElementById('championTopBatsman');
+    const batsmanStatsEl = document.getElementById('championTopBatsmanStats');
+
+    if (data.topBatsman && batsmanNameEl && batsmanStatsEl) {
+        batsmanNameEl.textContent = data.topBatsman.name || '-';
+        const runs = data.topBatsman.runs || 0;
+        const balls = data.topBatsman.balls || 0;
+        const sr = data.topBatsman.strikeRate || 0;
+        batsmanStatsEl.innerHTML =
+            `${runs} runs <span class="cp-sep">•</span> ${balls} balls<br>` +
+            `<span class="cp-highlight">SR: ${sr.toFixed(2)}</span>`;
+    } else if (batsmanNameEl) {
+        batsmanNameEl.textContent = 'No data';
+        if (batsmanStatsEl) batsmanStatsEl.textContent = '';
+    }
+
+    // Top Bowler
+    const bowlerNameEl = document.getElementById('championTopBowler');
+    const bowlerStatsEl = document.getElementById('championTopBowlerStats');
+
+    if (data.topBowler && bowlerNameEl && bowlerStatsEl) {
+        bowlerNameEl.textContent = data.topBowler.name || '-';
+        const wickets = data.topBowler.wickets || 0;
+        const econ = data.topBowler.economy || 0;
+        bowlerStatsEl.innerHTML =
+            `${wickets} wickets<br>` +
+            `<span class="cp-highlight">Econ: ${econ.toFixed(2)}</span>`;
+    } else if (bowlerNameEl) {
+        bowlerNameEl.textContent = 'No data';
+        if (bowlerStatsEl) bowlerStatsEl.textContent = '';
+    }
+
+    // Show section with fade-in
+    section.style.display = 'block';
+    section.classList.add('champions-fade-in');
 }
 /**
  * Round 2 Tab — renders QF fixture cards + Round 2 Points Table.
