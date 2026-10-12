@@ -1801,6 +1801,53 @@ getKnockoutData() {
         }))
     };
 }
+    /**
+ * Returns champion + runner-up + top batsman + top bowler
+ * for display on the Home page after the Final completes.
+ * Returns null if the Final match isn't completed yet.
+ */
+getChampionData() {
+    // 1. Find the Final fixture (round 4)
+    const finalFixture = this.fixtures.matches.find(f => f.round === 4);
+
+    // 2. If no Final OR Final not completed → return null
+    if (!finalFixture || finalFixture.status !== 'completed' || !finalFixture.result) {
+        return null;
+    }
+
+    // 3. Determine champion + runner-up
+    const champion = finalFixture.result;
+    const runnerUp = champion === finalFixture.team1 ? finalFixture.team2 : finalFixture.team1;
+
+    // 4. Top batsman (highest runs)
+    const topBatsmen = this.getTopBatsmen(1);
+    const topBatsman = topBatsmen.length > 0 ? {
+        name: topBatsmen[0].name,
+        runs: topBatsmen[0].runs || 0,
+        balls: topBatsmen[0].balls || 0,
+        strikeRate: topBatsmen[0].strikeRate || 0,
+        fours: topBatsmen[0].fours || 0,
+        sixes: topBatsmen[0].sixes || 0
+    } : null;
+
+    // 5. Top bowler (highest wickets)
+    const topBowlers = this.getTopBowlers(1);
+    const topBowler = topBowlers.length > 0 ? {
+        name: topBowlers[0].name,
+        wickets: topBowlers[0].wickets || 0,
+        balls: topBowlers[0].balls || 0,
+        economy: topBowlers[0].economy || 0,
+        best: topBowlers[0].best || 0
+    } : null;
+
+    return {
+        champion,
+        runnerUp,
+        finalDate: finalFixture.completedAt || finalFixture.date,
+        topBatsman,
+        topBowler
+    };
+}
     // ============================================
     // POINTS TABLE
     // ============================================
@@ -2142,7 +2189,7 @@ io.on('connection', (socket) => {
         bowlers: gameEngine.getTopBowlers(),
         manOfMatch: gameEngine.getTopManOfMatch()
     });
-
+socket.emit('championData', gameEngine.getChampionData());
     socket.on('setStriker', (data) => {
         try {
             const result = gameEngine.setStriker(data.name);
@@ -2157,7 +2204,13 @@ io.on('connection', (socket) => {
             socket.emit('strikerError', { message: error.message });
         }
     });
-
+socket.on('getChampionData', () => {
+    try {
+        socket.emit('championData', gameEngine.getChampionData());
+    } catch (error) {
+        socket.emit('error', { message: error.message });
+    }
+});
     socket.on('setNonStriker', (data) => {
         try {
             const result = gameEngine.setNonStriker(data.name);
@@ -2340,6 +2393,7 @@ socket.on('getKnockoutData', () => {
             io.emit('notification', `🏆 ${result.message}`);
             io.emit('round2PointsTable', gameEngine.getRound2PointsTable());
             io.emit('knockoutData', gameEngine.getKnockoutData());
+            io.emit('championData', gameEngine.getChampionData());   // ← ADD THIS LINE
         } catch (error) {
             socket.emit('error', { message: error.message });
         }
@@ -2448,6 +2502,7 @@ socket.on('getKnockoutData', () => {
                 io.emit('notification', `🏆 Match completed! Winner: ${winner}`);
                 io.emit('round2PointsTable', gameEngine.getRound2PointsTable());
                 io.emit('knockoutData', gameEngine.getKnockoutData());
+                io.emit('championData', gameEngine.getChampionData());   // ← ADD THIS LINE
             }).catch(err => {
                 socket.emit('error', { message: err.message });
             });
