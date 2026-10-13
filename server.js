@@ -1807,19 +1807,33 @@ getKnockoutData() {
  * Returns null if the Final match isn't completed yet.
  */
 getChampionData() {
-    // 1. Find the Final fixture (round 4)
-    const finalFixture = this.fixtures.matches.find(f => f.round === 4);
+    // 1. Get ALL completed Final fixtures (round 4)
+    const finals = this.fixtures.matches.filter(f =>
+        f.round === 4 &&
+        f.status === 'completed' &&
+        f.result
+    );
 
-    // 2. If no Final OR Final not completed → return null
-    if (!finalFixture || finalFixture.status !== 'completed' || !finalFixture.result) {
+    console.log(`🔍 getChampionData: Found ${finals.length} completed Final fixture(s)`);
+
+    if (finals.length === 0) {
         return null;
     }
+
+    // 2. Pick the most recent Final (by completedAt, then createdAt)
+    const finalFixture = finals.sort((a, b) => {
+        const tA = new Date(a.completedAt || a.createdAt || 0);
+        const tB = new Date(b.completedAt || b.createdAt || 0);
+        return tB - tA;
+    })[0];
+
+    console.log(`🏆 Champion: ${finalFixture.result} | Fixture: ${finalFixture.id}`);
 
     // 3. Determine champion + runner-up
     const champion = finalFixture.result;
     const runnerUp = champion === finalFixture.team1 ? finalFixture.team2 : finalFixture.team1;
 
-    // 4. Top batsman (highest runs)
+    // 4. Top batsman
     const topBatsmen = this.getTopBatsmen(1);
     const topBatsman = topBatsmen.length > 0 ? {
         name: topBatsmen[0].name,
@@ -1830,7 +1844,7 @@ getChampionData() {
         sixes: topBatsmen[0].sixes || 0
     } : null;
 
-    // 5. Top bowler (highest wickets)
+    // 5. Top bowler
     const topBowlers = this.getTopBowlers(1);
     const topBowler = topBowlers.length > 0 ? {
         name: topBowlers[0].name,
